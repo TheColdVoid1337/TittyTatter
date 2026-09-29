@@ -38,7 +38,10 @@ class AudioEngine:
     """Low-latency audio-callback metronome/rhythm engine."""
 
     def __init__(self, sample_rate: float | None = None, blocksize: int = 0) -> None:
-        device = self._query_default_output()
+        self.device_index, device, self.host_api_name = self._select_output_device()
+        self.device_name = str(device.get("name", "unknown")) if device else "unknown"
+        self.device_low_latency = float(device.get("default_low_output_latency", 0.0)) if device else 0.0
+
         if sample_rate is None:
             sample_rate = float(device.get("default_samplerate", 48_000.0)) if device else 48_000.0
         self.sample_rate = float(sample_rate)
@@ -72,11 +75,37 @@ class AudioEngine:
         self._sounds = self._build_sounds()
 
     @staticmethod
-    def _query_default_output() -> dict[str, Any] | None:
+    def _select_output_device() -> tuple[int | None, dict[str, Any] | None, str]:
+        """Prefer the Windows WASAPI default endpoint, then fall back to PortAudio default."""
         try:
-            return dict(sd.query_devices(kind="output"))
+            devices = sd.query_devices()
+            hostapis = sd.query_hostapis()
+
+            for host_index, host in enumerate(hostapis):
+                host_name = str(host.get("name", ""))
+                if "WASAPI" not in host_name.upper():
+                    continue
+                device_index = int(host.get("default_output_device", -1))
+                if 0 <= device_index < len(devices):
+                    device = dict(devices[device_index])
+                    if int(device.get("max_output_channels", 0)) > 0:
+                        return device_index, device, host_name
+
+            default_index = int(sd.default.device[1])
+            if 0 <= default_index < len(devices):
+                device = dict(devices[default_index])
+                host_index = int(device.get("hostapi", -1))
+                host_name = (
+                    str(hostapis[host_index].get("name", "unknown"))
+                    if 0 <= host_index < len(hostapis)
+                    else "unknown"
+                )
+                return default_index, device, host_name
+
+            device = dict(sd.query_devices(kind="output"))
+            return int(device.get("index", -1)), device, "default"
         except Exception:
-            return None
+            return None, None, "unknown"
 
     @property
     def is_running(self) -> bool:
@@ -117,6 +146,7 @@ class AudioEngine:
         self._last_error = ""
 
         self._stream = sd.OutputStream(
+            device=self.device_index,
             samplerate=self.sample_rate,
             channels=self.channels,
             dtype="float32",
@@ -166,9 +196,13 @@ class AudioEngine:
 
     def stream_info(self) -> dict[str, Any]:
         result = {
+            "device_index": self.device_index,
+            "device_name": self.device_name,
+            "host_api": self.host_api_name,
             "sample_rate": self.sample_rate,
             "channels": self.channels,
             "blocksize": self.blocksize,
+            "device_low_latency": self.device_low_latency,
         }
         if self._stream is not None:
             try:
@@ -208,10 +242,9 @@ class AudioEngine:
         self._sample_cursor = block_end
         mono *= float(self._config.master_volume)
 
-        # Avoid hard digital clipping when several sharp transients coincide.
-        peak = float(np.max(np.abs(mono))) if frames else 0.0
-        if peak > 0.985:
-            mono *= 0.985 / peak
+        # Fixed-gain mixing avoids block-to-block gain pumping. Normal levels are
+        # kept below full scale; this clamp is only a final guard for extreme 200% mixes.
+        np.clip(mono, -0.995, 0.995, out=mono)
 
         if self.channels == 1:
             outdata[:, 0] = mono
@@ -345,11 +378,15 @@ class AudioEngine:
             t = np.arange(n, dtype=np.float32) / sr
             return (amp * np.sin(2 * np.pi * freq * t) * env(n, decay)).astype(np.float32)
 
-        def normalize(wave: np.ndarray, peak: float = 0.92) -> np.ndarray:
+        def normalize(wave: np.ndarray, peak: float = 0.55) -> np.ndarray:
+            wave = wave.astype(np.float32, copy=True)
             m = float(np.max(np.abs(wave))) if len(wave) else 0.0
             if m > 1e-9:
-                wave = wave * (peak / m)
-            return wave.astype(np.float32)
+                wave *= peak / m
+            fade = min(len(wave), max(8, int(sr * 0.003)))
+            if fade > 1:
+                wave[-fade:] *= np.linspace(1.0, 0.0, fade, dtype=np.float32)
+            return wave
 
         def mix_layers(*waves: np.ndarray) -> np.ndarray:
             """Mix synthesized layers with different lengths without broadcasting errors."""
@@ -371,36 +408,36 @@ class AudioEngine:
                 clap[start:] += noise[:n] * env(n, decay) * gain
         bright = tone(1850, 0.025, 0.006, 0.75)
         clap[: len(bright)] += bright
-        clap = normalize(clap, 0.82)
+        clap = normalize(clap, 0.52)
 
         wood = normalize(mix_layers(
             tone(900, 0.060, 0.018, 1.0),
             tone(1450, 0.060, 0.012, 0.55),
-        ), 0.80)
+        ), 0.50)
         click = normalize(mix_layers(
             tone(2600, 0.020, 0.0045, 1.0),
             tone(3900, 0.015, 0.0035, 0.35),
-        ), 0.82)
-        beep = normalize(tone(1150, 0.055, 0.028, 1.0), 0.76)
+        ), 0.52)
+        beep = normalize(tone(1150, 0.055, 0.028, 1.0), 0.50)
 
         muted_n = int(sr * 0.035)
         muted = rng.normal(0.0, 1.0, muted_n).astype(np.float32) * env(muted_n, 0.007)
         muted += tone(210, 0.035, 0.010, 0.65)
-        muted = normalize(muted, 0.68)
+        muted = normalize(muted, 0.45)
         rim = normalize(mix_layers(
             tone(1750, 0.022, 0.005, 1.0),
             tone(790, 0.026, 0.008, 0.25),
-        ), 0.76)
-        low_tick = normalize(tone(290, 0.035, 0.009, 1.0), 0.70)
+        ), 0.48)
+        low_tick = normalize(tone(290, 0.035, 0.009, 1.0), 0.45)
 
         metro = normalize(mix_layers(
             tone(1800, 0.030, 0.006, 1.0),
             tone(2850, 0.020, 0.004, 0.42),
-        ), 0.80)
+        ), 0.48)
         metro_accent = normalize(mix_layers(
             tone(2550, 0.040, 0.008, 1.0),
             tone(3800, 0.025, 0.005, 0.50),
-        ), 0.84)
+        ), 0.55)
 
         return {
             "ti_clap": clap,

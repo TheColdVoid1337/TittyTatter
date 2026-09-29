@@ -47,7 +47,7 @@ install_runtime() {
 
 audio_info() {
   ensure_venv
-  "$PY" -c "import sounddevice as sd; print('default devices:', sd.default.device); print('host APIs:'); [print(f'  [{i}] {x[\"name\"]}') for i,x in enumerate(sd.query_hostapis())]; print('default output:'); print(sd.query_devices(kind='output'))"
+  "$PY" -c "import sounddevice as sd; from audio_engine import AudioEngine; apis=sd.query_hostapis(); print('PortAudio default:', sd.default.device); print('output devices:'); [print(f'  [{i}] {d[\"name\"]} | {apis[d[\"hostapi\"]][\"name\"]} | sr={d[\"default_samplerate\"]} | low={d[\"default_low_output_latency\"]}') for i,d in enumerate(sd.query_devices()) if d['max_output_channels'] > 0]; print('TittyTatter selected:'); print(AudioEngine().stream_info())"
 }
 
 usage() {
@@ -61,7 +61,7 @@ Usage:
   ./tt test           Run core tests with the Windows venv
   ./tt check          Run tests, compile checks, and dependency imports
   ./tt doctor         Show WSL/Windows/Python environment diagnostics
-  ./tt audio-info     Show PortAudio host APIs and the default output device
+  ./tt audio-info     Show output devices and TittyTatter's selected backend
   ./tt pip ...        Run pip inside the Windows venv
   ./tt python [...]   Run the Windows venv Python
   ./tt build          Build the Windows app with PyInstaller
