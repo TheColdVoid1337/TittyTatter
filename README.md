@@ -1,6 +1,6 @@
 # TittyTatter
 
-> Published baseline: **0.0.1** · `main` currently contains unreleased release-preparation work
+> Current release: **0.0.2**
 
 **TittyTatter** is a Windows-first desktop rhythm trainer for practicing custom **TI / TA** patterns with low-latency audio, visual metronome feedback, timed practice, rhythm-game scoring, flexible meters, and export to MIDI / Guitar Pro / WAV.
 
@@ -68,7 +68,7 @@ The final GUI/audio acceptance is manual because realtime audio behavior must be
 
 The canonical project version is stored in the root [`VERSION`](VERSION) file.
 
-Current published version: **0.0.1**
+Current release version: **0.0.2**
 
 Numeric version changes are made only at the release/tag checkpoint. Published version numbers are never reused.
 

@@ -2,9 +2,9 @@
 
 All notable TittyTatter changes are recorded here.
 
-Numeric headings are added only when a release version is chosen. Development that has not yet been tagged remains under **Unreleased**.
+Numeric headings are added when a release version is chosen. Future development remains under **Unreleased** until its release checkpoint.
 
-## Unreleased
+## 0.0.2 — 2026-09-30
 
 ### Added
 

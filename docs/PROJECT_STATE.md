@@ -3,9 +3,9 @@
 ## Baseline
 
 - Project: **TittyTatter**
-- Published version: **0.0.1**
+- Current release version: **0.0.2**
 - Current integration branch: **main**
-- Status: unreleased release-preparation state after the current development cycle
+- Status: release commit prepared and locally validated; annotated `v0.0.2` tag pending manual creation
 - Primary platform: Windows desktop
 - Language: Python
 - GUI: PySide6
@@ -14,7 +14,7 @@
 - Development shell: WSL
 - Runtime: native Windows Python virtual environment
 
-The current `main` state is intentionally **not assigned a new numeric version yet**. The next version number is chosen only when the release/tag checkpoint is performed.
+The current `main` state is assigned **0.0.2** after successful local release validation. The annotated `v0.0.2` tag is created and pushed manually.
 
 ## Implemented product scope
 
@@ -66,16 +66,16 @@ Canonical commands:
 
 GitHub is used for source/history. Routine validation is performed locally; the removed GitHub smoke workflow is not part of the current process.
 
-## Release-preparation state
+## Release validation
 
-Before tagging the current `main` state:
+The 0.0.2 release candidate passed the canonical local gate on Windows through the WSL-controlled environment:
 
-1. pull `main` locally;
-2. install/update dependencies;
-3. run `./tt doctor`;
-4. run `./tt check`;
-5. perform the focused manual GUI/audio/export/game checks from `docs/TEST_MATRIX.md`;
-6. only after acceptance choose the release version, update `VERSION` and release-facing version references, create the release commit, then create/push the annotated tag.
+- `./tt install` completed successfully;
+- `./tt doctor` confirmed the Windows Python environment and dependencies;
+- `./tt check` passed core tests, compile checks, export tests, and dependency imports;
+- manual GUI/audio acceptance was confirmed before the release commit.
+
+The remaining release action is manual creation and push of the annotated `v0.0.2` tag from the validated `main` release commit.
 
 ## Known limitations
 
