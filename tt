@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+
+PY="$ROOT/.venv/Scripts/python.exe"
+APP="$ROOT/app.py"
+TEST="$ROOT/test_core.py"
+REQ="$ROOT/requirements.txt"
+REQ_DEV="$ROOT/requirements-dev.txt"
+
+winpath() { wslpath -w "$1"; }
+
+die() { echo "TittyTatter: $*" >&2; exit 1; }
+
+require_wsl() {
+  command -v wslpath >/dev/null 2>&1 || die "This helper is intended to run from WSL."
+}
+
+ensure_venv() {
+  require_wsl
+  if [[ -x "$PY" ]]; then
+    return 0
+  fi
+
+  echo "Windows venv not found. Creating .venv..."
+  local target
+  target="$(winpath "$ROOT/.venv")"
+
+  if command -v py.exe >/dev/null 2>&1; then
+    py.exe -3 -m venv "$target"
+  elif command -v python.exe >/dev/null 2>&1; then
+    python.exe -m venv "$target"
+  else
+    die "Windows Python launcher not found in WSL PATH. Install Python for Windows first."
+  fi
+
+  [[ -x "$PY" ]] || die "Failed to create Windows venv at $ROOT/.venv"
+}
+
+install_runtime() {
+  ensure_venv
+  "$PY" -m pip install --upgrade pip
+  "$PY" -m pip install -r "$(winpath "$REQ")"
+}
+
+usage() {
+  cat <<'EOF'
+TittyTatter WSL helper
+
+Usage:
+  ./tt install        Create/update the Windows .venv and runtime deps
+  ./tt install-dev    Install runtime + development/build deps
+  ./tt run            Launch TittyTatter as a native Windows app
+  ./tt test           Run core tests with the Windows venv
+  ./tt check          Run tests, compile checks, and dependency imports
+  ./tt doctor         Show WSL/Windows/Python environment diagnostics
+  ./tt pip ...        Run pip inside the Windows venv
+  ./tt python [...]   Run the Windows venv Python
+  ./tt build          Build the Windows app with PyInstaller
+  ./tt update         git fetch + ff-only pull of the current branch
+  ./tt status         Show Git and Python environment status
+  ./tt help           Show this help
+
+No Linux venv is activated. Every Python command uses:
+  .venv/Scripts/python.exe
+EOF
+}
+
+cmd="${1:-help}"
+if [[ $# -gt 0 ]]; then shift; fi
+
+case "$cmd" in
+  install)
+    install_runtime
+    ;;
+
+  install-dev)
+    install_runtime
+    "$PY" -m pip install -r "$(winpath "$REQ_DEV")"
+    ;;
+
+  run)
+    ensure_venv
+    exec "$PY" "$(winpath "$APP")" "$@"
+    ;;
+
+  test)
+    ensure_venv
+    "$PY" "$(winpath "$TEST")" "$@"
+    ;;
+
+  check)
+    ensure_venv
+    echo "== core tests =="
+    "$PY" "$(winpath "$TEST")"
+    echo "== compile =="
+    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")"
+    echo "== imports =="
+    "$PY" -c "import PySide6, numpy, sounddevice; print('dependencies OK')"
+    echo "== result =="
+    echo "TittyTatter checks OK"
+    ;;
+
+  doctor)
+    require_wsl
+    echo "== TittyTatter doctor =="
+    echo "WSL root:    $ROOT"
+    echo "Windows root: $(winpath "$ROOT")"
+    echo "Git branch:  $(git branch --show-current 2>/dev/null || echo unknown)"
+    echo "Git HEAD:    $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    if [[ -x "$PY" ]]; then
+      echo "Venv:        present"
+      "$PY" -c "import sys, platform; print('Python:      '+sys.executable); print('Version:     '+sys.version.split()[0]); print('Platform:    '+platform.platform())"
+      "$PY" -c "import PySide6, numpy, sounddevice; print('PySide6:     '+PySide6.__version__); print('NumPy:       '+numpy.__version__); print('sounddevice: '+sounddevice.__version__)"
+    else
+      echo "Venv:        missing"
+      echo "Run:         ./tt install"
+    fi
+    ;;
+
+  pip)
+    ensure_venv
+    "$PY" -m pip "$@"
+    ;;
+
+  python)
+    ensure_venv
+    exec "$PY" "$@"
+    ;;
+
+  build)
+    ensure_venv
+    "$PY" -m pip install -r "$(winpath "$REQ_DEV")"
+    "$PY" -m PyInstaller --noconfirm --clean --windowed --name TittyTatter \
+      --distpath "$(winpath "$ROOT/dist")" \
+      --workpath "$(winpath "$ROOT/build")" \
+      --specpath "$(winpath "$ROOT")" \
+      --add-data "$(winpath "$ROOT/VERSION");." \
+      "$(winpath "$APP")"
+    ;;
+
+  update)
+    [[ -z "$(git status --porcelain)" ]] || die "Working tree is not clean; commit/stash changes before update."
+    git fetch --prune origin --tags
+    git pull --ff-only
+    ;;
+
+  status)
+    echo "== Git =="
+    git status --short --branch
+    echo
+    echo "== Runtime =="
+    if [[ -x "$PY" ]]; then
+      "$PY" -c "import sys; print(sys.executable); print(sys.version)"
+    else
+      echo "Windows venv is missing. Run ./tt install"
+    fi
+    ;;
+
+  help|-h|--help)
+    usage
+    ;;
+
+  *)
+    usage
+    die "Unknown command: $cmd"
+    ;;
+esac
