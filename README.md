@@ -19,11 +19,35 @@ The core idea is simple: build a bar beat by beat, choose straight sixteenths or
 - Session save/load is part of the working prototype.
 - Audio timing is designed around the audio callback rather than GUI timers.
 
+## Windows + WSL development workflow
+
+TittyTatter is a native Windows GUI/audio application, but the repository is managed from WSL.
+
+Local path convention:
+
+- Windows: `F:\_PROJECT\TittyTatter`
+- WSL: `/mnt/f/_PROJECT/TittyTatter`
+
+Use the root `tt` helper from WSL:
+
+```bash
+./tt install   # create Windows .venv and install dependencies
+./tt run       # launch the Windows GUI
+./tt test      # run core tests
+./tt check     # tests + compile/import checks
+./tt doctor    # show environment diagnostics
+./tt pip list  # run pip inside the Windows venv
+./tt python    # open the Windows venv Python
+./tt update    # ff-only pull of the current branch
+```
+
+The helper intentionally does **not** source a Linux virtual environment. It launches `.venv/Scripts/python.exe`, so PySide6 and sounddevice remain native Windows packages while all commands are issued from WSL.
+
 ## Versioning
 
 The canonical project version is stored in the root [`VERSION`](VERSION) file.
 
-Current version: **0.0.1**
+Current published version: **0.0.1**
 
 Published version numbers are not reused.
 
@@ -31,8 +55,9 @@ Published version numbers are not reused.
 
 - `README.md` — public project entry point.
 - `VERSION` — canonical SemVer version.
+- `tt` — WSL-first development helper for the native Windows environment.
 - `docs/` — living project documentation.
-- Application source will follow the architecture recorded in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- Application source follows the architecture recorded in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Documentation
 
@@ -50,5 +75,4 @@ Key documents:
 
 ## Development status
 
-TittyTatter is in very early development. Version **0.0.1** establishes the first working-product baseline and the repository/documentation contract. The next passes are expected to be driven by hands-on feedback from actual rhythm practice.
-
+TittyTatter is in very early development. Version **0.0.1** establishes the first working-product baseline and the repository/documentation contract. Development after the `v0.0.1` tag continues on `dev/0.0.2` until the next release is ready.
