@@ -3,12 +3,15 @@
 ## Baseline
 
 - Project: **TittyTatter**
-- Version: **0.0.1**
+- Published version: **0.0.1**
+- Development branch: **dev/0.0.2**
 - Status: early development / working prototype baseline
 - Primary platform: desktop, Windows-first
 - Language: Python
 - GUI direction: PySide6
 - Audio direction: callback-driven realtime playback
+- Development shell: WSL
+- Runtime environment: native Windows Python virtual environment
 
 ## Product scope
 
@@ -31,6 +34,17 @@ The current baseline supports or is intended to preserve:
 - visual playhead;
 - session persistence.
 
+## Local workflow
+
+The repository is expected at:
+
+```text
+F:\_PROJECT\TittyTatter
+/mnt/f/_PROJECT/TittyTatter
+```
+
+WSL is the control plane. The root `tt` helper launches the Windows interpreter from `.venv/Scripts/python.exe`, keeping Qt and audio native to Windows.
+
 ## Current limitations
 
 The project is still pre-stable. Before any claim of a production-ready release, the application needs broad real-device audio testing and hands-on practice feedback.
@@ -47,9 +61,10 @@ Not yet considered stable commitments:
 
 ## Repository rules
 
-1. Root `VERSION` is the canonical SemVer source.
+1. Root `VERSION` is the canonical SemVer source for published builds.
 2. Root `README.md` is the public project entry point.
 3. Detailed documentation lives under `docs/`.
 4. Technical filenames, identifiers, branch names, commits, and documentation are English-first.
 5. Published versions are never reused.
 6. Feedback from actual practice outranks speculative feature expansion.
+7. Native Windows runtime + WSL command control is the canonical local development workflow.
