@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from collections import deque
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -56,6 +57,8 @@ class AudioEngine:
         self.device_index, device, self.host_api_name = self._select_output_device()
         self.device_name = str(device.get("name", "unknown")) if device else "unknown"
         self.device_low_latency = float(device.get("default_low_output_latency", 0.0)) if device else 0.0
+        self.latency_mode: str = "low"
+        self.exclusive_mode = False
 
         if sample_rate is None:
             sample_rate = float(device.get("default_samplerate", 48_000.0)) if device else 48_000.0
@@ -89,6 +92,8 @@ class AudioEngine:
 
         self._active_voices: list[tuple[np.ndarray, int, float]] = []
         self._last_error = ""
+        self._game_tracking = False
+        self._game_targets: deque[tuple[float, str, int, int, int]] = deque(maxlen=512)
         self._sounds = self._build_sounds()
 
     @staticmethod
@@ -128,6 +133,118 @@ class AudioEngine:
     def is_running(self) -> bool:
         return self._running
 
+    @staticmethod
+    def list_output_devices() -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+        try:
+            devices = sd.query_devices()
+            hostapis = sd.query_hostapis()
+            for index, device in enumerate(devices):
+                if int(device.get("max_output_channels", 0)) <= 0:
+                    continue
+                host_index = int(device.get("hostapi", -1))
+                host_name = (
+                    str(hostapis[host_index].get("name", "unknown"))
+                    if 0 <= host_index < len(hostapis)
+                    else "unknown"
+                )
+                result.append({
+                    "index": index,
+                    "name": str(device.get("name", f"Device {index}")),
+                    "host_api": host_name,
+                    "sample_rate": float(device.get("default_samplerate", 48_000.0)),
+                    "low_latency": float(device.get("default_low_output_latency", 0.0)),
+                    "high_latency": float(device.get("default_high_output_latency", 0.0)),
+                    "max_channels": int(device.get("max_output_channels", 0)),
+                })
+        except Exception:
+            pass
+        return result
+
+    def configure_output(
+        self,
+        *,
+        device_index: int | None = None,
+        sample_rate: float | None = None,
+        blocksize: int | None = None,
+        latency_mode: str | None = None,
+        exclusive: bool | None = None,
+    ) -> None:
+        if self._running:
+            raise RuntimeError("Stop playback before changing audio device settings.")
+
+        devices = sd.query_devices()
+        hostapis = sd.query_hostapis()
+
+        if device_index is not None:
+            device_index = int(device_index)
+            if device_index < 0 or device_index >= len(devices):
+                raise ValueError("Selected audio device is not available.")
+            device = dict(devices[device_index])
+            if int(device.get("max_output_channels", 0)) <= 0:
+                raise ValueError("Selected device has no output channels.")
+            self.device_index = device_index
+            self.device_name = str(device.get("name", "unknown"))
+            host_index = int(device.get("hostapi", -1))
+            self.host_api_name = (
+                str(hostapis[host_index].get("name", "unknown"))
+                if 0 <= host_index < len(hostapis)
+                else "unknown"
+            )
+            self.device_low_latency = float(device.get("default_low_output_latency", 0.0))
+            self.channels = 2 if int(device.get("max_output_channels", 1)) >= 2 else 1
+            if sample_rate is None or float(sample_rate) <= 0:
+                sample_rate = float(device.get("default_samplerate", self.sample_rate))
+
+        if sample_rate is not None and float(sample_rate) > 0:
+            new_rate = float(sample_rate)
+            if abs(new_rate - self.sample_rate) > 0.5:
+                self.sample_rate = new_rate
+                self._visual_beat_samples = self.sample_rate
+                # Same sound definitions, rebuilt only for the selected sample rate.
+                self._sounds = self._build_sounds()
+
+        if blocksize is not None:
+            self.blocksize = max(0, int(blocksize))
+        if latency_mode is not None:
+            self.latency_mode = "high" if str(latency_mode).lower() == "high" else "low"
+        if exclusive is not None:
+            self.exclusive_mode = bool(exclusive)
+
+    def start_game_tracking(self) -> None:
+        self._game_targets.clear()
+        self._game_tracking = True
+
+    def stop_game_tracking(self) -> None:
+        self._game_tracking = False
+        self._game_targets.clear()
+
+    def drain_game_targets(self) -> list[tuple[float, str, int, int, int]]:
+        items = list(self._game_targets)
+        self._game_targets.clear()
+        return items
+
+    def stream_time(self) -> float:
+        stream = self._stream
+        if stream is None:
+            return 0.0
+        try:
+            return float(stream.time)
+        except Exception:
+            return 0.0
+
+    def play_notification(self, sound_name: str = "Bell", gain: float = 0.8) -> None:
+        wave = self.sound_wave(sound_name) * float(gain)
+        try:
+            sd.play(
+                wave,
+                samplerate=self.sample_rate,
+                device=self.device_index,
+                blocking=False,
+            )
+        except Exception:
+            pass
+
     def set_pattern(self, pattern: BarPattern) -> None:
         new_pattern = copy.deepcopy(pattern)
         new_pattern.normalize()
@@ -166,13 +283,21 @@ class AudioEngine:
         self._active_voices.clear()
         self._last_error = ""
 
+        extra_settings = None
+        if self.exclusive_mode and "WASAPI" in self.host_api_name.upper():
+            try:
+                extra_settings = sd.WasapiSettings(exclusive=True)
+            except Exception:
+                extra_settings = None
+
         self._stream = sd.OutputStream(
             device=self.device_index,
             samplerate=self.sample_rate,
             channels=self.channels,
             dtype="float32",
             blocksize=self.blocksize,
-            latency="low",
+            latency=self.latency_mode,
+            extra_settings=extra_settings,
             callback=self._audio_callback,
             prime_output_buffers_using_stream_callback=True,
         )
@@ -232,6 +357,8 @@ class AudioEngine:
             "sample_rate": self.sample_rate,
             "channels": self.channels,
             "blocksize": self.blocksize,
+            "latency_mode": self.latency_mode,
+            "exclusive": self.exclusive_mode,
             "device_low_latency": self.device_low_latency,
         }
         if self._stream is not None:
@@ -264,9 +391,16 @@ class AudioEngine:
             safety += 1
             event_sample = self._next_event_sample
             offset = max(0, int(round(event_sample - block_start)))
-            sounds, interval = self._event(event_sample)
+            sounds, interval, game_target = self._event(event_sample)
             for wave, gain in sounds:
                 self._mix_sound(mono, offset, wave, gain)
+            if self._game_tracking and game_target is not None:
+                state, bar_number, beat_index, sub_index = game_target
+                try:
+                    dac_time = float(_time.outputBufferDacTime) + offset / self.sample_rate
+                    self._game_targets.append((dac_time, state, bar_number, beat_index, sub_index))
+                except Exception:
+                    pass
             self._next_event_sample += max(1.0, interval)
 
         self._sample_cursor = block_end
@@ -278,7 +412,10 @@ class AudioEngine:
         else:
             outdata[:] = mono[:, None]
 
-    def _event(self, event_sample: float) -> tuple[list[tuple[np.ndarray, float]], float]:
+    def _event(
+        self,
+        event_sample: float,
+    ) -> tuple[list[tuple[np.ndarray, float]], float, tuple[str, int, int, int] | None]:
         cfg = self._config
         pattern = self._pattern
         beat_samples = (
@@ -301,7 +438,7 @@ class AudioEngine:
             if self._count_in_beats_left == 0:
                 self._beat_index = 0
                 self._sub_index = 0
-            return sounds, beat_samples
+            return sounds, beat_samples, None
 
         if self._practice_started_sample is None:
             self._practice_started_sample = event_sample
@@ -343,6 +480,10 @@ class AudioEngine:
             elif state == TA and cfg.ta_enabled:
                 sounds.append((self._sounds[self._sound_key(cfg.ta_sound)], float(cfg.ta_volume)))
 
+        game_target = None
+        if beat_active and not beat_muted and state in (TI, TA):
+            game_target = (state, self._bar_number, self._beat_index, self._sub_index)
+
         interval = beat_samples / n_sub
         self._sub_index += 1
         if self._sub_index >= n_sub:
@@ -351,7 +492,7 @@ class AudioEngine:
             if self._beat_index >= pattern.numerator:
                 self._beat_index = 0
                 self._on_bar_boundary(cfg)
-        return sounds, interval
+        return sounds, interval, game_target
 
     def _set_visual_event(self, beat: int, sub: int, beat_start: float, beat_samples: float) -> None:
         self._visual_beat = int(beat)

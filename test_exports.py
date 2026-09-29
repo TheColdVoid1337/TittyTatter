@@ -24,18 +24,22 @@ with TemporaryDirectory() as temp:
     root = Path(temp)
 
     midi = root / "test.mid"
-    export_midi(midi, pattern, 60)
+    export_midi(midi, pattern, 60, repeats=3, include_labels=True)
     data = midi.read_bytes()
     assert data.startswith(b"MThd")
     assert b"MTrk" in data
+    assert data.count(b"Bar ") >= 3
 
     gp = root / "test.gp5"
-    export_gp5(gp, pattern, 60)
-    parsed = guitarpro.parse(str(gp), encoding="cp1251")
+    export_gp5(gp, pattern, 60, repeats=3, include_labels=True)
+    parsed = guitarpro.parse(str(gp), encoding="cp1252")
     assert parsed.tempo == 60
+    assert len(parsed.measureHeaders) == 3
+    assert len(parsed.tracks[0].measures) == 3
     assert parsed.measureHeaders[0].timeSignature.numerator == 4
     assert parsed.measureHeaders[0].timeSignature.denominator.value == 4
     assert parsed.tracks[0].channel.instrument == 29
+    assert "TI:" in parsed.instructions
 
     wav_path = root / "test.wav"
     config = EngineConfig(

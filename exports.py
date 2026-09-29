@@ -83,8 +83,29 @@ def _meta_text(kind: int, text: str) -> bytes:
     return bytes((0xFF, kind)) + _varlen(len(payload)) + payload
 
 
-def export_midi(path: str | Path, pattern: BarPattern, bpm: float) -> None:
+def _ascii_beat_label(pattern: BarPattern, beat_index: int) -> str:
+    beat = pattern.beats[beat_index]
+    if beat.muted:
+        return f"MUTE [1/{pattern.denominator}]"
+    names = {TI: "TI", TA: "ta", OFF: "-"}
+    body = "-".join(names[state] for state in beat.steps)
+    span = max(1, grid_spec(beat.grid).span_beats)
+    if span == 1:
+        duration = f"1/{pattern.denominator}"
+    else:
+        duration = f"{span}/{pattern.denominator}"
+    return f"{body} [{duration}]"
+
+
+def export_midi(
+    path: str | Path,
+    pattern: BarPattern,
+    bpm: float,
+    repeats: int = 1,
+    include_labels: bool = True,
+) -> None:
     pattern = BarPattern.from_dict(pattern.to_dict())
+    repeats = max(1, min(999, int(repeats)))
     events: list[tuple[int, int, bytes]] = []
 
     tempo = int(round(60_000_000 / max(20.0, float(bpm))))
@@ -103,29 +124,38 @@ def export_midi(path: str | Path, pattern: BarPattern, bpm: float) -> None:
     events.append((0, 0, _meta_text(0x01, "TI = string 5 fret 7 E3; TA = muted string 6")))
     events.append((0, 1, bytes((0xC0, GUITAR_PROGRAM))))
 
-    for slot in iter_bar_slots(pattern):
-        if slot.state not in (TI, TA):
-            continue
+    bar_ticks = int(round(float(bar_quarters(pattern)) * MIDI_PPQ))
+    slots = iter_bar_slots(pattern)
 
-        start_tick = int(round(float(slot.start_quarters) * MIDI_PPQ))
-        slot_ticks = max(1, int(round(float(slot.duration_quarters) * MIDI_PPQ)))
+    for repeat_index in range(repeats):
+        base_tick = repeat_index * bar_ticks
+        if include_labels:
+            events.append((base_tick, 0, _meta_text(0x06, f"Bar {repeat_index + 1}/{repeats}")))
 
-        if slot.state == TI:
-            note = TI_MIDI_NOTE
-            velocity = 112
-            duration = max(1, int(slot_ticks * 0.78))
-            label = "TI"
-        else:
-            note = TA_MIDI_NOTE
-            velocity = 74
-            duration = max(1, int(slot_ticks * 0.34))
-            label = "TA"
+        for slot in slots:
+            if slot.state not in (TI, TA):
+                continue
 
-        events.append((start_tick, 1, _meta_text(0x01, label)))
-        events.append((start_tick, 2, bytes((0x90, note, velocity))))
-        events.append((start_tick + duration, 0, bytes((0x80, note, 0))))
+            start_tick = base_tick + int(round(float(slot.start_quarters) * MIDI_PPQ))
+            slot_ticks = max(1, int(round(float(slot.duration_quarters) * MIDI_PPQ)))
 
-    end_tick = int(round(float(bar_quarters(pattern)) * MIDI_PPQ))
+            if slot.state == TI:
+                note = TI_MIDI_NOTE
+                velocity = 112
+                duration = max(1, int(slot_ticks * 0.78))
+                label = "TI"
+            else:
+                note = TA_MIDI_NOTE
+                velocity = 74
+                duration = max(1, int(slot_ticks * 0.34))
+                label = "TA"
+
+            if include_labels:
+                events.append((start_tick, 1, _meta_text(0x01, label)))
+            events.append((start_tick, 2, bytes((0x90, note, velocity))))
+            events.append((start_tick + duration, 0, bytes((0x80, note, 0))))
+
+    end_tick = repeats * bar_ticks
     events.append((end_tick, 9, b"\xFF\x2F\x00"))
     events.sort(key=lambda item: (item[0], item[1]))
 
@@ -136,46 +166,33 @@ def export_midi(path: str | Path, pattern: BarPattern, bpm: float) -> None:
         track.extend(payload)
         previous_tick = absolute_tick
 
-    header = b"MThd" + (6).to_bytes(4, "big") + (0).to_bytes(2, "big") + (1).to_bytes(2, "big") + MIDI_PPQ.to_bytes(2, "big")
+    header = (
+        b"MThd"
+        + (6).to_bytes(4, "big")
+        + (0).to_bytes(2, "big")
+        + (1).to_bytes(2, "big")
+        + MIDI_PPQ.to_bytes(2, "big")
+    )
     chunk = b"MTrk" + len(track).to_bytes(4, "big") + bytes(track)
     Path(path).write_bytes(header + chunk)
 
 
-def export_gp5(path: str | Path, pattern: BarPattern, bpm: float) -> None:
-    try:
-        import guitarpro
-    except ImportError as exc:
-        raise RuntimeError("PyGuitarPro is not installed. Run ./tt install.") from exc
-
-    pattern = BarPattern.from_dict(pattern.to_dict())
-    song = guitarpro.Song(title="TittyTatter", tempo=int(round(bpm)))
-    song.artist = "TittyTatter"
-    song.instructions = "(ТИ): string 5 fret 7 E3. ТА: dead/muted string 6."
-
-    header = song.measureHeaders[0]
-    header.timeSignature = guitarpro.TimeSignature(
-        numerator=pattern.numerator,
-        denominator=guitarpro.Duration(value=pattern.denominator),
-    )
-
-    track = song.tracks[0]
-    track.name = "Overdriven Guitar"
-    track.channel.instrument = GUITAR_PROGRAM
-    track.fretCount = 24
-
-    measure = track.measures[0]
+def _fill_gp_measure(guitarpro, measure, pattern: BarPattern, include_labels: bool) -> None:
     voice = measure.voices[0]
     voice.beats.clear()
+    first_slot_for_beat: set[int] = set()
 
     for slot in iter_bar_slots(pattern):
         gp_time = max(1, int(round(float(slot.duration_quarters) * guitarpro.Duration.quarterTime)))
         duration = guitarpro.Duration.fromTime(gp_time)
         beat = guitarpro.Beat(voice=voice, duration=duration)
 
+        if include_labels and slot.beat_index not in first_slot_for_beat:
+            beat.text = _ascii_beat_label(pattern, slot.beat_index)
+            first_slot_for_beat.add(slot.beat_index)
+
         if slot.state == OFF:
             beat.status = guitarpro.BeatStatus.rest
-            if slot.muted and slot.step_index == 0:
-                beat.text = "MUTE"
         else:
             beat.status = guitarpro.BeatStatus.normal
             if slot.state == TI:
@@ -186,7 +203,6 @@ def export_gp5(path: str | Path, pattern: BarPattern, bpm: float) -> None:
                     string=5,
                     type=guitarpro.NoteType.normal,
                 )
-                beat.text = "(ТИ)"
             else:
                 note = guitarpro.Note(
                     beat=beat,
@@ -196,12 +212,55 @@ def export_gp5(path: str | Path, pattern: BarPattern, bpm: float) -> None:
                     type=guitarpro.NoteType.dead,
                 )
                 note.effect.palmMute = True
-                beat.text = "ТА"
             beat.notes.append(note)
 
         voice.beats.append(beat)
 
-    guitarpro.write(song, str(path), version=(5, 1, 0), encoding="cp1251")
+
+def export_gp5(
+    path: str | Path,
+    pattern: BarPattern,
+    bpm: float,
+    repeats: int = 1,
+    include_labels: bool = True,
+) -> None:
+    try:
+        import guitarpro
+    except ImportError as exc:
+        raise RuntimeError("PyGuitarPro is not installed. Run ./tt install.") from exc
+
+    pattern = BarPattern.from_dict(pattern.to_dict())
+    repeats = max(1, min(999, int(repeats)))
+
+    # GP5 text is kept ASCII-only for compatibility across Guitar Pro code pages.
+    song = guitarpro.Song(title="TittyTatter", tempo=int(round(bpm)))
+    song.artist = "TittyTatter"
+    song.instructions = "TI: string 5 fret 7 E3. TA: dead/muted string 6."
+
+    track = song.tracks[0]
+    track.name = "Overdriven Guitar"
+    track.channel.instrument = GUITAR_PROGRAM
+    track.fretCount = 24
+
+    for repeat_index in range(repeats):
+        if repeat_index > 0:
+            previous = song.measureHeaders[-1]
+            song.newMeasure()
+            header = song.measureHeaders[-1]
+            header.number = repeat_index + 1
+            header.start = previous.end
+        else:
+            header = song.measureHeaders[0]
+            header.number = 1
+
+        header.timeSignature = guitarpro.TimeSignature(
+            numerator=pattern.numerator,
+            denominator=guitarpro.Duration(value=pattern.denominator),
+        )
+        measure = track.measures[repeat_index]
+        _fill_gp_measure(guitarpro, measure, pattern, include_labels)
+
+    guitarpro.write(song, str(path), version=(5, 1, 0), encoding="cp1252")
 
 
 def _pcm_bytes(samples: np.ndarray, bits: int) -> bytes:
