@@ -340,6 +340,16 @@ class AudioEngine:
                 wave = wave * (peak / m)
             return wave.astype(np.float32)
 
+        def mix_layers(*waves: np.ndarray) -> np.ndarray:
+            """Mix synthesized layers with different lengths without broadcasting errors."""
+            if not waves:
+                return np.zeros(1, dtype=np.float32)
+            length = max(len(wave) for wave in waves)
+            mixed = np.zeros(length, dtype=np.float32)
+            for wave in waves:
+                mixed[: len(wave)] += wave
+            return mixed
+
         clap_n = int(sr * 0.10)
         clap = np.zeros(clap_n, dtype=np.float32)
         noise = np.diff(rng.normal(0.0, 1.0, clap_n + 1).astype(np.float32))
@@ -352,19 +362,34 @@ class AudioEngine:
         clap[: len(bright)] += bright
         clap = normalize(clap, 0.95)
 
-        wood = normalize(tone(900, 0.060, 0.018, 1.0) + tone(1450, 0.060, 0.012, 0.55), 0.92)
-        click = normalize(tone(2600, 0.020, 0.0045, 1.0) + tone(3900, 0.015, 0.0035, 0.35), 0.95)
+        wood = normalize(mix_layers(
+            tone(900, 0.060, 0.018, 1.0),
+            tone(1450, 0.060, 0.012, 0.55),
+        ), 0.92)
+        click = normalize(mix_layers(
+            tone(2600, 0.020, 0.0045, 1.0),
+            tone(3900, 0.015, 0.0035, 0.35),
+        ), 0.95)
         beep = normalize(tone(1150, 0.055, 0.028, 1.0), 0.88)
 
         muted_n = int(sr * 0.035)
         muted = rng.normal(0.0, 1.0, muted_n).astype(np.float32) * env(muted_n, 0.007)
         muted += tone(210, 0.035, 0.010, 0.65)
         muted = normalize(muted, 0.80)
-        rim = normalize(tone(1750, 0.022, 0.005, 1.0) + tone(790, 0.026, 0.008, 0.25), 0.90)
+        rim = normalize(mix_layers(
+            tone(1750, 0.022, 0.005, 1.0),
+            tone(790, 0.026, 0.008, 0.25),
+        ), 0.90)
         low_tick = normalize(tone(290, 0.035, 0.009, 1.0), 0.82)
 
-        metro = normalize(tone(1800, 0.030, 0.006, 1.0) + tone(2850, 0.020, 0.004, 0.42), 0.95)
-        metro_accent = normalize(tone(2550, 0.040, 0.008, 1.0) + tone(3800, 0.025, 0.005, 0.50), 0.98)
+        metro = normalize(mix_layers(
+            tone(1800, 0.030, 0.006, 1.0),
+            tone(2850, 0.020, 0.004, 0.42),
+        ), 0.95)
+        metro_accent = normalize(mix_layers(
+            tone(2550, 0.040, 0.008, 1.0),
+            tone(3800, 0.025, 0.005, 0.50),
+        ), 0.98)
 
         return {
             "ti_clap": clap,
