@@ -1,5 +1,47 @@
 # User guide
 
+## Running from WSL as a native Windows application
+
+The supported development workflow is:
+
+- repository commands are issued from WSL;
+- Git runs in WSL;
+- TittyTatter itself runs with the Windows Python virtual environment;
+- PySide6 and sounddevice therefore use native Windows GUI/audio.
+
+Project paths:
+
+```text
+Windows: F:\_PROJECT\TittyTatter
+WSL:     /mnt/f/_PROJECT/TittyTatter
+```
+
+First setup:
+
+```bash
+cd /mnt/f/_PROJECT/TittyTatter
+./tt install
+./tt doctor
+```
+
+Normal use:
+
+```bash
+./tt run
+```
+
+Useful development commands:
+
+```bash
+./tt test
+./tt check
+./tt pip list
+./tt python
+./tt update
+```
+
+There is no need to run `source .venv/bin/activate`. That would refer to a Linux virtual environment, while TittyTatter deliberately uses the Windows interpreter at `.venv/Scripts/python.exe`.
+
 ## Building a bar
 
 A TittyTatter exercise is a four-beat 4/4 bar.
