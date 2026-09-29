@@ -1,18 +1,56 @@
 from model import BarPattern, BeatPattern
-from presets import ALL_PRESETS, SIXTEENTH_PRESETS, TRIPLET_PRESETS, TI, TA, all_binary_patterns
+from presets import (
+    CORE_PRACTICE_PRESETS,
+    EIGHTH_PRESETS,
+    SIXTEENTH_PRESETS,
+    TRIPLET_PRESETS,
+    TA,
+    TI,
+    all_binary_patterns,
+)
 
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
-assert len(ALL_PRESETS) == 24
+assert len(CORE_PRACTICE_PRESETS) == 24
+assert len(EIGHTH_PRESETS) == 4
 assert {p.steps for p in SIXTEENTH_PRESETS} == set(all_binary_patterns(4))
 assert {p.steps for p in TRIPLET_PRESETS} == set(all_binary_patterns(3))
+assert {p.steps for p in EIGHTH_PRESETS} == set(all_binary_patterns(2))
 
 bar = BarPattern([
-    BeatPattern(4, [TI, TA, TI, TA]),
-    BeatPattern(3, [TA, TI, TA]),
-    BeatPattern(4, [TA, TA, TI, TI]),
-    BeatPattern(3, [TI, TI, TA]),
+    BeatPattern("sixteenth", [TI, TA, TI, TA]),
+    BeatPattern("triplet", [TA, TI, TA]),
+    BeatPattern("eighth", [TA, TI]),
+    BeatPattern("quarter", [TI]),
 ])
 raw = bar.to_dict()
 assert BarPattern.from_dict(raw).to_dict() == raw
+
+legacy = {
+    "beats": [
+        {"subdivision": 4, "steps": [TI, TA, TA, TA]},
+        {"subdivision": 3, "steps": [TI, TI, TA]},
+        {"subdivision": 4, "steps": [TA, TA, TI, TI]},
+        {"subdivision": 3, "steps": [TA, TI, TA]},
+    ]
+}
+legacy_bar = BarPattern.from_dict(legacy)
+assert [b.grid for b in legacy_bar.beats] == ["sixteenth", "triplet", "sixteenth", "triplet"]
+
+span_bar = BarPattern([
+    BeatPattern("half", [TI]),
+    BeatPattern("sixteenth", [TA, TA, TA, TA]),
+    BeatPattern("half", [TA]),
+    BeatPattern("triplet", [TI, TA, TI]),
+])
+assert span_bar.coverage() == [0, 0, 2, 2]
+
+whole_bar = BarPattern([
+    BeatPattern("whole", [TI]),
+    BeatPattern("sixteenth", [TA, TA, TA, TA]),
+    BeatPattern("triplet", [TA, TI, TA]),
+    BeatPattern("quarter", [TA]),
+])
+assert whole_bar.coverage() == [0, 0, 0, 0]
+
 print("core tests OK")

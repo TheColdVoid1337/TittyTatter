@@ -75,4 +75,4 @@ Key documents:
 
 ## Development status
 
-TittyTatter is in very early development. Version **0.0.1** establishes the first working-product baseline and the repository/documentation contract. Development after the `v0.0.1` tag continues on `dev/0.0.2` until the next release is ready.
+TittyTatter is in very early development. Version **0.0.1** establishes the first working-product baseline and the repository/documentation contract. Development after the `v0.0.1` tag continues on the unversioned `work` branch until the next release is ready.

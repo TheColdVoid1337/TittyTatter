@@ -4,7 +4,7 @@
 
 - Project: **TittyTatter**
 - Published version: **0.0.1**
-- Development branch: **dev/0.0.2**
+- Development branch: **work**
 - Status: early development / working prototype baseline
 - Primary platform: desktop, Windows-first
 - Language: Python
