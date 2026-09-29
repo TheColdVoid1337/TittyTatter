@@ -7,7 +7,7 @@ from typing import Iterable
 TI = "TI"
 TA = "TA"
 OFF = "OFF"
-TI_MARK = "ⓉⒾ"
+TI_MARK = "(ТИ)"
 
 
 @dataclass(frozen=True)
@@ -19,13 +19,13 @@ class GridSpec:
 
 
 GRID_SPECS = (
-    GridSpec("whole", "Целая 1/1", 1, 4),
-    GridSpec("half", "Половина 1/2", 1, 2),
-    GridSpec("quarter", "Четверть 1/4", 1, 1),
-    GridSpec("eighth", "Восьмые 1/8 ×2", 2, 1),
-    GridSpec("triplet", "Триоль ×3", 3, 1),
-    GridSpec("sixteenth", "16-е ×4", 4, 1),
-    GridSpec("thirtysecond", "32-е ×8", 8, 1),
+    GridSpec("whole", "1/1 · целая", 1, 4),
+    GridSpec("half", "1/2 · половинная", 1, 2),
+    GridSpec("quarter", "1/4 · четвертная", 1, 1),
+    GridSpec("eighth", "1/8 · восьмые ×2", 2, 1),
+    GridSpec("triplet", "1/8T · триоль ×3", 3, 1),
+    GridSpec("sixteenth", "1/16 · шестнадцатые ×4", 4, 1),
+    GridSpec("thirtysecond", "1/32 · тридцать вторые ×8", 8, 1),
 )
 GRID_BY_KEY = {spec.key: spec for spec in GRID_SPECS}
 

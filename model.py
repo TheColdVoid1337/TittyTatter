@@ -12,6 +12,7 @@ VALID_STATES = {TI, TA, OFF}
 class BeatPattern:
     grid: str = "sixteenth"
     steps: list[str] = field(default_factory=lambda: [TI, TA, TA, TA])
+    muted: bool = False
 
     @property
     def subdivision(self) -> int:
@@ -28,9 +29,10 @@ class BeatPattern:
         while len(cleaned) < spec.steps:
             cleaned.append(OFF)
         self.steps = cleaned
+        self.muted = bool(self.muted)
 
     def copy(self) -> "BeatPattern":
-        return BeatPattern(self.grid, list(self.steps))
+        return BeatPattern(self.grid, list(self.steps), self.muted)
 
     def to_dict(self) -> dict[str, Any]:
         self.normalize()
@@ -38,6 +40,7 @@ class BeatPattern:
             "grid": self.grid,
             "subdivision": self.subdivision,
             "steps": list(self.steps),
+            "muted": self.muted,
         }
 
     @classmethod
@@ -45,7 +48,7 @@ class BeatPattern:
         grid = raw.get("grid")
         if not grid:
             grid = grid_from_legacy_subdivision(int(raw.get("subdivision", 4)))
-        beat = cls(str(grid), list(raw.get("steps", [])))
+        beat = cls(str(grid), list(raw.get("steps", [])), bool(raw.get("muted", False)))
         beat.normalize()
         return beat
 

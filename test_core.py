@@ -6,8 +6,11 @@ from presets import (
     TRIPLET_PRESETS,
     TA,
     TI,
+    TI_MARK,
     all_binary_patterns,
 )
+
+assert TI_MARK == "(ТИ)"
 
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
@@ -18,12 +21,13 @@ assert {p.steps for p in TRIPLET_PRESETS} == set(all_binary_patterns(3))
 assert {p.steps for p in EIGHTH_PRESETS} == set(all_binary_patterns(2))
 
 bar = BarPattern([
-    BeatPattern("sixteenth", [TI, TA, TI, TA]),
+    BeatPattern("sixteenth", [TI, TA, TI, TA], True),
     BeatPattern("triplet", [TA, TI, TA]),
     BeatPattern("eighth", [TA, TI]),
     BeatPattern("quarter", [TI]),
 ])
 raw = bar.to_dict()
+assert raw["beats"][0]["muted"] is True
 assert BarPattern.from_dict(raw).to_dict() == raw
 
 legacy = {
@@ -36,6 +40,7 @@ legacy = {
 }
 legacy_bar = BarPattern.from_dict(legacy)
 assert [b.grid for b in legacy_bar.beats] == ["sixteenth", "triplet", "sixteenth", "triplet"]
+assert [b.muted for b in legacy_bar.beats] == [False, False, False, False]
 
 span_bar = BarPattern([
     BeatPattern("half", [TI]),

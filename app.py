@@ -12,8 +12,10 @@ from PySide6.QtGui import QColor, QCloseEvent, QKeySequence, QPainter, QPen, QSh
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QColorDialog,
     QComboBox,
     QFileDialog,
+    QFormLayout,
     QGraphicsOpacityEffect,
     QGridLayout,
     QGroupBox,
@@ -24,6 +26,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSlider,
     QSpinBox,
+    QTabWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -93,7 +97,47 @@ class MetronomeVisual(QWidget):
         self.active_beats = 4
         self.count_in = False
         self.running = False
-        self.setMinimumHeight(125)
+        self.scale_percent = 100
+        self.needle_color = QColor("#e8ebf0")
+        self.flash_enabled = True
+        self.flash_brightness = 100
+        self.needle_width = 4
+        self.show_beat_lamps = True
+        self.swing_angle = 42
+        self._apply_height()
+
+    def _apply_height(self) -> None:
+        height = max(84, int(125 * self.scale_percent / 100))
+        self.setMinimumHeight(height)
+        self.setMaximumHeight(height)
+
+    def configure(
+        self,
+        *,
+        scale_percent: int | None = None,
+        needle_color: QColor | None = None,
+        flash_enabled: bool | None = None,
+        flash_brightness: int | None = None,
+        needle_width: int | None = None,
+        show_beat_lamps: bool | None = None,
+        swing_angle: int | None = None,
+    ) -> None:
+        if scale_percent is not None:
+            self.scale_percent = max(60, min(200, int(scale_percent)))
+            self._apply_height()
+        if needle_color is not None and needle_color.isValid():
+            self.needle_color = QColor(needle_color)
+        if flash_enabled is not None:
+            self.flash_enabled = bool(flash_enabled)
+        if flash_brightness is not None:
+            self.flash_brightness = max(0, min(200, int(flash_brightness)))
+        if needle_width is not None:
+            self.needle_width = max(1, min(12, int(needle_width)))
+        if show_beat_lamps is not None:
+            self.show_beat_lamps = bool(show_beat_lamps)
+        if swing_angle is not None:
+            self.swing_angle = max(15, min(70, int(swing_angle)))
+        self.update()
 
     def set_state(self, *, phase: float, beat: int, active_beats: int, count_in: bool, running: bool) -> None:
         self.phase = max(0.0, min(0.999, float(phase)))
@@ -110,9 +154,8 @@ class MetronomeVisual(QWidget):
         w = self.width()
         h = self.height()
         cx = w / 2
-        pivot_y = h - 25
-        length = min(82.0, h - 42.0)
-
+        pivot_y = h - (25 if self.show_beat_lamps else 14)
+        length = min(0.66 * h, h - 36.0)
         painter.fillRect(self.rect(), QColor(28, 31, 36))
 
         if self.running:
@@ -121,38 +164,44 @@ class MetronomeVisual(QWidget):
         else:
             sweep = 0.0
 
-        angle = math.radians(42.0 * sweep)
+        angle = math.radians(float(self.swing_angle) * sweep)
         tip_x = cx + math.sin(angle) * length
         tip_y = pivot_y - math.cos(angle) * length
 
         flash = 0.0
-        if self.running and self.phase < 0.18:
-            flash = 1.0 - self.phase / 0.18
+        if self.running and self.flash_enabled and self.phase < 0.18:
+            flash = (1.0 - self.phase / 0.18) * (self.flash_brightness / 100.0)
 
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(255, 213, 106, int(30 + 150 * flash)))
-        painter.drawEllipse(int(cx - 26), 5, 52, 52)
+        if self.flash_enabled:
+            radius = max(18, int(26 * self.scale_percent / 100))
+            alpha = max(12, min(240, int(24 + 150 * flash)))
+            flash_color = QColor(self.needle_color)
+            flash_color.setAlpha(alpha)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(flash_color)
+            painter.drawEllipse(int(cx - radius), 6, radius * 2, radius * 2)
 
-        painter.setPen(QPen(QColor(232, 235, 240), 4, Qt.SolidLine, Qt.RoundCap))
+        painter.setPen(QPen(self.needle_color, self.needle_width, Qt.SolidLine, Qt.RoundCap))
         painter.drawLine(int(cx), int(pivot_y), int(tip_x), int(tip_y))
-        painter.setBrush(QColor(240, 240, 240))
+        painter.setBrush(self.needle_color)
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(int(cx - 6), int(pivot_y - 6), 12, 12)
 
-        lamp_y = h - 13
-        gap = 34
-        start_x = cx - gap * 1.5
-        for i in range(4):
-            x = start_x + i * gap
-            if not self.count_in and i >= self.active_beats:
-                color = QColor(80, 84, 90)
-            elif self.running and i == self.beat:
-                color = QColor(255, 213, 106)
-            else:
-                color = QColor(155, 162, 172)
-            painter.setBrush(color)
-            painter.setPen(Qt.NoPen)
-            painter.drawEllipse(int(x - 6), int(lamp_y - 6), 12, 12)
+        if self.show_beat_lamps:
+            lamp_y = h - 12
+            gap = 34
+            start_x = cx - gap * 1.5
+            for i in range(4):
+                x = start_x + i * gap
+                if not self.count_in and i >= self.active_beats:
+                    color = QColor(80, 84, 90)
+                elif self.running and i == self.beat:
+                    color = QColor(self.needle_color)
+                else:
+                    color = QColor(155, 162, 172)
+                painter.setBrush(color)
+                painter.setPen(Qt.NoPen)
+                painter.drawEllipse(int(x - 6), int(lamp_y - 6), 12, 12)
 
         painter.setPen(QColor(175, 181, 190))
         painter.drawText(12, 23, "COUNT-IN" if self.count_in and self.running else "4/4")
@@ -162,7 +211,7 @@ class BeatEditor(QGroupBox):
     changed = Signal()
 
     def __init__(self, number: int) -> None:
-        super().__init__(f"Доля {number}")
+        super().__init__()
         self.beat_index = number - 1
         self._span_covered = False
         self._ramp_inactive = False
@@ -170,6 +219,24 @@ class BeatEditor(QGroupBox):
         self.setGraphicsEffect(self._opacity)
 
         box = QVBoxLayout(self)
+
+        header = QHBoxLayout()
+        title = QLabel(f"Доля {number}")
+        title.setStyleSheet("font-weight:700;font-size:14px;")
+        header.addWidget(title)
+        header.addStretch()
+
+        self.mute = QToolButton()
+        self.mute.setText("Mute")
+        self.mute.setCheckable(True)
+        self.mute.setToolTip("Сделать эту долю полностью тихой")
+        self.mute.setStyleSheet(
+            "QToolButton{padding:3px 9px;border:1px solid #555b66;border-radius:9px;color:#b8bec8;}"
+            "QToolButton:checked{background:#7d3b3b;border-color:#d66a6a;color:white;font-weight:700;}"
+        )
+        self.mute.toggled.connect(lambda _checked: self.changed.emit())
+        header.addWidget(self.mute)
+        box.addLayout(header)
 
         row = QHBoxLayout()
         row.addWidget(QLabel("Сетка:"))
@@ -180,12 +247,9 @@ class BeatEditor(QGroupBox):
         row.addWidget(self.grid, 1)
         box.addLayout(row)
 
-        row = QHBoxLayout()
         self.preset = QComboBox()
-        self.apply_btn = QPushButton("Применить")
-        row.addWidget(self.preset, 1)
-        row.addWidget(self.apply_btn)
-        box.addLayout(row)
+        self.preset.setToolTip("Выбор рисунка применяется сразу")
+        box.addWidget(self.preset)
 
         self.steps_row = QHBoxLayout()
         self.steps = [StepButton() for _ in range(8)]
@@ -195,7 +259,7 @@ class BeatEditor(QGroupBox):
         box.addLayout(self.steps_row)
 
         self.grid.currentIndexChanged.connect(self._grid_changed)
-        self.apply_btn.clicked.connect(self.apply_preset)
+        self.preset.activated.connect(self._preset_activated)
         self.set_pattern(BeatPattern("sixteenth", [TI, TA, TA, TA]))
 
     def _apply_grid_item_constraints(self) -> None:
@@ -219,21 +283,24 @@ class BeatEditor(QGroupBox):
         return True
 
     def _reload_presets(self) -> None:
+        self.preset.blockSignals(True)
         self.preset.clear()
         presets = presets_for_grid(str(self.grid.currentData()))
         if not presets:
             self.preset.addItem("Ручная сетка", None)
-            self.apply_btn.setEnabled(False)
-            return
-        self.apply_btn.setEnabled(True)
-        for preset in presets:
-            self.preset.addItem(preset.human, preset)
+            self.preset.setEnabled(False)
+        else:
+            self.preset.setEnabled(True)
+            for preset in presets:
+                self.preset.addItem(preset.human, preset)
+        self.preset.blockSignals(False)
 
     def _grid_changed(self) -> None:
         key = str(self.grid.currentData())
         if not self._grid_allowed(key):
             self.grid.setCurrentIndex(self.grid.findData("quarter"))
             return
+
         spec = grid_spec(key)
         self._reload_presets()
         for i, button in enumerate(self.steps):
@@ -242,28 +309,33 @@ class BeatEditor(QGroupBox):
                 button.set_state(OFF)
         self.changed.emit()
 
-    def apply_preset(self) -> None:
-        preset = self.preset.currentData()
+    def _preset_activated(self, index: int) -> None:
+        preset = self.preset.itemData(index)
         if isinstance(preset, CellPreset):
-            self.set_pattern(BeatPattern(preset.grid, list(preset.steps)))
+            muted = self.mute.isChecked()
+            self.set_pattern(BeatPattern(preset.grid, list(preset.steps), muted))
             self.changed.emit()
 
     def pattern(self) -> BeatPattern:
         key = str(self.grid.currentData())
         spec = grid_spec(key)
-        return BeatPattern(key, [b.state for b in self.steps[: spec.steps]])
+        return BeatPattern(key, [b.state for b in self.steps[: spec.steps]], self.mute.isChecked())
 
     def set_pattern(self, pattern: BeatPattern) -> None:
         pattern.normalize()
         key = pattern.grid if self._grid_allowed(pattern.grid) else "quarter"
         if key != pattern.grid:
-            pattern = BeatPattern(key, pattern.steps[:1] or [OFF])
+            pattern = BeatPattern(key, pattern.steps[:1] or [OFF], pattern.muted)
             pattern.normalize()
 
         self.grid.blockSignals(True)
         self.grid.setCurrentIndex(self.grid.findData(key))
         self.grid.blockSignals(False)
         self._reload_presets()
+
+        self.mute.blockSignals(True)
+        self.mute.setChecked(pattern.muted)
+        self.mute.blockSignals(False)
 
         spec = grid_spec(key)
         for i, button in enumerate(self.steps):
@@ -303,10 +375,11 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(f"{APP_NAME} {APP_VERSION}")
-        self.resize(1220, 800)
+        self.resize(1220, 820)
         self.settings = QSettings(APP_NAME, APP_NAME)
         self.engine = AudioEngine()
         self.tap_times: list[float] = []
+        self.metro_color = QColor("#e8ebf0")
 
         self._build_ui()
         self._shortcuts()
@@ -370,85 +443,11 @@ class MainWindow(QMainWindow):
         random_row.addStretch()
         out.addLayout(random_row)
 
-        practice = QGroupBox("Тренировка")
-        g = QGridLayout(practice)
-        self.mode = QComboBox()
-        self.mode.addItem("Петля 4/4", "loop")
-        self.mode.addItem("Разгон 1/4→2/4→3/4→4/4", "ramp_1_4")
-        self.mode.addItem("Разгон 2/4→4/4", "ramp_2_4")
-        self.bars = QSpinBox()
-        self.bars.setRange(1, 64)
-        self.bars.setValue(8)
-        self.count = QSpinBox()
-        self.count.setRange(0, 8)
-        self.count.setValue(1)
-        self.inactive = QCheckBox("ТА-пульс на временно незаполненных долях")
-        self.inactive.setChecked(True)
-
-        g.addWidget(QLabel("Режим"), 0, 0)
-        g.addWidget(self.mode, 0, 1)
-        g.addWidget(QLabel("Тактов/этап"), 0, 2)
-        g.addWidget(self.bars, 0, 3)
-        g.addWidget(QLabel("Count-in"), 0, 4)
-        g.addWidget(self.count, 0, 5)
-        g.addWidget(self.inactive, 1, 0, 1, 3)
-
-        self.tempo_train = QCheckBox("Tempo trainer")
-        self.tempo_step = QSpinBox()
-        self.tempo_step.setRange(1, 20)
-        self.tempo_step.setValue(2)
-        self.tempo_every = QSpinBox()
-        self.tempo_every.setRange(1, 64)
-        self.tempo_every.setValue(4)
-        self.tempo_target = QSpinBox()
-        self.tempo_target.setRange(20, 320)
-        self.tempo_target.setValue(140)
-
-        g.addWidget(self.tempo_train, 1, 3)
-        g.addWidget(QLabel("± BPM"), 1, 4)
-        g.addWidget(self.tempo_step, 1, 5)
-        g.addWidget(QLabel("каждые такты"), 2, 3)
-        g.addWidget(self.tempo_every, 2, 4)
-        g.addWidget(QLabel("цель"), 2, 5)
-        g.addWidget(self.tempo_target, 2, 6)
-        out.addWidget(practice)
-
-        sound = QGroupBox("Звук")
-        g = QGridLayout(sound)
-
-        self.ti_on = QCheckBox(TI_MARK)
-        self.ti_on.setChecked(True)
-        self.ti_sound = QComboBox()
-        self.ti_sound.addItems(["Clap", "Wood", "Click", "Beep"])
-        self.ti_vol = self._volume_slider(100)
-
-        self.ta_on = QCheckBox("ТА")
-        self.ta_sound = QComboBox()
-        self.ta_sound.addItems(["Muted click", "Rim", "Low tick"])
-        self.ta_vol = self._volume_slider(70)
-
-        self.metro_on = QCheckBox("Метроном")
-        self.metro_on.setChecked(True)
-        self.accent = QCheckBox("Акцент 1")
-        self.accent.setChecked(True)
-        self.metro_vol = self._volume_slider(70)
-        self.master = self._volume_slider(100)
-
-        g.addWidget(self.ti_on, 0, 0)
-        g.addWidget(self.ti_sound, 0, 1)
-        g.addWidget(QLabel("громкость 0–200%"), 0, 2)
-        g.addWidget(self.ti_vol, 0, 3)
-        g.addWidget(self.ta_on, 1, 0)
-        g.addWidget(self.ta_sound, 1, 1)
-        g.addWidget(QLabel("громкость 0–200%"), 1, 2)
-        g.addWidget(self.ta_vol, 1, 3)
-        g.addWidget(self.metro_on, 2, 0)
-        g.addWidget(self.accent, 2, 1)
-        g.addWidget(QLabel("громкость 0–200%"), 2, 2)
-        g.addWidget(self.metro_vol, 2, 3)
-        g.addWidget(QLabel("Master 0–200%"), 3, 0, 1, 2)
-        g.addWidget(self.master, 3, 2, 1, 2)
-        out.addWidget(sound)
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self._build_practice_tab(), "Тренировка")
+        self.tabs.addTab(self._build_sound_tab(), "Звук")
+        self.tabs.addTab(self._build_metronome_tab(), "Метроном")
+        out.addWidget(self.tabs)
 
         footer = QHBoxLayout()
         save = QPushButton("Сохранить сессию")
@@ -487,9 +486,186 @@ class MainWindow(QMainWindow):
             self.metro_vol,
             self.master,
         ):
-            signal = getattr(widget, "valueChanged", None) or getattr(widget, "toggled", None) or getattr(widget, "currentIndexChanged", None)
+            signal = (
+                getattr(widget, "valueChanged", None)
+                or getattr(widget, "toggled", None)
+                or getattr(widget, "currentIndexChanged", None)
+            )
             if signal:
                 signal.connect(self._config_changed)
+
+    def _build_practice_tab(self) -> QWidget:
+        tab = QWidget()
+        root = QHBoxLayout(tab)
+
+        main = QGroupBox("Режим")
+        form = QFormLayout(main)
+
+        self.mode = QComboBox()
+        self.mode.addItem("Петля 4/4", "loop")
+        self.mode.addItem("Разгон 1/4 → 2/4 → 3/4 → 4/4", "ramp_1_4")
+        self.mode.addItem("Разгон 2/4 → 4/4", "ramp_2_4")
+        form.addRow("Режим тренировки:", self.mode)
+
+        self.bars = QSpinBox()
+        self.bars.setRange(1, 64)
+        self.bars.setValue(8)
+        form.addRow("Тактов на этап:", self.bars)
+
+        self.count = QSpinBox()
+        self.count.setRange(0, 8)
+        self.count.setValue(1)
+        form.addRow("Count-in, тактов:", self.count)
+
+        self.inactive = QCheckBox("ТА-пульс на временно незаполненных долях")
+        self.inactive.setChecked(True)
+        form.addRow("", self.inactive)
+        root.addWidget(main, 1)
+
+        trainer = QGroupBox("Разгон темпа")
+        form = QFormLayout(trainer)
+        self.tempo_train = QCheckBox("Включить tempo trainer")
+        form.addRow("", self.tempo_train)
+
+        self.tempo_step = QSpinBox()
+        self.tempo_step.setRange(1, 20)
+        self.tempo_step.setValue(2)
+        form.addRow("Шаг BPM:", self.tempo_step)
+
+        self.tempo_every = QSpinBox()
+        self.tempo_every.setRange(1, 64)
+        self.tempo_every.setValue(4)
+        form.addRow("Менять каждые, тактов:", self.tempo_every)
+
+        self.tempo_target = QSpinBox()
+        self.tempo_target.setRange(20, 320)
+        self.tempo_target.setValue(140)
+        form.addRow("Целевой BPM:", self.tempo_target)
+        root.addWidget(trainer, 1)
+        return tab
+
+    def _build_sound_tab(self) -> QWidget:
+        tab = QWidget()
+        g = QGridLayout(tab)
+
+        self.ti_on = QCheckBox(TI_MARK)
+        self.ti_on.setChecked(True)
+        self.ti_sound = QComboBox()
+        self.ti_sound.addItems(["Clap", "Wood", "Click", "Beep"])
+        self.ti_vol = self._volume_slider(100)
+
+        self.ta_on = QCheckBox("ТА")
+        self.ta_sound = QComboBox()
+        self.ta_sound.addItems(["Muted click", "Rim", "Low tick"])
+        self.ta_vol = self._volume_slider(70)
+
+        self.metro_on = QCheckBox("Метроном")
+        self.metro_on.setChecked(True)
+        self.accent = QCheckBox("Акцент первой доли")
+        self.accent.setChecked(True)
+        self.metro_vol = self._volume_slider(70)
+        self.master = self._volume_slider(100)
+
+        g.addWidget(self.ti_on, 0, 0)
+        g.addWidget(self.ti_sound, 0, 1)
+        g.addWidget(QLabel("Громкость"), 0, 2)
+        g.addWidget(self.ti_vol, 0, 3)
+
+        g.addWidget(self.ta_on, 1, 0)
+        g.addWidget(self.ta_sound, 1, 1)
+        g.addWidget(QLabel("Громкость"), 1, 2)
+        g.addWidget(self.ta_vol, 1, 3)
+
+        g.addWidget(self.metro_on, 2, 0)
+        g.addWidget(self.accent, 2, 1)
+        g.addWidget(QLabel("Громкость"), 2, 2)
+        g.addWidget(self.metro_vol, 2, 3)
+
+        g.addWidget(QLabel("Master"), 3, 0, 1, 2)
+        g.addWidget(self.master, 3, 2, 1, 2)
+
+        note = QLabel("Все уровни: 0–200%. При перегрузе движок ограничивает цифровой пик без hard clipping.")
+        note.setWordWrap(True)
+        note.setStyleSheet("color:#8f96a3;")
+        g.addWidget(note, 4, 0, 1, 4)
+        g.setColumnStretch(3, 1)
+        return tab
+
+    def _build_metronome_tab(self) -> QWidget:
+        tab = QWidget()
+        root = QHBoxLayout(tab)
+
+        visual = QGroupBox("Визуальный метроном")
+        form = QFormLayout(visual)
+
+        self.metro_size = QSlider(Qt.Horizontal)
+        self.metro_size.setRange(60, 180)
+        self.metro_size.setValue(100)
+        self.metro_size.setToolTip("Размер визуального метронома")
+        form.addRow("Размер:", self.metro_size)
+
+        color_row = QWidget()
+        color_layout = QHBoxLayout(color_row)
+        color_layout.setContentsMargins(0, 0, 0, 0)
+        self.metro_color_btn = QPushButton("Выбрать цвет")
+        self.metro_color_btn.clicked.connect(self.choose_metronome_color)
+        self.metro_color_sample = QLabel("      ")
+        self.metro_color_sample.setFixedWidth(42)
+        color_layout.addWidget(self.metro_color_btn)
+        color_layout.addWidget(self.metro_color_sample)
+        color_layout.addStretch()
+        form.addRow("Цвет иглы:", color_row)
+
+        self.metro_flash = QCheckBox("Мигалка на ударе")
+        self.metro_flash.setChecked(True)
+        form.addRow("", self.metro_flash)
+
+        self.metro_flash_brightness = QSlider(Qt.Horizontal)
+        self.metro_flash_brightness.setRange(0, 200)
+        self.metro_flash_brightness.setValue(100)
+        form.addRow("Яркость мигалки:", self.metro_flash_brightness)
+
+        self.metro_width = QSpinBox()
+        self.metro_width.setRange(1, 12)
+        self.metro_width.setValue(4)
+        form.addRow("Толщина иглы:", self.metro_width)
+
+        self.metro_angle = QSpinBox()
+        self.metro_angle.setRange(15, 70)
+        self.metro_angle.setValue(42)
+        self.metro_angle.setSuffix("°")
+        form.addRow("Размах иглы:", self.metro_angle)
+
+        self.metro_lamps = QCheckBox("Показывать 4 индикатора долей")
+        self.metro_lamps.setChecked(True)
+        form.addRow("", self.metro_lamps)
+        root.addWidget(visual, 1)
+
+        hint = QGroupBox("Подсказка")
+        hint_layout = QVBoxLayout(hint)
+        text = QLabel(
+            "Игла синхронизирована с sample-clock аудиодвижка. "
+            "Мигалка — только визуальный слой и не участвует в тайминге звука."
+        )
+        text.setWordWrap(True)
+        hint_layout.addWidget(text)
+        hint_layout.addStretch()
+        root.addWidget(hint, 1)
+
+        for widget in (
+            self.metro_size,
+            self.metro_flash,
+            self.metro_flash_brightness,
+            self.metro_width,
+            self.metro_angle,
+            self.metro_lamps,
+        ):
+            signal = getattr(widget, "valueChanged", None) or getattr(widget, "toggled", None)
+            if signal:
+                signal.connect(self._visual_config_changed)
+
+        self._refresh_color_sample()
+        return tab
 
     @staticmethod
     def _volume_slider(value: int) -> QSlider:
@@ -506,6 +682,29 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Down"), self, lambda: self.bpm.setValue(self.bpm.value() - 1))
         QShortcut(QKeySequence("Shift+Up"), self, lambda: self.bpm.setValue(self.bpm.value() + 5))
         QShortcut(QKeySequence("Shift+Down"), self, lambda: self.bpm.setValue(self.bpm.value() - 5))
+
+    def choose_metronome_color(self) -> None:
+        color = QColorDialog.getColor(self.metro_color, self, "Цвет визуального метронома")
+        if color.isValid():
+            self.metro_color = color
+            self._refresh_color_sample()
+            self._visual_config_changed()
+
+    def _refresh_color_sample(self) -> None:
+        self.metro_color_sample.setStyleSheet(
+            f"background:{self.metro_color.name()};border:1px solid #666;border-radius:4px;"
+        )
+
+    def _visual_config_changed(self, *_args) -> None:
+        self.visual.configure(
+            scale_percent=self.metro_size.value(),
+            needle_color=self.metro_color,
+            flash_enabled=self.metro_flash.isChecked(),
+            flash_brightness=self.metro_flash_brightness.value(),
+            needle_width=self.metro_width.value(),
+            show_beat_lamps=self.metro_lamps.isChecked(),
+            swing_angle=self.metro_angle.value(),
+        )
 
     def current_pattern(self) -> BarPattern:
         return BarPattern([editor.pattern() for editor in self.editors])
@@ -547,6 +746,7 @@ class MainWindow(QMainWindow):
     def _sync(self) -> None:
         self._pattern_changed()
         self._config_changed()
+        self._visual_config_changed()
 
     def _bpm_from_spin(self, value: int) -> None:
         self.bpm_slider.blockSignals(True)
@@ -592,7 +792,7 @@ class MainWindow(QMainWindow):
     def randomize_four(self) -> None:
         for editor in self.editors:
             preset = random.choice(CORE_PRACTICE_PRESETS)
-            editor.set_pattern(BeatPattern(preset.grid, list(preset.steps)))
+            editor.set_pattern(BeatPattern(preset.grid, list(preset.steps), False))
         self._pattern_changed()
 
     def _poll(self) -> None:
@@ -664,6 +864,15 @@ class MainWindow(QMainWindow):
                 "metro_vol": self.metro_vol.value(),
                 "master": self.master.value(),
             },
+            "visual_metronome": {
+                "size": self.metro_size.value(),
+                "color": self.metro_color.name(),
+                "flash": self.metro_flash.isChecked(),
+                "flash_brightness": self.metro_flash_brightness.value(),
+                "width": self.metro_width.value(),
+                "angle": self.metro_angle.value(),
+                "lamps": self.metro_lamps.isChecked(),
+            },
         }
 
     def save_session(self) -> None:
@@ -707,6 +916,18 @@ class MainWindow(QMainWindow):
         self.accent.setChecked(bool(sound.get("accent", True)))
         self.metro_vol.setValue(int(sound.get("metro_vol", 70)))
         self.master.setValue(int(sound.get("master", 100)))
+
+        vm = data.get("visual_metronome", {})
+        self.metro_size.setValue(int(vm.get("size", 100)))
+        color = QColor(str(vm.get("color", "#e8ebf0")))
+        if color.isValid():
+            self.metro_color = color
+        self.metro_flash.setChecked(bool(vm.get("flash", True)))
+        self.metro_flash_brightness.setValue(int(vm.get("flash_brightness", 100)))
+        self.metro_width.setValue(int(vm.get("width", 4)))
+        self.metro_angle.setValue(int(vm.get("angle", 42)))
+        self.metro_lamps.setChecked(bool(vm.get("lamps", True)))
+        self._refresh_color_sample()
         self._sync()
 
     @staticmethod
@@ -720,7 +941,7 @@ class MainWindow(QMainWindow):
         self.play.setText("▶ Старт")
         self.bpm.setValue(60)
         for editor in self.editors:
-            editor.set_pattern(BeatPattern("sixteenth", [TI, TA, TA, TA]))
+            editor.set_pattern(BeatPattern("sixteenth", [TI, TA, TA, TA], False))
         self.mode.setCurrentIndex(0)
         self.bars.setValue(8)
         self.count.setValue(1)
@@ -733,6 +954,16 @@ class MainWindow(QMainWindow):
         self.metro_on.setChecked(True)
         self.metro_vol.setValue(70)
         self.master.setValue(100)
+
+        self.metro_color = QColor("#e8ebf0")
+        self.metro_size.setValue(100)
+        self.metro_flash.setChecked(True)
+        self.metro_flash_brightness.setValue(100)
+        self.metro_width.setValue(4)
+        self.metro_angle.setValue(42)
+        self.metro_lamps.setChecked(True)
+        self._refresh_color_sample()
+
         self._set_ramp_visual(4)
         self._sync()
 
@@ -740,11 +971,10 @@ class MainWindow(QMainWindow):
         geometry = self.settings.value("geometry")
         if geometry:
             self.restoreGeometry(geometry)
-        self.bpm.setValue(int(self.settings.value("bpm", 60)))
+        self.bpm.setValue(60)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.settings.setValue("geometry", self.saveGeometry())
-        self.settings.setValue("bpm", self.bpm.value())
         self.engine.close()
         event.accept()
 

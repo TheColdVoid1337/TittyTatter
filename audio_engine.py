@@ -49,6 +49,7 @@ class AudioEngine:
         self._stream: sd.OutputStream | None = None
         self._config = EngineConfig()
         self._pattern = BarPattern()
+        self._coverage = self._pattern.coverage()
         self._running = False
 
         self._sample_cursor = 0
@@ -66,7 +67,7 @@ class AudioEngine:
         self._visual_quarter_start = 0.0
         self._visual_beat_samples = self.sample_rate
 
-        self._active_voices: list[tuple[np.ndarray, int]] = []
+        self._active_voices: list[tuple[np.ndarray, int, float]] = []
         self._last_error = ""
         self._sounds = self._build_sounds()
 
@@ -85,6 +86,7 @@ class AudioEngine:
         new_pattern = copy.deepcopy(pattern)
         new_pattern.normalize()
         self._pattern = new_pattern
+        self._coverage = new_pattern.coverage()
 
     def set_config(self, **kwargs: Any) -> None:
         valid = {k: v for k, v in kwargs.items() if hasattr(self._config, k)}
@@ -183,14 +185,14 @@ class AudioEngine:
         block_start = self._sample_cursor
         block_end = block_start + frames
 
-        kept: list[tuple[np.ndarray, int]] = []
-        for wave, pos in self._active_voices:
+        kept: list[tuple[np.ndarray, int, float]] = []
+        for wave, pos, gain in self._active_voices:
             n = min(frames, len(wave) - pos)
             if n > 0:
-                mono[:n] += wave[pos : pos + n]
+                mono[:n] += wave[pos : pos + n] * gain
                 pos += n
             if pos < len(wave):
-                kept.append((wave, pos))
+                kept.append((wave, pos, gain))
         self._active_voices = kept
 
         safety = 0
@@ -199,23 +201,28 @@ class AudioEngine:
             event_sample = self._next_event_sample
             offset = max(0, int(round(event_sample - block_start)))
             sounds, interval = self._event(event_sample)
-            for wave in sounds:
-                self._mix_sound(mono, offset, wave)
+            for wave, gain in sounds:
+                self._mix_sound(mono, offset, wave, gain)
             self._next_event_sample += max(1.0, interval)
 
         self._sample_cursor = block_end
         mono *= float(self._config.master_volume)
-        np.clip(mono, -0.995, 0.995, out=mono)
+
+        # Avoid hard digital clipping when several sharp transients coincide.
+        peak = float(np.max(np.abs(mono))) if frames else 0.0
+        if peak > 0.985:
+            mono *= 0.985 / peak
+
         if self.channels == 1:
             outdata[:, 0] = mono
         else:
             outdata[:] = mono[:, None]
 
-    def _event(self, event_sample: float) -> tuple[list[np.ndarray], float]:
+    def _event(self, event_sample: float) -> tuple[list[tuple[np.ndarray, float]], float]:
         cfg = self._config
         pattern = self._pattern
         beat_samples = self.sample_rate * 60.0 / max(20.0, cfg.bpm)
-        sounds: list[np.ndarray] = []
+        sounds: list[tuple[np.ndarray, float]] = []
 
         if self._count_in_beats_left > 0:
             idx = self._count_in_total_beats - self._count_in_beats_left
@@ -223,7 +230,7 @@ class AudioEngine:
             self._set_visual_event(beat, 0, event_sample, beat_samples)
             if cfg.metronome_enabled:
                 key = "metro_accent" if beat == 0 and cfg.accent_first_beat else "metro"
-                sounds.append(self._sounds[key] * float(cfg.metronome_volume))
+                sounds.append((self._sounds[key], float(cfg.metronome_volume)))
             self._count_in_beats_left -= 1
             if self._count_in_beats_left == 0:
                 self._beat_index = 0
@@ -232,8 +239,11 @@ class AudioEngine:
 
         stages = self._stages(cfg.practice_mode)
         active_beats = stages[self._stage_index % len(stages)]
-        coverage = pattern.coverage()
-        owner = coverage[self._beat_index]
+        owner = self._coverage[self._beat_index]
+        owner_index = self._beat_index if owner is None else owner
+        owner_def = pattern.beats[owner_index]
+        beat_muted = bool(owner_def.muted)
+
         covered_by_active_note = owner is not None and owner != self._beat_index and owner < active_beats
         beat_active = self._beat_index < active_beats
         beat_def = pattern.beats[self._beat_index]
@@ -254,14 +264,15 @@ class AudioEngine:
 
         self._set_visual_event(self._beat_index, self._sub_index, self._visual_quarter_start, beat_samples)
 
-        if self._sub_index == 0 and cfg.metronome_enabled:
+        if self._sub_index == 0 and cfg.metronome_enabled and not beat_muted:
             key = "metro_accent" if self._beat_index == 0 and cfg.accent_first_beat else "metro"
-            sounds.append(self._sounds[key] * float(cfg.metronome_volume))
+            sounds.append((self._sounds[key], float(cfg.metronome_volume)))
 
-        if state == TI and cfg.ti_enabled:
-            sounds.append(self._sounds[self._ti_key(cfg.ti_sound)] * float(cfg.ti_volume))
-        elif state == TA and cfg.ta_enabled:
-            sounds.append(self._sounds[self._ta_key(cfg.ta_sound)] * float(cfg.ta_volume))
+        if not beat_muted:
+            if state == TI and cfg.ti_enabled:
+                sounds.append((self._sounds[self._ti_key(cfg.ti_sound)], float(cfg.ti_volume)))
+            elif state == TA and cfg.ta_enabled:
+                sounds.append((self._sounds[self._ta_key(cfg.ta_sound)], float(cfg.ta_volume)))
 
         interval = beat_samples / n_sub
         self._sub_index += 1
@@ -311,15 +322,15 @@ class AudioEngine:
             return (2, 4)
         return (4,)
 
-    def _mix_sound(self, block: np.ndarray, offset: int, wave: np.ndarray) -> None:
+    def _mix_sound(self, block: np.ndarray, offset: int, wave: np.ndarray, gain: float) -> None:
         if offset >= len(block):
-            self._active_voices.append((wave, 0))
+            self._active_voices.append((wave, 0, gain))
             return
         n = min(len(wave), len(block) - offset)
         if n > 0:
-            block[offset : offset + n] += wave[:n]
+            block[offset : offset + n] += wave[:n] * gain
         if n < len(wave):
-            self._active_voices.append((wave, n))
+            self._active_voices.append((wave, n, gain))
 
     def _build_sounds(self) -> dict[str, np.ndarray]:
         sr = self.sample_rate
@@ -360,36 +371,36 @@ class AudioEngine:
                 clap[start:] += noise[:n] * env(n, decay) * gain
         bright = tone(1850, 0.025, 0.006, 0.75)
         clap[: len(bright)] += bright
-        clap = normalize(clap, 0.95)
+        clap = normalize(clap, 0.82)
 
         wood = normalize(mix_layers(
             tone(900, 0.060, 0.018, 1.0),
             tone(1450, 0.060, 0.012, 0.55),
-        ), 0.92)
+        ), 0.80)
         click = normalize(mix_layers(
             tone(2600, 0.020, 0.0045, 1.0),
             tone(3900, 0.015, 0.0035, 0.35),
-        ), 0.95)
-        beep = normalize(tone(1150, 0.055, 0.028, 1.0), 0.88)
+        ), 0.82)
+        beep = normalize(tone(1150, 0.055, 0.028, 1.0), 0.76)
 
         muted_n = int(sr * 0.035)
         muted = rng.normal(0.0, 1.0, muted_n).astype(np.float32) * env(muted_n, 0.007)
         muted += tone(210, 0.035, 0.010, 0.65)
-        muted = normalize(muted, 0.80)
+        muted = normalize(muted, 0.68)
         rim = normalize(mix_layers(
             tone(1750, 0.022, 0.005, 1.0),
             tone(790, 0.026, 0.008, 0.25),
-        ), 0.90)
-        low_tick = normalize(tone(290, 0.035, 0.009, 1.0), 0.82)
+        ), 0.76)
+        low_tick = normalize(tone(290, 0.035, 0.009, 1.0), 0.70)
 
         metro = normalize(mix_layers(
             tone(1800, 0.030, 0.006, 1.0),
             tone(2850, 0.020, 0.004, 0.42),
-        ), 0.95)
+        ), 0.80)
         metro_accent = normalize(mix_layers(
             tone(2550, 0.040, 0.008, 1.0),
             tone(3800, 0.025, 0.005, 0.50),
-        ), 0.98)
+        ), 0.84)
 
         return {
             "ti_clap": clap,

@@ -45,6 +45,11 @@ install_runtime() {
   "$PY" -m pip install -r "$(winpath "$REQ")"
 }
 
+audio_info() {
+  ensure_venv
+  "$PY" -c "import sounddevice as sd; print('default devices:', sd.default.device); print('host APIs:'); [print(f'  [{i}] {x[\"name\"]}') for i,x in enumerate(sd.query_hostapis())]; print('default output:'); print(sd.query_devices(kind='output'))"
+}
+
 usage() {
   cat <<'EOF'
 TittyTatter WSL helper
@@ -56,6 +61,7 @@ Usage:
   ./tt test           Run core tests with the Windows venv
   ./tt check          Run tests, compile checks, and dependency imports
   ./tt doctor         Show WSL/Windows/Python environment diagnostics
+  ./tt audio-info     Show PortAudio host APIs and the default output device
   ./tt pip ...        Run pip inside the Windows venv
   ./tt python [...]   Run the Windows venv Python
   ./tt build          Build the Windows app with PyInstaller
@@ -114,10 +120,15 @@ case "$cmd" in
       echo "Venv:        present"
       "$PY" -c "import sys, platform; print('Python:      '+sys.executable); print('Version:     '+sys.version.split()[0]); print('Platform:    '+platform.platform())"
       "$PY" -c "import PySide6, numpy, sounddevice; print('PySide6:     '+PySide6.__version__); print('NumPy:       '+numpy.__version__); print('sounddevice: '+sounddevice.__version__)"
+      "$PY" -c "import sounddevice as sd; d=sd.query_devices(kind='output'); print('Audio out:   '+str(d['name'])); print('Sample rate: '+str(d['default_samplerate'])); print('Low latency: '+str(d['default_low_output_latency']))"
     else
       echo "Venv:        missing"
       echo "Run:         ./tt install"
     fi
+    ;;
+
+  audio-info)
+    audio_info
     ;;
 
   pip)
