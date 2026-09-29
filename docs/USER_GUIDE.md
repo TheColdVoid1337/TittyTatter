@@ -1,117 +1,163 @@
 # User guide
 
-## Running from WSL as a native Windows application
+## Start
 
-The supported development workflow is:
-
-- repository commands are issued from WSL;
-- Git runs in WSL;
-- TittyTatter itself runs with the Windows Python virtual environment;
-- PySide6 and sounddevice therefore use native Windows GUI/audio.
-
-Project paths:
-
-```text
-Windows: F:\_PROJECT\TittyTatter
-WSL:     /mnt/f/_PROJECT/TittyTatter
-```
-
-First setup:
+From WSL:
 
 ```bash
 cd /mnt/f/_PROJECT/TittyTatter
 ./tt install
-./tt doctor
-```
-
-Normal use:
-
-```bash
 ./tt run
 ```
 
-Useful development commands:
+TittyTatter runs through the Windows interpreter at `.venv/Scripts/python.exe`. Do not activate a Linux virtual environment for this project.
 
-```bash
-./tt test
-./tt check
-./tt pip list
-./tt python
-./tt update
+## Build a rhythm
+
+Choose the time signature at the top of the window.
+
+- Numerator: 1–16.
+- Denominator: 2, 4, 8, or 16.
+
+Each metric beat has its own editor. Choose a grid, choose a preset when available, or click individual step buttons to cycle:
+
+```text
+(ТИ) → ТА → OFF
 ```
 
-There is no need to run `source .venv/bin/activate`. That would refer to a Linux virtual environment, while TittyTatter deliberately uses the Windows interpreter at `.venv/Scripts/python.exe`.
+For wide meters, the beat row scrolls horizontally. During playback it follows the currently active beat.
 
-## Building a bar
+### Mute
 
-A TittyTatter exercise is a four-beat 4/4 bar.
+Each beat has a red `Mute` toggle. A muted beat becomes visually dim and produces no beat content/metronome click for that beat.
 
-For each beat:
+Mute is unavailable in practice-ramp modes.
 
-1. choose **16ths** or **triplet**;
-2. select a built-in pattern or edit the subdivisions manually;
-3. set each subdivision to **TI**, **TA**, or silence.
+## Practice tab
 
-Different beats may use different subdivision types.
+Contains:
 
-## TI and TA
+- loop/ramp mode;
+- bars per stage;
+- count-in;
+- optional TA pulse on inactive ramp beats;
+- random full-bar generation;
+- tempo trainer;
+- optional practice timer.
 
-TI and TA are intentionally abstract rhythm roles.
+When the timer expires, playback stops and a short end signal sounds.
 
-A common practice setup is:
+## Sound tab
 
-- **TI**: clap-like sound;
-- **TA**: sound disabled;
+(ТИ), ТА, metronome, and master levels are independent.
+
+Current defaults:
+
+- (ТИ): **Wood**, enabled;
+- ТА: **Low tick**, enabled;
 - metronome: enabled.
 
-This makes the target hits stand out while the meter remains audible.
+(ТИ) and ТА cannot use the same sound simultaneously.
 
-## A/B practice
+## Metronome tab
 
-The A/B builder is intended for rapid combination work.
+The visual metronome can configure:
 
-Typical shapes include:
+- size;
+- needle color;
+- flash color;
+- flash circle;
+- whole-panel flash;
+- flash brightness;
+- needle width;
+- swing angle;
+- beat lamps.
 
-- A B A B
-- A B B A
-- A A B B
+Whole-panel flashing works independently from the flash-circle toggle.
 
-A and B may use different subdivision types.
+## Game tab
 
-## Practice ramps
+Enable **Game mode** first. When disabled, all game overlays disappear from the metronome.
 
-Useful modes include:
+Configure:
 
-- full 4/4 loop;
-- 1/4 → 2/4 → 3/4 → 4/4;
-- 2/4 → 4/4.
+- key for (ТИ);
+- key for ТА;
+- difficulty:
+  - Low: ±180 ms;
+  - Mid: ±110 ms;
+  - High: ±60 ms.
 
-The number of bars per stage should be configurable.
+Press **Start game**. This restarts playback/count-in so scoring begins from a clean timeline.
 
-## Tempo
+During the game:
 
-BPM can be changed while playback is running.
+- correct input flashes the metronome area green;
+- incorrect input/miss flashes it red;
+- the left side shows HIT/MISS plus early/late timing;
+- the right side shows hit/miss count, accuracy, and recent-quality graph.
 
-Recommended controls:
+The Game tab also keeps the summary of the most recently completed game.
 
-- direct BPM value;
-- slider;
-- ±1 BPM;
-- ±5 BPM;
-- tap tempo.
+## Audio tab
 
-The tempo trainer can increase BPM automatically after a chosen number of bars until a target BPM is reached.
+Select:
 
-## Sessions
+- output device;
+- sample rate;
+- block size;
+- low/high latency request;
+- WASAPI exclusive mode.
 
-A session should preserve at minimum:
+Stop playback before changing audio-system settings.
 
-- BPM;
-- four-beat pattern;
-- subdivision type per beat;
-- practice mode;
-- stage length;
-- sound configuration;
-- trainer configuration.
+`./tt audio-info` provides a command-line view of available output devices and the engine selection.
 
-Session files are user data and are not part of the repository.
+## Export tab
+
+### MIDI
+
+Choose repeat count and whether to include labels, then save a `.mid` file.
+
+### Guitar Pro 5
+
+Choose repeat count and labels, then save `.gp5`.
+
+Current mapping:
+
+- TI: string 5, fret 7, E3;
+- TA: dead note `x` on string 6;
+- track instrument: Overdriven Guitar.
+
+Pattern annotations are written only above the first exported bar and deliberately avoid legacy-GP encoding-sensitive Cyrillic.
+
+### WAV
+
+Choose duration and PCM quality in the export dialog. WAV export loops the current pattern using the current BPM, sounds, levels, and metronome configuration.
+
+## Sessions and settings
+
+**Session files** are explicit exercise snapshots saved/loaded from the UI.
+
+**Application settings** are stored automatically in:
+
+```text
+tittytatter.settings.json
+```
+
+This file is ignored by Git.
+
+The Audio tab contains **Reset settings…**. Reset requires typing exactly:
+
+```text
+DELETE
+```
+
+before the settings file is removed/reset.
+
+## Keyboard shortcuts
+
+- Space — start/stop.
+- T — tap tempo.
+- Up / Down — ±1 BPM.
+- Shift+Up / Shift+Down — ±5 BPM.

@@ -4,67 +4,96 @@
 
 - Project: **TittyTatter**
 - Published version: **0.0.1**
-- Development branch: **work**
-- Status: early development / working prototype baseline
-- Primary platform: desktop, Windows-first
+- Current integration branch: **main**
+- Status: unreleased release-preparation state after the current development cycle
+- Primary platform: Windows desktop
 - Language: Python
-- GUI direction: PySide6
-- Audio direction: callback-driven realtime playback
+- GUI: PySide6
+- Audio: callback-driven realtime playback through python-sounddevice / PortAudio
+- Preferred Windows backend: WASAPI
 - Development shell: WSL
-- Runtime environment: native Windows Python virtual environment
+- Runtime: native Windows Python virtual environment
 
-## Product scope
+The current `main` state is intentionally **not assigned a new numeric version yet**. The next version number is chosen only when the release/tag checkpoint is performed.
 
-TittyTatter is a focused rhythm-practice tool built around user-defined TI / TA cells.
+## Implemented product scope
 
-The current baseline supports or is intended to preserve:
+The current application includes:
 
-- four beats per 4/4 bar;
-- independent subdivision choice per beat;
-- straight sixteenths and eighth-note triplets;
-- TI / TA / silence per subdivision;
-- built-in pattern presets;
-- A/B construction;
-- practice ramps such as 1/4 → 2/4 → 3/4 → 4/4 and 2/4 → 4/4;
-- live BPM changes and tap tempo;
-- count-in and tempo trainer;
-- independent TI / TA / metronome / master sound controls;
-- TI clap-like sound;
-- optional complete TA muting;
-- visual playhead;
-- session persistence.
+- flexible meters with numerator 1–16 and denominator 2/4/8/16;
+- a horizontally scrollable per-beat editor for wide meters;
+- per-beat selectable rhythm grids;
+- (ТИ) / ТА / OFF subdivision states;
+- built-in binary straight and triplet presets;
+- per-beat Mute in non-ramp practice modes;
+- random full-bar generation;
+- count-in;
+- practice ramps;
+- tempo trainer;
+- optional timed practice with end signal;
+- live BPM controls and tap tempo;
+- callback/sample-clock-driven playback;
+- WASAPI-preferred output selection and audio-system controls;
+- independent (ТИ), ТА, metronome, and master sound controls;
+- configurable visual metronome;
+- rhythm-game keyboard scoring with Low/Mid/High timing windows;
+- DAC-time-based game targets, hit/miss feedback, early/late timing, graph, and last-game statistics;
+- JSON session save/load;
+- ignored persistent local application settings;
+- MIDI export;
+- Guitar Pro 5 export;
+- WAV export.
 
-## Local workflow
+## Canonical local workflow
 
-The repository is expected at:
+Repository:
 
 ```text
-F:\_PROJECT\TittyTatter
-/mnt/f/_PROJECT/TittyTatter
+Windows: F:\_PROJECT\TittyTatter
+WSL:     /mnt/f/_PROJECT/TittyTatter
 ```
 
-WSL is the control plane. The root `tt` helper launches the Windows interpreter from `.venv/Scripts/python.exe`, keeping Qt and audio native to Windows.
+WSL is the command/control environment. TittyTatter itself runs through the Windows interpreter at `.venv/Scripts/python.exe`.
 
-## Current limitations
+Canonical commands:
 
-The project is still pre-stable. Before any claim of a production-ready release, the application needs broad real-device audio testing and hands-on practice feedback.
+```bash
+./tt install
+./tt doctor
+./tt check
+./tt run
+```
 
-Not yet considered stable commitments:
+GitHub is used for source/history. Routine validation is performed locally; the removed GitHub smoke workflow is not part of the current process.
 
-- audio-device selection UX;
-- timing-input scoring;
-- MIDI input;
-- practice playlists;
-- statistics/history;
-- export formats;
-- installer/release packaging.
+## Release-preparation state
+
+Before tagging the current `main` state:
+
+1. pull `main` locally;
+2. install/update dependencies;
+3. run `./tt doctor`;
+4. run `./tt check`;
+5. perform the focused manual GUI/audio/export/game checks from `docs/TEST_MATRIX.md`;
+6. only after acceptance choose the release version, update `VERSION` and release-facing version references, create the release commit, then create/push the annotated tag.
+
+## Known limitations
+
+- Keyboard game scoring is not input-latency calibrated.
+- No MIDI-controller input scoring yet.
+- Audio-device behavior still depends on the Windows/driver/PortAudio stack and requires real-device validation.
+- Guitar Pro export intentionally uses conservative ASCII annotations for GP5 text compatibility.
+- No installer/updater or packaged release workflow is finalized.
+- Practice history is limited to the most recent game summary rather than a long-term statistics database.
 
 ## Repository rules
 
 1. Root `VERSION` is the canonical SemVer source for published builds.
-2. Root `README.md` is the public project entry point.
-3. Detailed documentation lives under `docs/`.
-4. Technical filenames, identifiers, branch names, commits, and documentation are English-first.
-5. Published versions are never reused.
-6. Feedback from actual practice outranks speculative feature expansion.
-7. Native Windows runtime + WSL command control is the canonical local development workflow.
+2. Numeric versions change only at release/tag checkpoints.
+3. Root `README.md` is the public project entry point.
+4. Detailed living documentation lives under `docs/`.
+5. Technical filenames, identifiers, branch names, commits, and documentation are English-first.
+6. Published versions are never reused.
+7. Actual practice feedback outranks speculative expansion.
+8. Windows runtime + WSL command control is the canonical development workflow.
+9. Local gates are canonical; GitHub CI is not required for ordinary development.

@@ -2,86 +2,140 @@
 
 ## Design goal
 
-The architecture should keep **rhythm representation**, **audio scheduling**, and **GUI state** separate enough that UI changes do not redefine timing behavior.
+TittyTatter separates rhythm representation, realtime audio scheduling, UI state, export, and persistence so that GUI changes do not become timing changes.
 
-## Planned baseline modules
+## Modules
 
 ### `app.py`
+
 Owns the PySide6 application shell:
 
-- beat editors;
-- transport controls;
-- BPM controls;
-- A/B builder;
-- practice-mode configuration;
-- sound settings;
+- transport and BPM controls;
+- variable time-signature controls;
+- horizontally scrollable beat editor;
+- practice configuration;
+- sound controls;
+- visual metronome;
+- game-mode UI and scoring presentation;
+- audio-device settings UI;
 - session save/load;
-- visual playhead.
+- export dialogs.
 
-The GUI should describe state and send configuration to the engine. It should not be the timing clock.
+Qt timers are used for display/polling, not as the musical clock.
 
 ### `model.py`
-Owns serializable rhythm-domain objects:
 
-- beat subdivision;
-- subdivision states;
-- four-beat bar;
-- normalization and session representation.
+Owns the serializable rhythm-domain model:
+
+- `BeatPattern`;
+- `BarPattern`;
+- time signature;
+- per-beat grid;
+- per-step TI/TA/OFF;
+- per-beat mute;
+- span/coverage normalization;
+- legacy session migration.
+
+A bar may contain 1–16 metric beats. The denominator controls the musical duration of each metric beat.
 
 ### `presets.py`
-Owns built-in TI / TA cells.
 
-Preset data must remain ordinary model data. A preset is a shortcut for constructing a pattern, not a separate execution path.
+Owns:
+
+- TI / TA / OFF constants;
+- rhythm-grid definitions;
+- meter-aware grid labels;
+- built-in straight/triplet TI/TA cells.
+
+Presets are ordinary model data, not a separate playback path.
 
 ### `audio_engine.py`
-Owns realtime sequencing and sound generation/playback.
 
-Core rule: musical event timing is scheduled against the audio stream/callback clock rather than Qt timer cadence.
+Owns realtime sequencing, synthesized sound playback, output-device selection, and callback timing.
+
+Core rules:
+
+- musical scheduling is performed in the PortAudio callback;
+- the engine prefers the Windows WASAPI default endpoint when available;
+- the selected device, sample rate, block size, latency mode, and optional WASAPI exclusive mode are explicit runtime settings;
+- GUI timing does not schedule musical events;
+- game targets are stamped from PortAudio output/DAC timing rather than from Qt polling.
+
+The synthesized sound bank is built at the selected output sample rate.
+
+### `exports.py`
+
+Owns offline export:
+
+- Standard MIDI File;
+- Guitar Pro 5 through PyGuitarPro;
+- WAV PCM rendering.
+
+Export uses the same rhythm model as realtime playback.
+
+Current guitar mapping:
+
+- **TI**: E3, string 5 fret 7;
+- **TA**: dead/muted open string 6.
+
+GP5 uses Overdriven Guitar and conservative ASCII annotations for compatibility with the legacy file format.
+
+### `settings_store.py`
+
+Owns the local ignored `tittytatter.settings.json` file.
+
+The settings file stores application preferences such as geometry, audio device selection, sound/meter configuration, visual-metronome settings, game keys, difficulty, and the last-game summary.
+
+It is user-local state and must not be committed.
 
 ### `test_core.py`
-Small deterministic smoke coverage for model and sequencing logic that does not require opening the GUI or an audio device.
+
+Deterministic model/preset/session checks that do not open the GUI or audio stream.
+
+### `test_exports.py`
+
+Offline export checks for MIDI, GP5, and WAV. GP5 is parsed back with PyGuitarPro to verify core structure, repeat count, annotation behavior, and dead-note semantics.
 
 ## Rhythm model
 
-A bar always has four quarter-note beats.
+A metric beat uses one grid. Supported grid families include:
 
-Each beat independently selects one subdivision mode:
+- one event spanning multiple metric beats where musically valid;
+- one event per metric beat;
+- duplet;
+- triplet;
+- four equal subdivisions;
+- eight equal subdivisions.
 
-- **16th**: four equal steps;
-- **triplet**: three equal eighth-note-triplet steps.
-
-Each step is one of:
+Each subdivision state is:
 
 - `TI`
 - `TA`
 - `OFF`
 
-This allows mixed bars such as:
-
-`16th | triplet | 16th | triplet`
-
-without converting the whole bar to one global subdivision.
+The meter denominator defines the metric-beat duration, so the same grid family adapts its displayed notation to 4-, 8-, or 16-based meters.
 
 ## Practice stages
 
-Practice ramps are transformations of the same bar, not separate pattern formats.
+Practice ramps operate on the current bar without creating a second pattern representation.
 
-Examples:
+Current modes:
 
-- `1/4 → 2/4 → 3/4 → 4/4`
-- `2/4 → 4/4`
+- full-bar loop;
+- progressive 1 → 2 → … → full bar;
+- 2 → full bar.
 
-Inactive beats may optionally retain a quarter-note TA pulse to preserve the click/reference behavior used in the original Guitar Pro exercises.
+Inactive ramp beats may optionally retain the TA reference pulse. Manual per-beat Mute is disabled in ramp modes to keep those concepts unambiguous.
 
-## Audio semantics
+## Game timing
 
-TI and TA are musical events, not merely accents of the metronome.
+When game mode is running:
 
-The metronome is an independent layer.
+1. scheduled TI/TA events are timestamped against `outputBufferDacTime`;
+2. configured keyboard inputs are compared with pending target timestamps;
+3. difficulty selects the accepted time window;
+4. successful hits record signed early/late offset and normalized quality;
+5. expired targets and wrong/out-of-window inputs count as misses;
+6. Qt renders feedback/statistics but is not the timing authority.
 
-This separation allows:
-
-- TI = clap;
-- TA = muted;
-- metronome = audible;
-- or any other mix without changing the rhythm pattern itself.
+This is suitable for keyboard practice but is not yet a calibrated end-to-end latency measurement system.

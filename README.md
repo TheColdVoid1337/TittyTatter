@@ -1,47 +1,68 @@
 # TittyTatter
 
-> Version **0.0.1** · early development baseline
+> Published baseline: **0.0.1** · `main` currently contains unreleased release-preparation work
 
-**TittyTatter** is a desktop rhythm-training tool for practicing custom **TI / TA** cells in 4/4.  
-The core idea is simple: build a bar beat by beat, choose straight sixteenths or triplets independently for each beat, assign TI / TA / silence to every subdivision, and practice the result with a configurable audio engine.
+**TittyTatter** is a Windows-first desktop rhythm trainer for practicing custom **TI / TA** patterns with low-latency audio, visual metronome feedback, timed practice, rhythm-game scoring, flexible meters, and export to MIDI / Guitar Pro / WAV.
 
-## Current concept
+## Current feature set
 
-- 4/4 bar editor with four independent beats.
-- Each beat can use **4 sixteenths** or an **eighth-note triplet**.
-- Every subdivision can be **TI**, **TA**, or silent.
-- Built-in TI/TA pattern presets for fast setup.
-- A/B pattern construction and practice ramps.
-- Live BPM control and tap tempo.
-- Separate TI, TA, metronome, and master sound controls.
-- TI can use a clap-like sound.
-- TA can be muted completely.
-- Session save/load is part of the working prototype.
-- Audio timing is designed around the audio callback rather than GUI timers.
+- Variable meters: numerator **1–16**, denominator **2 / 4 / 8 / 16**.
+- Per-beat rhythm grids including long notes, straight subdivisions, triplets, and dense subdivisions.
+- Every step can be **(ТИ)**, **ТА**, or silent.
+- Per-beat **Mute** for quiet-beat practice.
+- Practice ramps, count-in, tempo trainer, and timed sessions.
+- Low-latency Windows audio with WASAPI preference and selectable output-device settings.
+- Independent **(ТИ)**, **ТА**, metronome, and master levels.
+- Configurable visual metronome: needle, flash, colors, size, lamps, full-panel flash.
+- Rhythm-game mode with assignable keys, Low / Mid / High timing windows, hit/miss feedback, early/late timing, and last-game statistics.
+- Session save/load.
+- Persistent local application settings.
+- Export:
+  - MIDI;
+  - Guitar Pro 5;
+  - WAV with selectable duration and PCM quality.
 
-## Windows + WSL development workflow
+## Windows + WSL workflow
 
-TittyTatter is a native Windows GUI/audio application, but the repository is managed from WSL.
+TittyTatter runs as a native Windows GUI/audio application while repository commands are issued from WSL.
 
-Local path convention:
+Typical local paths:
 
 - Windows: `F:\_PROJECT\TittyTatter`
 - WSL: `/mnt/f/_PROJECT/TittyTatter`
 
-Use the root `tt` helper from WSL:
+The root `tt` helper is the canonical development entry point:
 
 ```bash
-./tt install   # create Windows .venv and install dependencies
-./tt run       # launch the Windows GUI
-./tt test      # run core tests
-./tt check     # tests + compile/import checks
-./tt doctor    # show environment diagnostics
-./tt pip list  # run pip inside the Windows venv
-./tt python    # open the Windows venv Python
-./tt update    # ff-only pull of the current branch
+./tt install      # create/update the Windows .venv and install dependencies
+./tt run          # launch the Windows GUI
+./tt test         # run core model tests
+./tt check        # core + compile + export + import gates
+./tt doctor       # environment diagnostics
+./tt audio-info   # PortAudio/output-device diagnostics
+./tt pip list     # pip inside the Windows venv
+./tt python       # Windows venv Python
+./tt update       # ff-only pull of the current branch
 ```
 
-The helper intentionally does **not** source a Linux virtual environment. It launches `.venv/Scripts/python.exe`, so PySide6 and sounddevice remain native Windows packages while all commands are issued from WSL.
+Do **not** create or activate a Linux `.venv/bin` for this project. The supported interpreter is `.venv/Scripts/python.exe`.
+
+`run.sh` remains only as a compatibility wrapper around `./tt run`. `run.bat` remains available for direct Windows launch.
+
+## Local validation policy
+
+Normal development validation is local. GitHub Actions are not used as the default test path.
+
+Before a release/tag, run:
+
+```bash
+./tt install
+./tt doctor
+./tt check
+./tt run
+```
+
+The final GUI/audio acceptance is manual because realtime audio behavior must be verified on the actual Windows device.
 
 ## Versioning
 
@@ -49,21 +70,24 @@ The canonical project version is stored in the root [`VERSION`](VERSION) file.
 
 Current published version: **0.0.1**
 
-Published version numbers are not reused.
+Numeric version changes are made only at the release/tag checkpoint. Published version numbers are never reused.
 
 ## Repository layout
 
-- `README.md` — public project entry point.
-- `VERSION` — canonical SemVer version.
-- `tt` — WSL-first development helper for the native Windows environment.
-- `docs/` — living project documentation.
-- Application source follows the architecture recorded in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- `app.py` — PySide6 GUI, trainer controls, visual metronome, game mode.
+- `audio_engine.py` — callback-driven realtime audio and output-device handling.
+- `model.py` — serializable meter/rhythm model.
+- `presets.py` — built-in rhythm cells and grid definitions.
+- `exports.py` — MIDI, Guitar Pro 5, and WAV export.
+- `settings_store.py` — ignored local application settings.
+- `test_core.py` — deterministic rhythm/model checks.
+- `test_exports.py` — export regression checks.
+- `tt` — WSL-first Windows runtime/development helper.
+- `docs/` — living documentation.
 
 ## Documentation
 
 Start with [`docs/README.md`](docs/README.md).
-
-Key documents:
 
 - [Project state](docs/PROJECT_STATE.md)
 - [Architecture](docs/ARCHITECTURE.md)
@@ -72,7 +96,3 @@ Key documents:
 - [Decisions](docs/DECISIONS.md)
 - [Test matrix](docs/TEST_MATRIX.md)
 - [Changelog](docs/CHANGELOG.md)
-
-## Development status
-
-TittyTatter is in very early development. Version **0.0.1** establishes the first working-product baseline and the repository/documentation contract. Development after the `v0.0.1` tag continues on the unversioned `work` branch until the next release is ready.

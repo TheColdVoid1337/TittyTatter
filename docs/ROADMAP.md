@@ -1,39 +1,35 @@
 # Roadmap
 
-This roadmap is intentionally short. TittyTatter should grow from actual practice feedback rather than from a large speculative feature list.
+TittyTatter should continue to grow from actual practice feedback. The current development cycle already implemented several items that were previously roadmap candidates: audio-device selection, keyboard timing scoring, practice statistics for the latest game, MIDI export, Guitar Pro export, WAV export, flexible meters, and timed practice.
 
-## 0.0.x — feedback and reliability
+## Next 0.0.x work
 
-Priority: make the existing trainer pleasant and trustworthy.
+Priority: reliability and calibration rather than feature count.
 
-Candidate work:
+Candidates:
 
-- fix issues discovered during real guitar practice;
-- improve pattern-editor ergonomics;
-- improve audio-device handling;
-- add a visible device selector;
-- refine sound choices and level balance;
-- add favorites / user presets;
-- improve random-pattern constraints;
-- add **Quiet Count** / disappearing-click practice;
-- add controlled random pattern rotation every N bars;
-- add exercise playlists / sequences;
-- make session schema explicit and versioned;
-- strengthen automated timing/model tests.
+- real-device regression testing across multiple Windows audio backends/devices;
+- optional keyboard/input latency calibration for game mode;
+- MIDI-controller/pad input for game scoring;
+- richer long-term practice history and trend statistics;
+- user presets/favorites;
+- controlled random pattern rotation every N bars;
+- Quiet Count / disappearing-click practice;
+- exercise playlists/sequences;
+- improve Guitar Pro export after testing in multiple Guitar Pro versions;
+- improve packaged Windows build/release flow;
+- add export/session schema compatibility tests where useful.
 
 ## Later
 
-Only after the core workflow feels stable:
+Only after the core practice workflow remains stable:
 
-- keyboard / MIDI-pad timing input;
-- early/late hit scoring in milliseconds;
-- input latency calibration;
-- practice statistics;
-- history and progress tracking;
-- MIDI export;
-- exercise sharing;
-- packaged Windows releases and installer.
+- reusable practice programs/curricula;
+- MIDI-input calibration profiles;
+- richer exercise sharing/import;
+- long-term progress visualization;
+- installer/updater.
 
-## Non-goal for now
+## Non-goal
 
-Do not turn TittyTatter into a DAW, notation editor, or general-purpose drum machine. The product should remain optimized for focused rhythm practice.
+Do not turn TittyTatter into a DAW or a general-purpose notation editor. The project remains a focused rhythm-practice tool.
