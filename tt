@@ -102,9 +102,11 @@ case "$cmd" in
     echo "== core tests =="
     "$PY" "$(winpath "$TEST")"
     echo "== compile =="
-    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")"
+    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")"
+    echo "== export tests =="
+    "$PY" "$(winpath "$ROOT/test_exports.py")"
     echo "== imports =="
-    "$PY" -c "import PySide6, numpy, sounddevice; print('dependencies OK')"
+    "$PY" -c "import PySide6, numpy, sounddevice, guitarpro; print('dependencies OK')"
     echo "== result =="
     echo "TittyTatter checks OK"
     ;;
@@ -119,7 +121,7 @@ case "$cmd" in
     if [[ -x "$PY" ]]; then
       echo "Venv:        present"
       "$PY" -c "import sys, platform; print('Python:      '+sys.executable); print('Version:     '+sys.version.split()[0]); print('Platform:    '+platform.platform())"
-      "$PY" -c "import PySide6, numpy, sounddevice; print('PySide6:     '+PySide6.__version__); print('NumPy:       '+numpy.__version__); print('sounddevice: '+sounddevice.__version__)"
+      "$PY" -c "import PySide6, numpy, sounddevice, guitarpro; print('PySide6:     '+PySide6.__version__); print('NumPy:       '+numpy.__version__); print('sounddevice: '+sounddevice.__version__); print('PyGuitarPro: installed')"
       "$PY" -c "import sounddevice as sd; d=sd.query_devices(kind='output'); print('Audio out:   '+str(d['name'])); print('Sample rate: '+str(d['default_samplerate'])); print('Low latency: '+str(d['default_low_output_latency']))"
     else
       echo "Venv:        missing"
