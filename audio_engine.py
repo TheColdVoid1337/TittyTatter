@@ -34,7 +34,7 @@ class EngineConfig:
     ti_enabled: bool = True
     ti_sound: str = "Wood"
     ti_volume: float = 1.0
-    ta_enabled: bool = False
+    ta_enabled: bool = True
     ta_sound: str = "Low tick"
     ta_volume: float = 0.7
     metronome_enabled: bool = True

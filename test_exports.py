@@ -41,6 +41,25 @@ with TemporaryDirectory() as temp:
     assert parsed.tracks[0].channel.instrument == 29
     assert "TI:" in parsed.instructions
 
+    text_by_measure = []
+    dead_notes = []
+    for measure in parsed.tracks[0].measures:
+        measure_text = []
+        for beat in measure.voices[0].beats:
+            if beat.text:
+                measure_text.append(beat.text)
+            for note in beat.notes:
+                if note.type == guitarpro.NoteType.dead:
+                    dead_notes.append(note)
+        text_by_measure.append(measure_text)
+
+    assert text_by_measure[0]
+    assert all("[" not in text and "]" not in text for text in text_by_measure[0])
+    assert text_by_measure[1] == []
+    assert text_by_measure[2] == []
+    assert dead_notes
+    assert all(not note.effect.palmMute for note in dead_notes)
+
     wav_path = root / "test.wav"
     config = EngineConfig(
         bpm=60,

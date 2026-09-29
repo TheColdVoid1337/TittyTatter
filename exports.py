@@ -86,15 +86,9 @@ def _meta_text(kind: int, text: str) -> bytes:
 def _ascii_beat_label(pattern: BarPattern, beat_index: int) -> str:
     beat = pattern.beats[beat_index]
     if beat.muted:
-        return f"MUTE [1/{pattern.denominator}]"
+        return "MUTE"
     names = {TI: "TI", TA: "ta", OFF: "-"}
-    body = "-".join(names[state] for state in beat.steps)
-    span = max(1, grid_spec(beat.grid).span_beats)
-    if span == 1:
-        duration = f"1/{pattern.denominator}"
-    else:
-        duration = f"{span}/{pattern.denominator}"
-    return f"{body} [{duration}]"
+    return "-".join(names[state] for state in beat.steps)
 
 
 def export_midi(
@@ -211,7 +205,6 @@ def _fill_gp_measure(guitarpro, measure, pattern: BarPattern, include_labels: bo
                     string=6,
                     type=guitarpro.NoteType.dead,
                 )
-                note.effect.palmMute = True
             beat.notes.append(note)
 
         voice.beats.append(beat)
@@ -258,7 +251,12 @@ def export_gp5(
             denominator=guitarpro.Duration(value=pattern.denominator),
         )
         measure = track.measures[repeat_index]
-        _fill_gp_measure(guitarpro, measure, pattern, include_labels)
+        _fill_gp_measure(
+            guitarpro,
+            measure,
+            pattern,
+            include_labels and repeat_index == 0,
+        )
 
     guitarpro.write(song, str(path), version=(5, 1, 0), encoding="cp1252")
 

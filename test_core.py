@@ -1,3 +1,4 @@
+from audio_engine import EngineConfig
 from model import BarPattern, BeatPattern
 from presets import (
     CORE_PRACTICE_PRESETS,
@@ -12,6 +13,8 @@ from presets import (
 )
 
 assert TI_MARK == "(ТИ)"
+assert EngineConfig().ti_enabled is True
+assert EngineConfig().ta_enabled is True
 
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
