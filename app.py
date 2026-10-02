@@ -7,7 +7,7 @@ import sys
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QByteArray, QEvent, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCloseEvent, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QInputDialog,
-    QKeySequenceEdit,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -76,6 +75,107 @@ STATE_STYLE = {
     TA: "background:#42464f;color:white;font-weight:700;border:2px solid #666b75;border-radius:8px;padding:8px;",
     OFF: "background:#22252a;color:#8e949e;border:2px solid #343941;border-radius:8px;padding:8px;",
 }
+
+def _mouse_button_binding(button) -> str:
+    try:
+        value = int(button.value)
+    except Exception:
+        value = int(button)
+    if value <= 0 or value & (value - 1):
+        return ""
+    # Qt mouse buttons are power-of-two flags: 1, 2, 4, 8, 16...
+    # Present them as human-friendly Mouse 1, Mouse 2, Mouse 3...
+    return f"mouse:{value.bit_length()}"
+
+
+def _key_event_binding(event) -> str:
+    sequence = QKeySequence(event.keyCombination()).toString().strip().upper()
+    return f"key:{sequence}" if sequence else ""
+
+
+def _binding_display(binding: str) -> str:
+    value = str(binding or "").strip()
+    if value.lower().startswith("mouse:"):
+        try:
+            return f"Mouse {int(value.split(':', 1)[1])}"
+        except Exception:
+            return value
+    if value.lower().startswith("key:"):
+        return value.split(":", 1)[1]
+    return value
+
+
+class GameBindEdit(QPushButton):
+    bindingChanged = Signal(str)
+
+    def __init__(self, binding: str) -> None:
+        super().__init__()
+        self._binding = ""
+        self._capturing = False
+        self.clicked.connect(self.begin_capture)
+        self.set_binding(binding)
+
+    def binding(self) -> str:
+        return self._binding
+
+    def set_binding(self, binding: str) -> None:
+        value = str(binding or "").strip()
+        # Backward compatibility with 0.0.3 settings that stored plain
+        # QKeySequence text such as "F" or "J".
+        if value and ":" not in value:
+            value = f"key:{value.upper()}"
+        elif value.lower().startswith("key:"):
+            value = f"key:{value.split(':', 1)[1].upper()}"
+        elif value.lower().startswith("mouse:"):
+            try:
+                value = f"mouse:{max(1, int(value.split(':', 1)[1]))}"
+            except Exception:
+                value = ""
+
+        self._binding = value
+        self._capturing = False
+        self.setText(_binding_display(value) if value else "Не назначено")
+        self.bindingChanged.emit(self._binding)
+
+    def begin_capture(self) -> None:
+        if not self.isEnabled():
+            return
+        self._capturing = True
+        self.setText("Нажмите клавишу / кнопку мыши…")
+        self.setFocus(Qt.OtherFocusReason)
+
+    def keyPressEvent(self, event) -> None:
+        if not self._capturing:
+            super().keyPressEvent(event)
+            return
+
+        if event.key() == Qt.Key_Escape:
+            self._capturing = False
+            self.setText(_binding_display(self._binding) if self._binding else "Не назначено")
+            event.accept()
+            return
+
+        if event.key() in (Qt.Key_Backspace, Qt.Key_Delete):
+            self.set_binding("")
+            event.accept()
+            return
+
+        binding = _key_event_binding(event)
+        if binding:
+            self.set_binding(binding)
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def mousePressEvent(self, event) -> None:
+        if self._capturing:
+            binding = _mouse_button_binding(event.button())
+            if binding:
+                self.set_binding(binding)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
 
 class StepButton(QPushButton):
     changed = Signal()
@@ -957,6 +1057,7 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._shortcuts()
+        QApplication.instance().installEventFilter(self)
         self._restore_app_settings()
         self._sync()
 
@@ -1340,13 +1441,16 @@ class MainWindow(QMainWindow):
 
         controls_box = QGroupBox("Управление")
         controls = QFormLayout(controls_box)
-        self.game_ti_key = QKeySequenceEdit(QKeySequence("F"))
-        self.game_ti_key.setMaximumSequenceLength(1)
+        self.game_ti_key = GameBindEdit("key:F")
         controls.addRow("(ТИ):", self.game_ti_key)
 
-        self.game_ta_key = QKeySequenceEdit(QKeySequence("J"))
-        self.game_ta_key.setMaximumSequenceLength(1)
+        self.game_ta_key = GameBindEdit("key:J")
         controls.addRow("ТА:", self.game_ta_key)
+
+        bind_hint = QLabel("Нажми поле, затем клавишу или кнопку мыши. Esc — отмена, Delete — очистить.")
+        bind_hint.setWordWrap(True)
+        bind_hint.setStyleSheet("color:#7f8792;")
+        controls.addRow("", bind_hint)
         root.addWidget(controls_box, 1)
 
         self.game_stats_box = QGroupBox("Последняя игра")
@@ -1792,13 +1896,13 @@ class MainWindow(QMainWindow):
             self.stop_game("Игра остановлена")
             return
 
-        ti_key = self._configured_game_key(self.game_ti_key)
-        ta_key = self._configured_game_key(self.game_ta_key)
+        ti_key = self._configured_game_binding(self.game_ti_key)
+        ta_key = self._configured_game_binding(self.game_ta_key)
         if not ti_key or not ta_key:
-            QMessageBox.information(self, "Игра", "Назначь клавиши для (ТИ) и ТА.")
+            QMessageBox.information(self, "Игра", "Назначь клавиши или кнопки мыши для (ТИ) и ТА.")
             return
         if ti_key == ta_key:
-            QMessageBox.information(self, "Игра", "Клавиши (ТИ) и ТА должны отличаться.")
+            QMessageBox.information(self, "Игра", "Кнопки (ТИ) и ТА должны отличаться.")
             return
 
         if self.engine.is_running:
@@ -2165,8 +2269,8 @@ class MainWindow(QMainWindow):
             )
 
     @staticmethod
-    def _configured_game_key(editor: QKeySequenceEdit) -> str:
-        return editor.keySequence().toString().strip().upper()
+    def _configured_game_binding(editor: GameBindEdit) -> str:
+        return editor.binding().strip().lower()
 
     def _handle_game_input(self, state: str) -> None:
         if not self.game_active:
@@ -2191,11 +2295,12 @@ class MainWindow(QMainWindow):
             )
             return
 
-        key = (
-            self._configured_game_key(self.game_ti_key)
+        binding = (
+            self._configured_game_binding(self.game_ti_key)
             if state == TI
-            else self._configured_game_key(self.game_ta_key)
+            else self._configured_game_binding(self.game_ta_key)
         )
+        key = _binding_display(binding)
         self._log_game_event(
             "input",
             state=state,
@@ -2257,17 +2362,27 @@ class MainWindow(QMainWindow):
             buffered_after=len(self.game_pending_inputs),
         )
 
+    def eventFilter(self, watched, event) -> bool:
+        if self.game_active:
+            binding = ""
+            if event.type() == QEvent.KeyPress and not event.isAutoRepeat():
+                binding = _key_event_binding(event).lower()
+            elif event.type() == QEvent.MouseButtonPress:
+                binding = _mouse_button_binding(event.button()).lower()
+
+            if binding:
+                if binding == self._configured_game_binding(self.game_ti_key):
+                    self._handle_game_input(TI)
+                    event.accept()
+                    return True
+                if binding == self._configured_game_binding(self.game_ta_key):
+                    self._handle_game_input(TA)
+                    event.accept()
+                    return True
+
+        return super().eventFilter(watched, event)
+
     def keyPressEvent(self, event) -> None:
-        if self.game_active and not event.isAutoRepeat():
-            pressed = QKeySequence(event.keyCombination()).toString().strip().upper()
-            if pressed == self._configured_game_key(self.game_ti_key):
-                self._handle_game_input(TI)
-                event.accept()
-                return
-            if pressed == self._configured_game_key(self.game_ta_key):
-                self._handle_game_input(TA)
-                event.accept()
-                return
         super().keyPressEvent(event)
 
     def _refresh_picking_controls(self) -> None:
@@ -2403,8 +2518,8 @@ class MainWindow(QMainWindow):
             "timer_enabled": self.practice_timer.isChecked(),
             "timer_seconds": self._timer_limit(),
             "keys": {
-                "ti": self._configured_game_key(self.game_ti_key),
-                "ta": self._configured_game_key(self.game_ta_key),
+                "ti": self._configured_game_binding(self.game_ti_key),
+                "ta": self._configured_game_binding(self.game_ta_key),
             },
             "game": {
                 "early_hit_window_ms": EARLY_HIT_WINDOW_MS,
@@ -2918,8 +3033,8 @@ class MainWindow(QMainWindow):
             },
             "game": {
                 "enabled": self.game_enabled.isChecked(),
-                "ti_key": self.game_ti_key.keySequence().toString(),
-                "ta_key": self.game_ta_key.keySequence().toString(),
+                "ti_key": self.game_ti_key.binding(),
+                "ta_key": self.game_ta_key.binding(),
                 "hit_sound": self.game_hit_sound.isChecked(),
                 "miss_sound": self.game_miss_sound.isChecked(),
                 "last_game": dict(self.last_game_stats),
@@ -3017,8 +3132,8 @@ class MainWindow(QMainWindow):
         self._refresh_color_samples()
 
         game = data.get("game", {})
-        self.game_ti_key.setKeySequence(QKeySequence(str(game.get("ti_key", "F"))))
-        self.game_ta_key.setKeySequence(QKeySequence(str(game.get("ta_key", "J"))))
+        self.game_ti_key.set_binding(str(game.get("ti_key", "F")))
+        self.game_ta_key.set_binding(str(game.get("ta_key", "J")))
         self.game_hit_sound.setChecked(bool(game.get("hit_sound", True)))
         self.game_miss_sound.setChecked(bool(game.get("miss_sound", True)))
         saved_last = game.get("last_game", {})
@@ -3119,8 +3234,8 @@ class MainWindow(QMainWindow):
         self._refresh_color_samples()
 
         self.game_enabled.setChecked(False)
-        self.game_ti_key.setKeySequence(QKeySequence("F"))
-        self.game_ta_key.setKeySequence(QKeySequence("J"))
+        self.game_ti_key.set_binding("key:F")
+        self.game_ta_key.set_binding("key:J")
         self.game_hit_sound.setChecked(True)
         self.game_miss_sound.setChecked(True)
         self.last_game_stats = {
