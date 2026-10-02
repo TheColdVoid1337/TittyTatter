@@ -2122,12 +2122,15 @@ class MainWindow(QMainWindow):
 
             beat_states.append(states)
 
+        # Every practice stage repeats its current effective bar. Treat the
+        # picking problem as cyclic in loop and ramp modes alike; ramp simply
+        # rebuilds beat_states whenever the active-beat level changes.
         directions_by_beat = economy_pick_beats(
             beat_states,
             TI,
             TA,
             OFF,
-            loop=self.mode.currentData() == "loop",
+            loop=True,
         )
         row5: list[list[str]] = []
         row6: list[list[str]] = []
