@@ -1796,16 +1796,20 @@ class MainWindow(QMainWindow):
         return f"{minutes:02d}:{sec:02d}"
 
     def toggle(self) -> None:
+        # The main transport follows the selected top-level mode. When Game
+        # mode is enabled, both the main Start button and Space control the game
+        # rather than starting ordinary practice playback.
+        if self.game_enabled.isChecked():
+            self.toggle_game()
+            return
+
         try:
             if self.engine.is_running:
-                if self.game_active:
-                    self.stop_game("Игра остановлена")
-                else:
-                    self._stop_playback("Готов")
+                self._stop_playback("Готов")
             else:
-                self.game_stats_visible = self.game_enabled.isChecked()
+                self.game_stats_visible = False
                 self.visual.set_game_stats(
-                    self.game_stats_visible,
+                    False,
                     self.game_hits,
                     self.game_misses,
                     self.game_recent,
