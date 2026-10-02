@@ -50,7 +50,7 @@ from game_logic import (
     progress_bar,
 )
 from model import BarPattern, BeatPattern
-from picking_logic import economy_pick_pattern
+from picking_logic import economy_pick_beats
 from presets import (
     CORE_PRACTICE_PRESETS,
     OFF,
@@ -2106,7 +2106,6 @@ class MainWindow(QMainWindow):
 
         coverage = pattern.coverage()
         beat_states: list[list[str]] = []
-        flat_states: list[str] = []
 
         for beat_index, beat in enumerate(pattern.beats):
             if coverage[beat_index] != beat_index:
@@ -2122,26 +2121,26 @@ class MainWindow(QMainWindow):
                 states = list(beat.steps)
 
             beat_states.append(states)
-            flat_states.extend(states)
-            if not states:
-                flat_states.append(OFF)
 
-        directions = economy_pick_pattern(flat_states, TI, TA, OFF)
-        cursor = 0
+        directions_by_beat = economy_pick_beats(
+            beat_states,
+            TI,
+            TA,
+            OFF,
+            loop=self.mode.currentData() == "loop",
+        )
         row5: list[list[str]] = []
         row6: list[list[str]] = []
 
-        for states in beat_states:
+        for states, directions in zip(beat_states, directions_by_beat):
             if not states:
                 row5.append([" "])
                 row6.append([" "])
-                cursor += 1
                 continue
 
             beat5: list[str] = []
             beat6: list[str] = []
-            for state in states:
-                direction = directions[cursor]
+            for state, direction in zip(states, directions):
                 if state == TI and direction:
                     beat5.append(direction)
                     beat6.append("─")
@@ -2151,7 +2150,6 @@ class MainWindow(QMainWindow):
                 else:
                     beat5.append("·")
                     beat6.append("·")
-                cursor += 1
 
             row5.append(beat5)
             row6.append(beat6)

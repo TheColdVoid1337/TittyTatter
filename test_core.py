@@ -9,7 +9,7 @@ from game_logic import (
     progress_bar,
 )
 from model import BarPattern, BeatPattern
-from picking_logic import DOWN, UP, economy_pick_pattern
+from picking_logic import DOWN, UP, economy_pick_beats, economy_pick_pattern
 from presets import (
     CORE_PRACTICE_PRESETS,
     EIGHTH_PRESETS,
@@ -58,6 +58,34 @@ assert progress_bar(4, 8) == "■■■■□□□□"
 
 assert economy_pick_pattern([TI, TI, TA, TA], TI, TA, OFF) == [DOWN, UP, UP, DOWN]
 assert economy_pick_pattern([TA, TA, TI, TI], TI, TA, OFF) == [UP, DOWN, DOWN, UP]
+
+
+# Loop picking preserves the shortest whole-beat period. Four identical
+# TI-TA-TA-TA beats must therefore display the same picking each time.
+identical_loop = economy_pick_beats(
+    [[TI, TA, TA, TA]] * 4,
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+assert identical_loop[0] == identical_loop[1] == identical_loop[2] == identical_loop[3]
+
+# A/B/A/B also preserves its two-beat visual/picking period.
+abab_loop = economy_pick_beats(
+    [
+        [TI, TA, TA, TA],
+        [TA, TI, TA, TI],
+        [TI, TA, TA, TA],
+        [TA, TI, TA, TI],
+    ],
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+assert abab_loop[0] == abab_loop[2]
+assert abab_loop[1] == abab_loop[3]
 
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
