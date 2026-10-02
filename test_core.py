@@ -1,5 +1,12 @@
 from audio_engine import EngineConfig
-from game_logic import CALIBRATION_WINDOW_MS, HIT_WINDOW_MS, grade_timing, progress_bar, timing_bias
+from game_logic import (
+    CALIBRATION_WINDOW_MS,
+    HIT_WINDOW_MS,
+    choose_target_index,
+    grade_timing,
+    progress_bar,
+    timing_bias,
+)
 from model import BarPattern, BeatPattern
 from picking_logic import DOWN, UP, economy_pick_pattern
 from presets import (
@@ -20,7 +27,7 @@ assert EngineConfig().ti_enabled is True
 assert EngineConfig().ta_enabled is True
 
 assert HIT_WINDOW_MS == 420.0
-assert CALIBRATION_WINDOW_MS == 520.0
+assert CALIBRATION_WINDOW_MS == 800.0
 assert grade_timing(0).label == "PERFECT"
 assert grade_timing(100).label == "GREAT"
 assert grade_timing(200).label == "GOOD"
@@ -28,6 +35,19 @@ assert grade_timing(330).label == "HIT"
 assert grade_timing(421).accepted is False
 assert timing_bias([180.0]) == 180.0
 assert timing_bias([170.0, 180.0, 190.0]) == 180.0
+
+# Lane-based target matching: stale/future TA notes must not steal a TI press.
+lane_targets = [(-0.20, TA), (0.00, TI), (0.25, TA), (0.50, TA)]
+assert choose_target_index(lane_targets, TI, 0.08, 0.0, True) == 1
+
+# During initial sync a late TA press belongs to the TA that already sounded,
+# not the numerically closer future TA.
+subdivision_targets = [(0.00, TI), (0.25, TA), (0.50, TA), (0.75, TA)]
+assert choose_target_index(subdivision_targets, TA, 0.45, 0.0, True) == 1
+
+# Once +200 ms latency is learned, nearest-lane matching uses the corrected time.
+assert choose_target_index(subdivision_targets, TA, 0.70, 200.0, False) == 2
+
 assert progress_bar(4, 8) == "■■■■□□□□"
 
 assert economy_pick_pattern([TI, TI, TA, TA], TI, TA, OFF) == [DOWN, UP, UP, DOWN]

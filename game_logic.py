@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from statistics import median
+from typing import Sequence
 
 
-# One deliberately playable mode. The window is broad enough to learn the
-# rhythm; accuracy inside it controls the grade and score.
+# One intentionally forgiving game mode.
+#
+# Input matching is lane-based: a TI press first looks for the nearest TI
+# target and a TA press first looks for the nearest TA target. This prevents
+# one stale TA from making the following TI impossible to hit.
 HIT_WINDOW_MS = 420.0
-CALIBRATION_WINDOW_MS = 520.0
+CALIBRATION_WINDOW_MS = 800.0
 PERFECT_MS = 70.0
 GREAT_MS = 145.0
 GOOD_MS = 260.0
@@ -26,7 +30,49 @@ def timing_bias(samples_ms: list[float]) -> float:
     if not samples_ms:
         return 0.0
     recent = samples_ms[-12:]
-    return max(-300.0, min(300.0, float(median(recent))))
+    return max(-400.0, min(400.0, float(median(recent))))
+
+
+def choose_target_index(
+    targets: Sequence[tuple[float, str]],
+    input_state: str,
+    now_seconds: float,
+    bias_ms: float = 0.0,
+    calibrating: bool = False,
+) -> int | None:
+    """Choose the nearest target, preferring the same TI/TA lane.
+
+    During initial sync an already-sounded same-lane target is preferred over
+    a numerically closer future note. This matters for repeated TA notes: a
+    late press must not calibrate itself against the next subdivision.
+    """
+    if not targets:
+        return None
+
+    window_ms = CALIBRATION_WINDOW_MS if calibrating else HIT_WINDOW_MS
+    candidates: list[tuple[float, float, int]] = []
+    same_lane: list[tuple[float, float, int]] = []
+
+    for index, (target_time, state) in enumerate(targets):
+        corrected_ms = (float(now_seconds) - float(target_time)) * 1000.0 - float(bias_ms)
+        distance = abs(corrected_ms)
+        if distance > window_ms:
+            continue
+        item = (distance, corrected_ms, index)
+        candidates.append(item)
+        if state == input_state:
+            same_lane.append(item)
+
+    if calibrating and same_lane:
+        sounded = [item for item in same_lane if item[1] >= 0.0]
+        if sounded:
+            return min(sounded, key=lambda item: item[0])[2]
+
+    if same_lane:
+        return min(same_lane, key=lambda item: item[0])[2]
+    if candidates:
+        return min(candidates, key=lambda item: item[0])[2]
+    return None
 
 
 def grade_timing(offset_ms: float) -> TimingGrade:

@@ -7,7 +7,7 @@ import sys
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, Qt, QTimer, Signal
+from PySide6.QtCore import QByteArray, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCloseEvent, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -39,7 +39,14 @@ from PySide6.QtWidgets import (
 
 from audio_engine import AudioEngine, SOUND_NAMES
 from exports import export_gp5, export_midi, export_wav
-from game_logic import CALIBRATION_WINDOW_MS, HIT_WINDOW_MS, grade_timing, progress_bar, timing_bias
+from game_logic import (
+    CALIBRATION_WINDOW_MS,
+    HIT_WINDOW_MS,
+    choose_target_index,
+    grade_timing,
+    progress_bar,
+    timing_bias,
+)
 from model import BarPattern, BeatPattern
 from picking_logic import economy_pick_pattern
 from presets import (
@@ -141,8 +148,8 @@ class MetronomeVisual(QWidget):
         self.ramp_warning_until = 0.0
 
         self.picking_visible = False
-        self.picking_string_5 = ""
-        self.picking_string_6 = ""
+        self.picking_row_5: list[list[str]] = []
+        self.picking_row_6: list[list[str]] = []
 
         self._apply_height()
 
@@ -247,10 +254,15 @@ class MetronomeVisual(QWidget):
         self.update()
         QTimer.singleShot(700, self.update)
 
-    def set_picking_pattern(self, visible: bool, string_5: str = "", string_6: str = "") -> None:
+    def set_picking_pattern(
+        self,
+        visible: bool,
+        row_5: list[list[str]] | None = None,
+        row_6: list[list[str]] | None = None,
+    ) -> None:
         self.picking_visible = bool(visible)
-        self.picking_string_5 = str(string_5)
-        self.picking_string_6 = str(string_6)
+        self.picking_row_5 = [list(beat) for beat in (row_5 or [])]
+        self.picking_row_6 = [list(beat) for beat in (row_6 or [])]
         self.update()
 
     def paintEvent(self, _event) -> None:
@@ -352,26 +364,81 @@ class MetronomeVisual(QWidget):
             painter.setFont(font)
 
     def _paint_picking_pattern(self, painter: QPainter) -> None:
-        if not self.picking_string_5 and not self.picking_string_6:
+        if not self.picking_row_5 and not self.picking_row_6:
             return
 
-        painter.setPen(QColor(196, 202, 212))
+        # Picking is an overlay inside the left side of the metronome. It must
+        # never participate in layout/geometry, so enabling it cannot move UI.
+        panel_left = 12.0
+        panel_right = max(panel_left + 120.0, self.width() / 2.0 - 26.0)
+        panel_width = max(120.0, panel_right - panel_left)
+        y5 = max(58.0, self.height() - 54.0)
+        y6 = y5 + 20.0
+
         font = painter.font()
         font.setBold(True)
-        longest = max(len(self.picking_string_5), len(self.picking_string_6), 1)
-        available = max(260, self.width() - (440 if self.game_visible else 180))
-        point_size = max(7, min(10, int(available / longest * 1.45)))
-        font.setPointSize(point_size)
+        font.setFamily("Consolas")
+
+        total_cells = max(
+            1,
+            sum(max(1, len(beat)) for beat in self.picking_row_5),
+        )
+        boundaries = max(0, len(self.picking_row_5) - 1)
+        label_width = 18.0
+        boundary_width = 5.0
+        usable = max(
+            70.0,
+            panel_width - label_width - boundaries * boundary_width,
+        )
+        cell_width = max(6.0, min(14.0, usable / total_cells))
+        font.setPointSize(max(7, min(10, int(cell_width * 0.82))))
         painter.setFont(font)
 
-        margin = 210 if self.game_visible else 90
-        top = max(42, self.height() - 58)
-        rect = self.rect().adjusted(margin, top, -margin, -6)
-        half = max(16, rect.height() // 2)
-        row5 = rect.adjusted(0, 0, 0, -(rect.height() - half))
-        row6 = rect.adjusted(0, half, 0, 0)
-        painter.drawText(row5, Qt.AlignHCenter | Qt.AlignVCenter, self.picking_string_5)
-        painter.drawText(row6, Qt.AlignHCenter | Qt.AlignVCenter, self.picking_string_6)
+        painter.setPen(QColor(225, 230, 238))
+        painter.drawText(QRectF(panel_left, y5 - 13, label_width, 18), Qt.AlignCenter, "5")
+        painter.drawText(QRectF(panel_left, y6 - 13, label_width, 18), Qt.AlignCenter, "6")
+
+        x = panel_left + label_width
+
+        def draw_cell(token: str, cx: float, cy: float) -> None:
+            if token == "↑":
+                color = QColor(75, 220, 115)
+            elif token == "↓":
+                color = QColor(235, 80, 80)
+            else:
+                color = QColor(125, 132, 143)
+            painter.setPen(color)
+            painter.drawText(
+                QRectF(cx, cy - 13, cell_width, 18),
+                Qt.AlignCenter,
+                token,
+            )
+
+        beat_count = max(len(self.picking_row_5), len(self.picking_row_6))
+        for beat_index in range(beat_count):
+            beat5 = self.picking_row_5[beat_index] if beat_index < len(self.picking_row_5) else []
+            beat6 = self.picking_row_6[beat_index] if beat_index < len(self.picking_row_6) else []
+            cells = max(1, len(beat5), len(beat6))
+
+            for cell_index in range(cells):
+                token5 = beat5[cell_index] if cell_index < len(beat5) else " "
+                token6 = beat6[cell_index] if cell_index < len(beat6) else " "
+                draw_cell(token5, x, y5)
+                draw_cell(token6, x, y6)
+                x += cell_width
+
+            if beat_index < beat_count - 1:
+                # One physical separator line spans both strings, so beat
+                # boundaries can never drift between row 5 and row 6.
+                painter.setPen(QPen(QColor(105, 112, 122), 1))
+                sep_x = x + boundary_width / 2.0
+                painter.drawLine(
+                    int(sep_x),
+                    int(y5 - 11),
+                    int(sep_x),
+                    int(y6 + 4),
+                )
+                x += boundary_width
 
         font.setBold(False)
         painter.setFont(font)
@@ -1717,7 +1784,12 @@ class MainWindow(QMainWindow):
         if not self.game_pending:
             return
         now = self.engine.stream_time()
-        window = self._game_window_seconds()
+        calibrating = len(self.game_calibration_samples_ms) < 3
+        window = (
+            CALIBRATION_WINDOW_MS / 1000.0
+            if calibrating
+            else self._game_window_seconds()
+        )
         bias = self.game_timing_bias_ms / 1000.0
         while self.game_pending:
             target_time = float(self.game_pending[0]["time"])
@@ -1749,23 +1821,27 @@ class MainWindow(QMainWindow):
         if now <= 0:
             return
 
-        if not self.game_pending:
+        calibrating = len(self.game_calibration_samples_ms) < 3
+        compact_targets = [
+            (float(target["time"]), str(target["state"]))
+            for target in self.game_pending
+        ]
+        target_index = choose_target_index(
+            compact_targets,
+            state,
+            now,
+            self.game_timing_bias_ms,
+            calibrating,
+        )
+
+        if target_index is None:
             entered = TI_MARK if state == TI else "ТА"
-            self._record_game_result(False, 0.0, detail=f"{entered} · нет цели")
+            self._record_game_result(False, 0.0, detail=f"{entered} · нет цели рядом")
             return
 
-        target = self.game_pending[0]
+        target = self.game_pending.pop(target_index)
         raw_offset_ms = (now - float(target["time"])) * 1000.0
         corrected_offset_ms = raw_offset_ms - self.game_timing_bias_ms
-        calibrating = len(self.game_calibration_samples_ms) < 3
-        allowed = CALIBRATION_WINDOW_MS if calibrating else HIT_WINDOW_MS
-
-        if abs(corrected_offset_ms) > allowed:
-            entered = TI_MARK if state == TI else "ТА"
-            self._record_game_result(False, 0.0, detail=f"{entered} · вне окна")
-            return
-
-        self.game_pending.pop(0)
         expected = TI_MARK if target["state"] == TI else "ТА"
         entered = TI_MARK if state == TI else "ТА"
 
@@ -1777,9 +1853,9 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # Learn the player's stable system/reaction offset from correct-state
-        # inputs. The score then measures precision around that personal centre,
-        # rather than punishing a constant late/early offset every time.
+        # Correct lane input also calibrates the stable device/player delay.
+        # The very first correct hit can therefore establish the centre instead
+        # of being rejected just because Bluetooth/driver latency is large.
         self.game_calibration_samples_ms.append(raw_offset_ms)
         self.game_calibration_samples_ms = self.game_calibration_samples_ms[-12:]
         self.game_timing_bias_ms = timing_bias(self.game_calibration_samples_ms)
@@ -1817,39 +1893,47 @@ class MainWindow(QMainWindow):
             return
 
         pattern = self.current_pattern()
-        active = (
-            pattern.numerator
-            if active_beats is None
-            else max(0, min(pattern.numerator, int(active_beats)))
-        )
-        coverage = pattern.coverage()
+        if active_beats is None:
+            if self.mode.currentData() == "ramp_1_4":
+                active = min(1, pattern.numerator)
+            elif self.mode.currentData() == "ramp_2_4":
+                active = min(2, pattern.numerator)
+            else:
+                active = pattern.numerator
+        else:
+            active = max(0, min(pattern.numerator, int(active_beats)))
 
+        coverage = pattern.coverage()
         beat_states: list[list[str]] = []
         flat_states: list[str] = []
+
         for beat_index, beat in enumerate(pattern.beats):
             if coverage[beat_index] != beat_index:
                 states: list[str] = []
             elif self.mode.currentData() != "loop" and beat_index >= active:
+                # The next not-yet-opened ramp beat is shown exactly as it is
+                # practised: TA on the beat, then silence for the remaining
+                # subdivisions. The scheme is rebuilt as each new beat opens.
                 states = [TA] + [OFF] * max(0, beat.subdivision - 1)
             elif beat.muted:
                 states = [OFF] * beat.subdivision
             else:
                 states = list(beat.steps)
+
             beat_states.append(states)
             flat_states.extend(states)
-            # A covered/empty beat is also a natural picking reset.
             if not states:
                 flat_states.append(OFF)
 
         directions = economy_pick_pattern(flat_states, TI, TA, OFF)
         cursor = 0
-        row5: list[str] = []
-        row6: list[str] = []
+        row5: list[list[str]] = []
+        row6: list[list[str]] = []
 
         for states in beat_states:
             if not states:
-                row5.append(" ")
-                row6.append(" ")
+                row5.append([" "])
+                row6.append([" "])
                 cursor += 1
                 continue
 
@@ -1868,14 +1952,10 @@ class MainWindow(QMainWindow):
                     beat6.append("·")
                 cursor += 1
 
-            row5.append(" ".join(beat5))
-            row6.append(" ".join(beat6))
+            row5.append(beat5)
+            row6.append(beat6)
 
-        self.visual.set_picking_pattern(
-            True,
-            "5  " + " │ ".join(row5),
-            "6  " + " │ ".join(row6),
-        )
+        self.visual.set_picking_pattern(True, row5, row6)
 
     def _maybe_warn_ramp(self, st: dict) -> None:
         if self.mode.currentData() == "loop" or not self.ramp_warning.isChecked():
