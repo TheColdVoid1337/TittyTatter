@@ -3,9 +3,10 @@
 ## Baseline
 
 - Project: **TittyTatter**
-- Current release version: **0.0.2**
+- Current published release version: **0.0.2**
+- Current development branch: **work**
 - Current integration branch: **main**
-- Status: release commit prepared and locally validated; annotated `v0.0.2` tag pending manual creation
+- Status: next release candidate prepared on `work`; numeric version and tag intentionally not chosen yet
 - Primary platform: Windows desktop
 - Language: Python
 - GUI: PySide6
@@ -14,11 +15,11 @@
 - Development shell: WSL
 - Runtime: native Windows Python virtual environment
 
-The current `main` state is assigned **0.0.2** after successful local release validation. The annotated `v0.0.2` tag is created and pushed manually.
+`main` remains the published 0.0.2 baseline. The current `work` branch contains the next release candidate and is ready for the canonical local release gate before fast-forward integration.
 
 ## Implemented product scope
 
-The current application includes:
+The current release candidate includes:
 
 - flexible meters with numerator 1–16 and denominator 2/4/8/16;
 - a horizontally scrollable per-beat editor for wide meters;
@@ -28,18 +29,20 @@ The current application includes:
 - per-beat Mute in non-ramp practice modes;
 - random full-bar generation;
 - count-in;
-- practice ramps;
+- practice ramps with stage progress and stage-change warnings;
 - tempo trainer;
-- optional timed practice with end signal;
+- optional timed practice with dedicated completion horn;
 - live BPM controls and tap tempo;
 - callback/sample-clock-driven playback;
 - WASAPI-preferred output selection and audio-system controls;
 - independent (ТИ), ТА, metronome, and master sound controls;
 - configurable visual metronome;
-- rhythm-game keyboard scoring with Low/Mid/High timing windows;
-- DAC-time-based game targets, hit/miss feedback, early/late timing, graph, and last-game statistics;
+- keyboard game scoring with Score, graded timing, current/last-game statistics, and optional hit/miss sounds;
+- lane-only TI/TA matching with short early-input buffering;
+- economy-picking guidance rendered in the metronome area;
 - JSON session save/load;
 - ignored persistent local application settings;
+- opt-in timestamped archived game diagnostics;
 - MIDI export;
 - Guitar Pro 5 export;
 - WAV export.
@@ -64,27 +67,36 @@ Canonical commands:
 ./tt run
 ```
 
-GitHub is used for source/history. Routine validation is performed locally; the removed GitHub smoke workflow is not part of the current process.
+Optional diagnostic game run:
 
-## Release validation
+```bash
+./tt run -log
+```
 
-The 0.0.2 release candidate passed the canonical local gate on Windows through the WSL-controlled environment:
+GitHub is used for source/history. Routine validation is performed locally; GitHub CI is not part of the current process.
 
-- `./tt install` completed successfully;
-- `./tt doctor` confirmed the Windows Python environment and dependencies;
-- `./tt check` passed core tests, compile checks, export tests, and dependency imports;
-- manual GUI/audio acceptance was confirmed before the release commit.
+## Release-candidate validation
 
-The remaining release action is manual creation and push of the annotated `v0.0.2` tag from the validated `main` release commit.
+The current `work` state has received iterative manual GUI/audio/game acceptance during development, including real game-play feedback and diagnostic-log review.
+
+Before integration/tagging, the canonical final gate is still:
+
+1. update local `work` to the release-prep commit;
+2. run `./tt doctor`;
+3. run `./tt check`;
+4. run `./tt run` and confirm focused GUI/audio/game behavior on the Windows machine.
+
+After that successful gate, `work` may be fast-forwarded into `main`. Only then is the next numeric version selected, committed, and manually tagged.
 
 ## Known limitations
 
-- Keyboard game scoring is not input-latency calibrated.
+- There is no user-facing manual keyboard/audio latency calibration profile yet.
 - No MIDI-controller input scoring yet.
 - Audio-device behavior still depends on the Windows/driver/PortAudio stack and requires real-device validation.
 - Guitar Pro export intentionally uses conservative ASCII annotations for GP5 text compatibility.
 - No installer/updater or packaged release workflow is finalized.
 - Practice history is limited to the most recent game summary rather than a long-term statistics database.
+- Economy-picking guidance is algorithmic and currently models TI as string 5 and TA as string 6 only.
 
 ## Repository rules
 
@@ -97,3 +109,4 @@ The remaining release action is manual creation and push of the annotated `v0.0.
 7. Actual practice feedback outranks speculative expansion.
 8. Windows runtime + WSL command control is the canonical development workflow.
 9. Local gates are canonical; GitHub CI is not required for ordinary development.
+10. Stable layout should not be changed without a concrete need; prefer additive changes over unnecessary rewrites.

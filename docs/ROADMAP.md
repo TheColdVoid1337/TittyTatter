@@ -1,21 +1,22 @@
 # Roadmap
 
-TittyTatter should continue to grow from actual practice feedback. The current development cycle already implemented several items that were previously roadmap candidates: audio-device selection, keyboard timing scoring, practice statistics for the latest game, MIDI export, Guitar Pro export, WAV export, flexible meters, and timed practice.
+TittyTatter should continue to grow from actual practice feedback. The current development cycle focused on making game scoring genuinely playable and diagnosable, then adding picking/ramp feedback without destabilizing the established layout.
 
 ## Next 0.0.x work
 
-Priority: reliability and calibration rather than feature count.
+Priority: reliability and practice quality rather than feature count.
 
 Candidates:
 
 - real-device regression testing across multiple Windows audio backends/devices;
-- optional keyboard/input latency calibration for game mode;
+- optional explicit/manual keyboard or audio latency calibration if future diagnostics show a stable need;
 - MIDI-controller/pad input for game scoring;
 - richer long-term practice history and trend statistics;
 - user presets/favorites;
 - controlled random pattern rotation every N bars;
 - Quiet Count / disappearing-click practice;
 - exercise playlists/sequences;
+- further economy-picking heuristics if real guitar practice exposes weak cases;
 - improve Guitar Pro export after testing in multiple Guitar Pro versions;
 - improve packaged Windows build/release flow;
 - add export/session schema compatibility tests where useful.

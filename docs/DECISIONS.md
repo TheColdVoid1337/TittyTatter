@@ -73,3 +73,37 @@ Resetting settings requires explicit `DELETE` confirmation.
 ## D-014 — Development commits
 
 **Decision:** batch ordinary changes into meaningful functional/architectural commits. Microcommits are reserved for genuinely important isolated fixes or process changes.
+
+## D-015 — Preserve established layout
+
+**Decision:** once the current desktop layout has stabilized, prefer additive changes and targeted replacements. Do not restructure existing layout without a concrete functional or usability need.
+
+## D-016 — Game matching is lane-only
+
+**Decision:** TI keyboard input can consume only TI targets, and TA keyboard input can consume only TA targets.
+
+**Reason:** real diagnostic logs showed that cross-lane consumption caused cascading desynchronization after one miss.
+
+## D-017 — Buffer early input, do not immediately miss it
+
+**Decision:** a short GUI-side input buffer bridges the period where a correct early key press may arrive before the PortAudio callback has published its future DAC-timestamped target.
+
+**Reason:** diagnostics showed that otherwise accurate early hits were being rejected solely because the target did not yet exist in the GUI pending queue.
+
+## D-018 — No adaptive timing bias for current game scoring
+
+**Decision:** the current game matcher does not learn or apply an automatic timing offset.
+
+**Reason:** diagnostic sessions showed that the learned bias could drift by a whole subdivision and make otherwise accurate play appear systematically early/late. Explicit calibration may be reconsidered later as a separate feature.
+
+## D-019 — Diagnostics are opt-in and archived
+
+**Decision:** game diagnostics are enabled only with `-log` / `--log`. Each game writes a unique timestamped session that is compressed to `.tar.gz`; successful compression removes the raw JSONL.
+
+**Reason:** diagnostics should be available for timing investigation without adding normal-run disk churn or overwriting prior evidence.
+
+## D-020 — Picking guidance is algorithmic
+
+**Decision:** TI is modeled as string 5 and TA as string 6 for picking guidance. The system chooses economy-picking directions automatically rather than asking the user for a fixed first stroke.
+
+**Reason:** the displayed pattern should suggest an efficient playable picking path, not merely alternate up/down mechanically.
