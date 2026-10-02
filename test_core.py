@@ -8,6 +8,7 @@ from game_logic import (
     grade_timing,
     progress_bar,
 )
+from input_binding import binding_display, binding_identity, normalize_binding, scan_binding
 from model import BarPattern, BeatPattern
 from picking_logic import DOWN, UP, economy_pick_beats, economy_pick_pattern
 from presets import (
@@ -26,6 +27,18 @@ from presets import (
 assert TI_MARK == "(ТИ)"
 assert EngineConfig().ti_enabled is True
 assert EngineConfig().ta_enabled is True
+
+
+# Keyboard game bindings are stored by physical Windows scan code so active
+# keyboard layout does not change F/J input matching.
+assert normalize_binding("F") == "scan:33:F"
+assert normalize_binding("key:J") == "scan:36:J"
+assert binding_identity("scan:33:F") == "scan:33"
+assert binding_identity("scan:33:А") == "scan:33"
+assert binding_display("scan:33:F") == "F"
+assert scan_binding(36, "О") == "scan:36:J"
+assert normalize_binding("mouse:4") == "mouse:4"
+assert binding_identity("mouse:4") == "mouse:4"
 
 assert EARLY_HIT_WINDOW_MS == 180.0
 assert LATE_HIT_WINDOW_MS == 300.0

@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
 from audio_engine import AudioEngine, SOUND_NAMES
 from exports import export_gp5, export_midi, export_wav
 from game_logger import GameLogSession
+from input_binding import binding_display, binding_identity, normalize_binding, scan_binding
 from game_logic import (
     EARLY_HIT_WINDOW_MS,
     HIT_WINDOW_MS,
@@ -83,26 +84,18 @@ def _mouse_button_binding(button) -> str:
         value = int(button)
     if value <= 0 or value & (value - 1):
         return ""
-    # Qt mouse buttons are power-of-two flags: 1, 2, 4, 8, 16...
-    # Present them as human-friendly Mouse 1, Mouse 2, Mouse 3...
     return f"mouse:{value.bit_length()}"
 
 
 def _key_event_binding(event) -> str:
     sequence = QKeySequence(event.keyCombination()).toString().strip().upper()
-    return f"key:{sequence}" if sequence else ""
-
-
-def _binding_display(binding: str) -> str:
-    value = str(binding or "").strip()
-    if value.lower().startswith("mouse:"):
-        try:
-            return f"Mouse {int(value.split(':', 1)[1])}"
-        except Exception:
-            return value
-    if value.lower().startswith("key:"):
-        return value.split(":", 1)[1]
-    return value
+    try:
+        scan = int(event.nativeScanCode())
+    except Exception:
+        scan = 0
+    if scan > 0:
+        return scan_binding(scan, sequence)
+    return normalize_binding(f"key:{sequence}") if sequence else ""
 
 
 class GameBindEdit(QPushButton):
@@ -119,22 +112,10 @@ class GameBindEdit(QPushButton):
         return self._binding
 
     def set_binding(self, binding: str) -> None:
-        value = str(binding or "").strip()
-        # Backward compatibility with 0.0.3 settings that stored plain
-        # QKeySequence text such as "F" or "J".
-        if value and ":" not in value:
-            value = f"key:{value.upper()}"
-        elif value.lower().startswith("key:"):
-            value = f"key:{value.split(':', 1)[1].upper()}"
-        elif value.lower().startswith("mouse:"):
-            try:
-                value = f"mouse:{max(1, int(value.split(':', 1)[1]))}"
-            except Exception:
-                value = ""
-
+        value = normalize_binding(binding)
         self._binding = value
         self._capturing = False
-        self.setText(_binding_display(value) if value else "Не назначено")
+        self.setText(binding_display(value) if value else "Не назначено")
         self.bindingChanged.emit(self._binding)
 
     def begin_capture(self) -> None:
@@ -151,7 +132,7 @@ class GameBindEdit(QPushButton):
 
         if event.key() == Qt.Key_Escape:
             self._capturing = False
-            self.setText(_binding_display(self._binding) if self._binding else "Не назначено")
+            self.setText(binding_display(self._binding) if self._binding else "Не назначено")
             event.accept()
             return
 
@@ -1441,10 +1422,10 @@ class MainWindow(QMainWindow):
 
         controls_box = QGroupBox("Управление")
         controls = QFormLayout(controls_box)
-        self.game_ti_key = GameBindEdit("key:F")
+        self.game_ti_key = GameBindEdit("F")
         controls.addRow("(ТИ):", self.game_ti_key)
 
-        self.game_ta_key = GameBindEdit("key:J")
+        self.game_ta_key = GameBindEdit("J")
         controls.addRow("ТА:", self.game_ta_key)
 
         bind_hint = QLabel("Нажми поле, затем клавишу или кнопку мыши. Esc — отмена, Delete — очистить.")
@@ -2274,7 +2255,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _configured_game_binding(editor: GameBindEdit) -> str:
-        return editor.binding().strip().lower()
+        return binding_identity(editor.binding())
 
     def _handle_game_input(self, state: str) -> None:
         if not self.game_active:
@@ -2304,7 +2285,7 @@ class MainWindow(QMainWindow):
             if state == TI
             else self._configured_game_binding(self.game_ta_key)
         )
-        key = _binding_display(binding)
+        key = binding_display(binding)
         self._log_game_event(
             "input",
             state=state,
@@ -2370,9 +2351,9 @@ class MainWindow(QMainWindow):
         if self.game_active:
             binding = ""
             if event.type() == QEvent.KeyPress and not event.isAutoRepeat():
-                binding = _key_event_binding(event).lower()
+                binding = binding_identity(_key_event_binding(event))
             elif event.type() == QEvent.MouseButtonPress:
-                binding = _mouse_button_binding(event.button()).lower()
+                binding = binding_identity(_mouse_button_binding(event.button()))
 
             if binding:
                 if binding == self._configured_game_binding(self.game_ti_key):
