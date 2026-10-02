@@ -3,10 +3,10 @@
 ## Baseline
 
 - Project: **TittyTatter**
-- Current published release version: **0.0.2**
+- Current release version: **0.0.3**
 - Current development branch: **work**
 - Current integration branch: **main**
-- Status: next release candidate prepared on `work`; numeric version and tag intentionally not chosen yet
+- Status: 0.0.3 release commit prepared after successful local validation; annotated `v0.0.3` tag pending manual creation
 - Primary platform: Windows desktop
 - Language: Python
 - GUI: PySide6
@@ -15,7 +15,7 @@
 - Development shell: WSL
 - Runtime: native Windows Python virtual environment
 
-`main` remains the published 0.0.2 baseline. The current `work` branch contains the next release candidate and is ready for the canonical local release gate before fast-forward integration.
+`main` contains the locally validated 0.0.3 release candidate. The annotated `v0.0.3` tag is created and pushed manually after one final metadata-only check.
 
 ## Implemented product scope
 
