@@ -119,6 +119,7 @@ class MetronomeVisual(QWidget):
         super().__init__()
         self.phase = 0.0
         self.beat = 0
+        self.sub = 0
         self.active_beats = 4
         self.numerator = 4
         self.denominator = 4
@@ -152,6 +153,9 @@ class MetronomeVisual(QWidget):
         self.picking_visible = False
         self.picking_row_5: list[list[str]] = []
         self.picking_row_6: list[list[str]] = []
+        self.picking_show_next = True
+        self.picking_highlight_current = True
+        self.picking_cue_size = 52
 
         self._apply_height()
 
@@ -199,6 +203,7 @@ class MetronomeVisual(QWidget):
         *,
         phase: float,
         beat: int,
+        sub: int = 0,
         active_beats: int,
         numerator: int,
         denominator: int,
@@ -210,6 +215,7 @@ class MetronomeVisual(QWidget):
         self.numerator = max(1, int(numerator))
         self.denominator = int(denominator)
         self.beat = max(0, min(self.numerator - 1, int(beat)))
+        self.sub = max(0, int(sub))
         self.active_beats = max(0, min(self.numerator, int(active_beats)))
         self.count_in = bool(count_in)
         self.running = bool(running)
@@ -270,6 +276,140 @@ class MetronomeVisual(QWidget):
         self.picking_row_5 = [list(beat) for beat in (row_5 or [])]
         self.picking_row_6 = [list(beat) for beat in (row_6 or [])]
         self.update()
+
+    def configure_picking(
+        self,
+        *,
+        show_next: bool | None = None,
+        highlight_current: bool | None = None,
+        cue_size: int | None = None,
+    ) -> None:
+        if show_next is not None:
+            self.picking_show_next = bool(show_next)
+        if highlight_current is not None:
+            self.picking_highlight_current = bool(highlight_current)
+        if cue_size is not None:
+            self.picking_cue_size = max(36, min(96, int(cue_size)))
+        self.update()
+
+    def _picking_token_at(self, beat: int, sub: int) -> tuple[str, int] | None:
+        if beat < 0:
+            return None
+        for string_number, rows in ((5, self.picking_row_5), (6, self.picking_row_6)):
+            if beat >= len(rows):
+                continue
+            row = rows[beat]
+            if sub < 0 or sub >= len(row):
+                continue
+            token = row[sub]
+            if token in ("↑", "↓"):
+                return token, string_number
+        return None
+
+    def _next_picking_token(self) -> tuple[str, int] | None:
+        beat_count = max(len(self.picking_row_5), len(self.picking_row_6))
+        if beat_count <= 0:
+            return None
+
+        slots: list[tuple[int, int]] = []
+        for beat_index in range(beat_count):
+            len5 = len(self.picking_row_5[beat_index]) if beat_index < len(self.picking_row_5) else 0
+            len6 = len(self.picking_row_6[beat_index]) if beat_index < len(self.picking_row_6) else 0
+            for sub_index in range(max(len5, len6, 1)):
+                slots.append((beat_index, sub_index))
+
+        if not slots:
+            return None
+
+        try:
+            current_index = slots.index((self.beat, self.sub))
+        except ValueError:
+            current_index = -1
+
+        for offset in range(1, len(slots) + 1):
+            beat_index, sub_index = slots[(current_index + offset) % len(slots)]
+            token = self._picking_token_at(beat_index, sub_index)
+            if token is not None:
+                return token
+        return None
+
+    def _paint_picking_cue(self, painter: QPainter) -> None:
+        if not self.picking_visible:
+            return
+
+        painter.save()
+        panel_w = min(250, max(175, self.width() // 4))
+        left = self.width() - panel_w - 12
+        top = 28
+        bottom = self.height() - 10
+        rect = QRectF(left, top, panel_w, max(52, bottom - top))
+
+        painter.setPen(QColor(165, 172, 182))
+        label_font = self.font()
+        label_font.setBold(True)
+        label_font.setPointSize(8)
+        painter.setFont(label_font)
+        painter.drawText(rect.adjusted(0, 0, 0, -rect.height() + 18), Qt.AlignHCenter, "ТЕКУЩИЙ ШТРИХ")
+
+        if self.count_in and self.running:
+            painter.setPen(QColor(125, 132, 143))
+            painter.drawText(rect, Qt.AlignCenter, "COUNT-IN")
+            painter.restore()
+            return
+
+        reserved_bottom = 22.0 if self.picking_show_next else 4.0
+        cue_rect = rect.adjusted(0, 18, 0, -reserved_bottom)
+
+        current = self._picking_token_at(self.beat, self.sub)
+        if current is None:
+            painter.setPen(QColor(125, 132, 143))
+            rest_font = self.font()
+            rest_font.setBold(True)
+            rest_font.setPixelSize(max(20, min(36, int(cue_rect.height() * 0.75))))
+            painter.setFont(rest_font)
+            painter.drawText(cue_rect, Qt.AlignCenter, "·")
+        else:
+            direction, string_number = current
+            color = QColor(75, 220, 115) if direction == "↑" else QColor(235, 80, 80)
+            cue_font = self.font()
+            cue_font.setBold(True)
+            cue_font.setPixelSize(
+                max(24, min(self.picking_cue_size, int(cue_rect.height() * 0.92)))
+            )
+            painter.setFont(cue_font)
+            painter.setPen(color)
+            painter.drawText(cue_rect.adjusted(-12, 0, -12, 0), Qt.AlignCenter, direction)
+
+            string_font = self.font()
+            string_font.setBold(True)
+            string_font.setPixelSize(12)
+            painter.setFont(string_font)
+            painter.setPen(QColor(205, 211, 220))
+            painter.drawText(cue_rect.adjusted(panel_w * 0.60, 0, 0, 0), Qt.AlignVCenter | Qt.AlignLeft, f"{string_number}")
+
+        if self.picking_show_next:
+            nxt = self._next_picking_token()
+            if nxt is not None:
+                next_direction, next_string = nxt
+                color = QColor(75, 220, 115) if next_direction == "↑" else QColor(235, 80, 80)
+                next_font = self.font()
+                next_font.setBold(True)
+                next_font.setPixelSize(13)
+                painter.setFont(next_font)
+                painter.setPen(QColor(155, 162, 172))
+                painter.drawText(
+                    rect.adjusted(0, rect.height() - 20, -panel_w * 0.56, 0),
+                    Qt.AlignLeft | Qt.AlignBottom,
+                    "ДАЛЕЕ",
+                )
+                painter.setPen(color)
+                painter.drawText(
+                    rect.adjusted(panel_w * 0.45, rect.height() - 21, 0, 0),
+                    Qt.AlignLeft | Qt.AlignBottom,
+                    f"{next_direction}  {next_string}",
+                )
+
+        painter.restore()
 
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
@@ -356,6 +496,7 @@ class MetronomeVisual(QWidget):
 
         if self.picking_visible:
             self._paint_picking_pattern(painter)
+            self._paint_picking_cue(painter)
 
         if self.game_visible:
             self._paint_game_panels(painter)
@@ -429,6 +570,24 @@ class MetronomeVisual(QWidget):
             beat5 = self.picking_row_5[beat_index] if beat_index < len(self.picking_row_5) else []
             beat6 = self.picking_row_6[beat_index] if beat_index < len(self.picking_row_6) else []
             cells = max(1, len(beat5), len(beat6))
+            beat_start_x = x
+
+            if (
+                self.picking_highlight_current
+                and self.running
+                and not self.count_in
+                and beat_index == self.beat
+            ):
+                beat_width = cells * cell_width
+                highlight = QColor(255, 255, 255, 18)
+                painter.fillRect(
+                    QRectF(beat_start_x, y5 - 14, beat_width, (y6 - y5) + 20),
+                    highlight,
+                )
+                painter.setPen(QPen(QColor(210, 216, 225, 80), 1))
+                painter.drawRect(
+                    QRectF(beat_start_x, y5 - 14, beat_width, (y6 - y5) + 20)
+                )
 
             for cell_index in range(cells):
                 token5 = beat5[cell_index] if cell_index < len(beat5) else " "
@@ -1218,6 +1377,25 @@ class MainWindow(QMainWindow):
         self.picking_enabled.setChecked(False)
         self.picking_enabled.toggled.connect(self._picking_settings_changed)
         form.addRow("", self.picking_enabled)
+
+        self.picking_show_next = QCheckBox("Показывать следующий штрих справа")
+        self.picking_show_next.setChecked(True)
+        self.picking_show_next.toggled.connect(self._picking_settings_changed)
+        form.addRow("", self.picking_show_next)
+
+        self.picking_highlight_current = QCheckBox("Подсвечивать текущую долю в схеме")
+        self.picking_highlight_current.setChecked(True)
+        self.picking_highlight_current.toggled.connect(self._picking_settings_changed)
+        form.addRow("", self.picking_highlight_current)
+
+        self.picking_cue_size = QSpinBox()
+        self.picking_cue_size.setRange(32, 80)
+        self.picking_cue_size.setValue(52)
+        self.picking_cue_size.setSuffix(" px")
+        self.picking_cue_size.valueChanged.connect(self._picking_settings_changed)
+        form.addRow("Размер большой стрелки:", self.picking_cue_size)
+
+        self._refresh_picking_controls()
         return tab
 
     def _build_audio_tab(self) -> QWidget:
@@ -1552,6 +1730,7 @@ class MainWindow(QMainWindow):
         self.visual.set_state(
             phase=0.0,
             beat=0,
+            sub=0,
             active_beats=numerator,
             numerator=numerator,
             denominator=denominator,
@@ -1583,6 +1762,9 @@ class MainWindow(QMainWindow):
 
     def _game_mode_toggled(self, enabled: bool) -> None:
         enabled = bool(enabled)
+        if enabled and hasattr(self, "picking_enabled") and self.picking_enabled.isChecked():
+            self.picking_enabled.setChecked(False)
+
         self.game_stats_visible = enabled
         self.game_start.setEnabled(enabled)
 
@@ -2088,7 +2270,28 @@ class MainWindow(QMainWindow):
                 return
         super().keyPressEvent(event)
 
+    def _refresh_picking_controls(self) -> None:
+        if not hasattr(self, "picking_enabled"):
+            return
+        enabled = self.picking_enabled.isChecked()
+        for widget in (
+            getattr(self, "picking_show_next", None),
+            getattr(self, "picking_highlight_current", None),
+            getattr(self, "picking_cue_size", None),
+        ):
+            if widget is not None:
+                widget.setEnabled(enabled)
+
     def _picking_settings_changed(self, *_args) -> None:
+        if self.picking_enabled.isChecked() and self.game_enabled.isChecked():
+            self.game_enabled.setChecked(False)
+
+        self._refresh_picking_controls()
+        self.visual.configure_picking(
+            show_next=self.picking_show_next.isChecked(),
+            highlight_current=self.picking_highlight_current.isChecked(),
+            cue_size=self.picking_cue_size.value(),
+        )
         self._update_picking_pattern()
 
     def _update_picking_pattern(self, active_beats: int | None = None) -> None:
@@ -2318,6 +2521,7 @@ class MainWindow(QMainWindow):
         self.visual.set_state(
             phase=float(st["beat_phase"]),
             beat=int(st["beat"]),
+            sub=int(st["sub"]),
             active_beats=active_beats,
             numerator=numerator,
             denominator=denominator,
@@ -2722,6 +2926,9 @@ class MainWindow(QMainWindow):
             },
             "picking": {
                 "enabled": self.picking_enabled.isChecked(),
+                "show_next": self.picking_show_next.isChecked(),
+                "highlight_current": self.picking_highlight_current.isChecked(),
+                "cue_size": self.picking_cue_size.value(),
             },
             "audio": {
                 "device_name": device.get("name", self.engine.device_name),
@@ -2830,6 +3037,9 @@ class MainWindow(QMainWindow):
         self._game_mode_toggled(self.game_enabled.isChecked())
 
         picking = data.get("picking", {})
+        self.picking_show_next.setChecked(bool(picking.get("show_next", True)))
+        self.picking_highlight_current.setChecked(bool(picking.get("highlight_current", True)))
+        self.picking_cue_size.setValue(int(picking.get("cue_size", 52)))
         self.picking_enabled.setChecked(bool(picking.get("enabled", False)))
         self._picking_settings_changed()
 
@@ -2925,6 +3135,9 @@ class MainWindow(QMainWindow):
         self._refresh_last_game_stats()
         self.visual.set_game_stats(False, 0, 0, [], 0)
 
+        self.picking_show_next.setChecked(True)
+        self.picking_highlight_current.setChecked(True)
+        self.picking_cue_size.setValue(52)
         self.picking_enabled.setChecked(False)
         self._picking_settings_changed()
 
