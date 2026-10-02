@@ -1,10 +1,13 @@
 from audio_engine import EngineConfig
+from game_logic import CALIBRATION_WINDOW_MS, HIT_WINDOW_MS, grade_timing, progress_bar, timing_bias
 from model import BarPattern, BeatPattern
+from picking_logic import DOWN, UP, economy_pick_pattern
 from presets import (
     CORE_PRACTICE_PRESETS,
     EIGHTH_PRESETS,
     SIXTEENTH_PRESETS,
     TRIPLET_PRESETS,
+    OFF,
     TA,
     TI,
     TI_MARK,
@@ -15,6 +18,20 @@ from presets import (
 assert TI_MARK == "(ТИ)"
 assert EngineConfig().ti_enabled is True
 assert EngineConfig().ta_enabled is True
+
+assert HIT_WINDOW_MS == 420.0
+assert CALIBRATION_WINDOW_MS == 520.0
+assert grade_timing(0).label == "PERFECT"
+assert grade_timing(100).label == "GREAT"
+assert grade_timing(200).label == "GOOD"
+assert grade_timing(330).label == "HIT"
+assert grade_timing(421).accepted is False
+assert timing_bias([180.0]) == 180.0
+assert timing_bias([170.0, 180.0, 190.0]) == 180.0
+assert progress_bar(4, 8) == "■■■■□□□□"
+
+assert economy_pick_pattern([TI, TI, TA, TA], TI, TA, OFF) == [DOWN, UP, UP, DOWN]
+assert economy_pick_pattern([TA, TA, TI, TI], TI, TA, OFF) == [UP, DOWN, DOWN, UP]
 
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8

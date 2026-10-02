@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import threading
 from collections import deque
 from dataclasses import dataclass, replace
 from typing import Any
@@ -94,6 +95,7 @@ class AudioEngine:
         self._last_error = ""
         self._game_tracking = False
         self._game_targets: deque[tuple[float, str, int, int, int]] = deque(maxlen=512)
+        self._notification_queue: deque[tuple[str, float]] = deque(maxlen=64)
         self._sounds = self._build_sounds()
 
     @staticmethod
@@ -233,17 +235,45 @@ class AudioEngine:
         except Exception:
             return 0.0
 
-    def play_notification(self, sound_name: str = "Bell", gain: float = 0.8) -> None:
-        wave = self.sound_wave(sound_name) * float(gain)
-        try:
-            sd.play(
-                wave,
-                samplerate=self.sample_rate,
-                device=self.device_index,
-                blocking=False,
-            )
-        except Exception:
-            pass
+    def queue_notification(self, key: str, gain: float = 0.8) -> None:
+        """Queue a short UI/game cue into the realtime output stream."""
+        if key not in self._sounds:
+            return
+        self._notification_queue.append((key, float(gain)))
+
+    def play_notification(self, sound_name: str = "Finish horn", gain: float = 0.9) -> None:
+        """Play a one-shot cue reliably after the main realtime stream has stopped."""
+        key = {
+            "Finish horn": "finish_horn",
+            "Bell": "bell",
+            "Ramp warning": "ramp_warn",
+            "Game hit": "game_hit",
+            "Game miss": "game_miss",
+        }.get(sound_name, self._sound_key(sound_name))
+        wave = self._sounds.get(key)
+        if wave is None:
+            return
+        payload = (wave * float(gain)).astype(np.float32, copy=True)
+
+        def worker() -> None:
+            try:
+                if self.channels == 1:
+                    data = payload[:, None]
+                else:
+                    data = np.repeat(payload[:, None], self.channels, axis=1)
+                with sd.OutputStream(
+                    device=self.device_index,
+                    samplerate=self.sample_rate,
+                    channels=self.channels,
+                    dtype="float32",
+                    blocksize=0,
+                    latency=self.latency_mode,
+                ) as stream:
+                    stream.write(data)
+            except Exception:
+                pass
+
+        threading.Thread(target=worker, name="TittyTatterNotification", daemon=True).start()
 
     def set_pattern(self, pattern: BarPattern) -> None:
         new_pattern = copy.deepcopy(pattern)
@@ -281,6 +311,7 @@ class AudioEngine:
         self._visual_sub = 0
         self._visual_beat_start = 0.0
         self._active_voices.clear()
+        self._notification_queue.clear()
         self._last_error = ""
 
         extra_settings = None
@@ -321,7 +352,9 @@ class AudioEngine:
     def status(self) -> dict[str, Any]:
         cfg = self._config
         stages = self._stages(cfg.practice_mode, self._pattern.numerator)
-        active_beats = stages[self._stage_index % len(stages)]
+        stage_index = self._stage_index % len(stages)
+        active_beats = stages[stage_index]
+        next_active_beats = stages[(stage_index + 1) % len(stages)] if len(stages) > 1 else active_beats
         beat_samples = max(1.0, self._visual_beat_samples)
         phase = (self._sample_cursor - self._visual_beat_start) / beat_samples
         phase = float(max(0.0, min(0.999, phase)))
@@ -338,9 +371,12 @@ class AudioEngine:
             "sub": self._visual_sub,
             "beat_phase": phase,
             "bar": self._bar_number + 1,
-            "stage_index": self._stage_index,
+            "stage_index": stage_index,
+            "stage_count": len(stages),
             "stage_bar": self._stage_bar + 1,
+            "bars_per_stage": max(1, int(cfg.bars_per_stage)),
             "active_beats": active_beats,
+            "next_active_beats": next_active_beats,
             "count_in": self._count_in_beats_left > 0,
             "count_in_beat": self._count_in_total_beats - self._count_in_beats_left,
             "numerator": self._pattern.numerator,
@@ -385,6 +421,12 @@ class AudioEngine:
             if pos < len(wave):
                 kept.append((wave, pos, gain))
         self._active_voices = kept
+
+        while self._notification_queue:
+            key, gain = self._notification_queue.popleft()
+            wave = self._sounds.get(key)
+            if wave is not None:
+                self._mix_sound(mono, 0, wave, gain)
 
         safety = 0
         while self._next_event_sample < block_end and safety < 256:
@@ -457,11 +499,17 @@ class AudioEngine:
         if covered_by_active_note:
             n_sub = 1
             state = OFF
+            logical_state = OFF
         elif beat_active:
             n_sub = beat_def.subdivision
             state = beat_def.steps[self._sub_index]
+            logical_state = state
         else:
+            # In ramp mode an inactive beat is conceptually TA + rests.
+            # Audio can still be disabled with inactive_pulse, but game input
+            # and visual practice semantics continue to expect TA on the beat.
             n_sub = 1
+            logical_state = TA
             state = TA if cfg.inactive_pulse else OFF
 
         if self._sub_index == 0:
@@ -481,8 +529,13 @@ class AudioEngine:
                 sounds.append((self._sounds[self._sound_key(cfg.ta_sound)], float(cfg.ta_volume)))
 
         game_target = None
-        if beat_active and not beat_muted and state in (TI, TA):
-            game_target = (state, self._bar_number, self._beat_index, self._sub_index)
+        if not beat_muted and logical_state in (TI, TA):
+            game_target = (
+                logical_state,
+                self._bar_number,
+                self._beat_index,
+                self._sub_index,
+            )
 
         interval = beat_samples / n_sub
         self._sub_index += 1
@@ -664,6 +717,42 @@ class AudioEngine:
             tone(3800, 0.025, 0.005, 0.50),
         ), 0.55)
 
+        game_hit = normalize(mix_layers(
+            tone(880, 0.065, 0.022, 0.85),
+            tone(1320, 0.075, 0.028, 0.55),
+        ), 0.42)
+
+        game_miss = normalize(mix_layers(
+            tone(155, 0.090, 0.032, 1.0),
+            tone(118, 0.110, 0.042, 0.55),
+        ), 0.42)
+
+        ramp_warn = normalize(mix_layers(
+            tone(660, 0.105, 0.040, 0.70),
+            tone(990, 0.125, 0.052, 0.48),
+        ), 0.44)
+
+        horn_dur = 1.05
+        horn_n = max(1, int(sr * horn_dur))
+        horn_t = np.arange(horn_n, dtype=np.float32) / sr
+        horn_gate = np.zeros(horn_n, dtype=np.float32)
+        for start_s, end_s in ((0.00, 0.34), (0.44, 0.98)):
+            start = int(start_s * sr)
+            end = min(horn_n, int(end_s * sr))
+            if end > start:
+                local = np.linspace(0.0, 1.0, end - start, dtype=np.float32)
+                attack = np.minimum(1.0, local * 18.0)
+                release = np.minimum(1.0, (1.0 - local) * 10.0)
+                horn_gate[start:end] = np.minimum(attack, release)
+        vibrato = 1.0 + 0.006 * np.sin(2 * np.pi * 5.2 * horn_t)
+        horn = np.zeros(horn_n, dtype=np.float32)
+        for base, amp in ((196.0, 0.70), (246.94, 0.52), (293.66, 0.44)):
+            phase = 2 * np.pi * base * horn_t * vibrato
+            horn += amp * np.sin(phase)
+            horn += amp * 0.28 * np.sin(2 * phase)
+            horn += amp * 0.12 * np.sin(3 * phase)
+        finish_horn = normalize(horn * horn_gate, 0.58)
+
         return {
             "wood": wood,
             "low_tick": low_tick,
@@ -679,6 +768,10 @@ class AudioEngine:
             "voice_ta": voice_ta,
             "metro": metro,
             "metro_accent": metro_accent,
+            "game_hit": game_hit,
+            "game_miss": game_miss,
+            "ramp_warn": ramp_warn,
+            "finish_horn": finish_horn,
         }
 
     @staticmethod

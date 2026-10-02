@@ -39,7 +39,9 @@ from PySide6.QtWidgets import (
 
 from audio_engine import AudioEngine, SOUND_NAMES
 from exports import export_gp5, export_midi, export_wav
+from game_logic import CALIBRATION_WINDOW_MS, HIT_WINDOW_MS, grade_timing, progress_bar, timing_bias
 from model import BarPattern, BeatPattern
+from picking_logic import economy_pick_pattern
 from presets import (
     CORE_PRACTICE_PRESETS,
     OFF,
@@ -66,19 +68,13 @@ STATE_STYLE = {
     OFF: "background:#22252a;color:#8e949e;border:2px solid #343941;border-radius:8px;padding:8px;",
 }
 
-GAME_WINDOWS_MS = {
-    "low": 180,
-    "mid": 110,
-    "high": 60,
-}
-
-
 class StepButton(QPushButton):
     changed = Signal()
 
     def __init__(self) -> None:
         super().__init__()
         self.state = OFF
+        self.display_override: str | None = None
         self.playing = False
         self.setMinimumWidth(42)
         self.setMinimumHeight(42)
@@ -98,10 +94,15 @@ class StepButton(QPushButton):
         self.playing = bool(value)
         self.refresh()
 
+    def set_display_override(self, state: str | None) -> None:
+        self.display_override = state if state in (TI, TA, OFF) else None
+        self.refresh()
+
     def refresh(self) -> None:
+        shown = self.display_override or self.state
         extra = "border:3px solid #ffd56a;" if self.playing else ""
-        self.setText(STATE_TEXT[self.state])
-        self.setStyleSheet(f"QPushButton{{{STATE_STYLE[self.state]}{extra}}}")
+        self.setText(STATE_TEXT[shown])
+        self.setStyleSheet(f"QPushButton{{{STATE_STYLE[shown]}{extra}}}")
 
 
 class MetronomeVisual(QWidget):
@@ -129,11 +130,20 @@ class MetronomeVisual(QWidget):
         self.game_visible = False
         self.game_hits = 0
         self.game_misses = 0
+        self.game_score = 0
         self.game_recent: list[float] = []
         self.game_feedback_kind = ""
         self.game_feedback_main = ""
         self.game_feedback_detail = ""
         self.game_feedback_until = 0.0
+
+        self.ramp_warning_text = ""
+        self.ramp_warning_until = 0.0
+
+        self.picking_visible = False
+        self.picking_string_5 = ""
+        self.picking_string_6 = ""
+
         self._apply_height()
 
     def _apply_height(self) -> None:
@@ -197,10 +207,18 @@ class MetronomeVisual(QWidget):
         self.timer_text = str(timer_text)
         self.update()
 
-    def set_game_stats(self, visible: bool, hits: int, misses: int, recent: list[float]) -> None:
+    def set_game_stats(
+        self,
+        visible: bool,
+        hits: int,
+        misses: int,
+        recent: list[float],
+        score: int = 0,
+    ) -> None:
         self.game_visible = bool(visible)
         self.game_hits = int(hits)
         self.game_misses = int(misses)
+        self.game_score = int(score)
         self.game_recent = [max(0.0, min(1.0, float(x))) for x in recent[-28:]]
         if not self.game_visible:
             self.clear_game_feedback()
@@ -221,6 +239,18 @@ class MetronomeVisual(QWidget):
         self.game_feedback_main = ""
         self.game_feedback_detail = ""
         self.game_feedback_until = 0.0
+        self.update()
+
+    def trigger_ramp_warning(self, next_active_beats: int) -> None:
+        self.ramp_warning_text = f"↑ СЛЕДУЮЩИЙ УРОВЕНЬ: {int(next_active_beats)} ДОЛИ"
+        self.ramp_warning_until = time.perf_counter() + 0.65
+        self.update()
+        QTimer.singleShot(700, self.update)
+
+    def set_picking_pattern(self, visible: bool, string_5: str = "", string_6: str = "") -> None:
+        self.picking_visible = bool(visible)
+        self.picking_string_5 = str(string_5)
+        self.picking_string_6 = str(string_6)
         self.update()
 
     def paintEvent(self, _event) -> None:
@@ -249,6 +279,12 @@ class MetronomeVisual(QWidget):
             else:
                 result_color = QColor(225, 55, 55, 118)
             painter.fillRect(self.rect(), result_color)
+
+        if time.perf_counter() < self.ramp_warning_until:
+            warning = QColor(242, 172, 45, 82)
+            painter.fillRect(self.rect(), warning)
+            painter.setPen(QPen(QColor(255, 205, 90), 3))
+            painter.drawRect(self.rect().adjusted(2, 2, -3, -3))
 
         if self.running:
             direction = 1.0 if self.beat % 2 == 0 else -1.0
@@ -300,8 +336,45 @@ class MetronomeVisual(QWidget):
             painter.setPen(QColor(235, 238, 244))
             painter.drawText(self.rect().adjusted(0, 5, -14, 0), Qt.AlignRight | Qt.AlignTop, self.timer_text)
 
+        if self.picking_visible:
+            self._paint_picking_pattern(painter)
+
         if self.game_visible:
             self._paint_game_panels(painter)
+
+        if time.perf_counter() < self.ramp_warning_until:
+            painter.setPen(QColor(255, 220, 125))
+            font = painter.font()
+            font.setBold(True)
+            painter.setFont(font)
+            painter.drawText(self.rect().adjusted(0, 8, 0, 0), Qt.AlignHCenter | Qt.AlignTop, self.ramp_warning_text)
+            font.setBold(False)
+            painter.setFont(font)
+
+    def _paint_picking_pattern(self, painter: QPainter) -> None:
+        if not self.picking_string_5 and not self.picking_string_6:
+            return
+
+        painter.setPen(QColor(196, 202, 212))
+        font = painter.font()
+        font.setBold(True)
+        longest = max(len(self.picking_string_5), len(self.picking_string_6), 1)
+        available = max(260, self.width() - (440 if self.game_visible else 180))
+        point_size = max(7, min(10, int(available / longest * 1.45)))
+        font.setPointSize(point_size)
+        painter.setFont(font)
+
+        margin = 210 if self.game_visible else 90
+        top = max(42, self.height() - 58)
+        rect = self.rect().adjusted(margin, top, -margin, -6)
+        half = max(16, rect.height() // 2)
+        row5 = rect.adjusted(0, 0, 0, -(rect.height() - half))
+        row6 = rect.adjusted(0, half, 0, 0)
+        painter.drawText(row5, Qt.AlignHCenter | Qt.AlignVCenter, self.picking_string_5)
+        painter.drawText(row6, Qt.AlignHCenter | Qt.AlignVCenter, self.picking_string_6)
+
+        font.setBold(False)
+        painter.setFont(font)
 
     def _paint_game_panels(self, painter: QPainter) -> None:
         top = 38
@@ -330,7 +403,11 @@ class MetronomeVisual(QWidget):
         painter.setPen(QColor(185, 191, 200))
         total = self.game_hits + self.game_misses
         accuracy = 100.0 * self.game_hits / total if total else 0.0
-        painter.drawText(left, top, f"GAME  hit {self.game_hits}  miss {self.game_misses}  {accuracy:.0f}%")
+        painter.drawText(
+            left,
+            top,
+            f"GAME  {self.game_score} pts  hit {self.game_hits}  miss {self.game_misses}  {accuracy:.0f}%",
+        )
 
         recent = self.game_recent[-28:]
         if not recent:
@@ -496,12 +573,21 @@ class BeatEditor(QGroupBox):
 
     def set_span_covered(self, value: bool) -> None:
         self._span_covered = bool(value)
-        self.body.setEnabled(not self._span_covered)
+        self.body.setEnabled(not self._span_covered and not self._ramp_inactive)
         self._refresh_mute_enabled()
         self._refresh_visual_state()
 
     def set_ramp_inactive(self, value: bool) -> None:
         self._ramp_inactive = bool(value)
+        self.body.setEnabled(not self._span_covered and not self._ramp_inactive)
+        spec = grid_spec(str(self.grid.currentData()))
+        for i, button in enumerate(self.steps):
+            if i >= spec.steps:
+                continue
+            if self._ramp_inactive:
+                button.set_display_override(TA if i == 0 else OFF)
+            else:
+                button.set_display_override(None)
         self._refresh_visual_state()
 
     def set_mute_allowed(self, allowed: bool) -> None:
@@ -613,8 +699,12 @@ class MainWindow(QMainWindow):
         self.game_stats_visible = False
         self.game_hits = 0
         self.game_misses = 0
+        self.game_score = 0
         self.game_recent: list[float] = []
         self.game_offsets_ms: list[float] = []
+        self.game_calibration_samples_ms: list[float] = []
+        self.game_timing_bias_ms = 0.0
+        self._last_ramp_warning_key: tuple[int, int] | None = None
         self.game_pending: list[dict[str, object]] = []
         self.last_game_stats = {
             "hits": 0,
@@ -623,6 +713,7 @@ class MainWindow(QMainWindow):
             "mean_abs_ms": 0.0,
             "early": 0,
             "late": 0,
+            "score": 0,
         }
 
         self._build_ui()
@@ -704,6 +795,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self._build_sound_tab(), "Звук")
         self.tabs.addTab(self._build_metronome_tab(), "Метроном")
         self.tabs.addTab(self._build_game_tab(), "Игра")
+        self.tabs.addTab(self._build_picking_tab(), "Picking")
         self.tabs.addTab(self._build_audio_tab(), "Аудио")
         self.tabs.addTab(self._build_export_tab(), "Экспорт")
         out.addWidget(self.tabs)
@@ -730,6 +822,12 @@ class MainWindow(QMainWindow):
         self.meter_num.valueChanged.connect(self._meter_changed)
         self.meter_den.currentIndexChanged.connect(self._meter_changed)
         self.mode.currentIndexChanged.connect(self._mode_changed)
+        self.tempo_train.toggled.connect(self._refresh_dependent_controls)
+        self.practice_timer.toggled.connect(self._refresh_dependent_controls)
+        self.ramp_warning.toggled.connect(self._refresh_dependent_controls)
+        self.ti_on.toggled.connect(self._refresh_dependent_controls)
+        self.ta_on.toggled.connect(self._refresh_dependent_controls)
+        self.metro_on.toggled.connect(self._refresh_dependent_controls)
 
         self.ti_sound.currentTextChanged.connect(lambda _text: self._ensure_unique_sound("ti"))
         self.ta_sound.currentTextChanged.connect(lambda _text: self._ensure_unique_sound("ta"))
@@ -787,6 +885,10 @@ class MainWindow(QMainWindow):
         self.inactive = QCheckBox("ТА-пульс на пустых долях разгона")
         self.inactive.setChecked(True)
         form.addRow("", self.inactive)
+
+        self.ramp_warning = QCheckBox("Предупреждать перед следующим уровнем")
+        self.ramp_warning.setChecked(True)
+        form.addRow("", self.ramp_warning)
 
         random_button = QPushButton("🎲 Случайный такт")
         random_button.clicked.connect(self.randomize_beats)
@@ -966,6 +1068,8 @@ class MainWindow(QMainWindow):
             signal = getattr(widget, "valueChanged", None) or getattr(widget, "toggled", None)
             if signal:
                 signal.connect(self._visual_config_changed)
+        self.metro_flash.toggled.connect(self._refresh_dependent_controls)
+        self.metro_flash_whole.toggled.connect(self._refresh_dependent_controls)
 
         self._refresh_color_samples()
         return tab
@@ -981,12 +1085,13 @@ class MainWindow(QMainWindow):
         self.game_enabled.toggled.connect(self._game_mode_toggled)
         form.addRow("", self.game_enabled)
 
-        self.game_difficulty = QComboBox()
-        self.game_difficulty.addItem("Low · ±180 ms", "low")
-        self.game_difficulty.addItem("Mid · ±110 ms", "mid")
-        self.game_difficulty.addItem("High · ±60 ms", "high")
-        self.game_difficulty.setCurrentIndex(1)
-        form.addRow("Сложность:", self.game_difficulty)
+        self.game_hit_sound = QCheckBox("Звук HIT")
+        self.game_hit_sound.setChecked(True)
+        form.addRow("", self.game_hit_sound)
+
+        self.game_miss_sound = QCheckBox("Звук MISS")
+        self.game_miss_sound.setChecked(True)
+        form.addRow("", self.game_miss_sound)
 
         self.game_start = QPushButton("▶ Запустить игру")
         self.game_start.setEnabled(False)
@@ -1005,21 +1110,34 @@ class MainWindow(QMainWindow):
         controls.addRow("ТА:", self.game_ta_key)
         root.addWidget(controls_box, 1)
 
-        stats_box = QGroupBox("Последняя игра")
-        stats = QFormLayout(stats_box)
+        self.game_stats_box = QGroupBox("Последняя игра")
+        stats = QFormLayout(self.game_stats_box)
+        self.last_game_score = QLabel("0")
         self.last_game_hits = QLabel("0")
         self.last_game_misses = QLabel("0")
         self.last_game_accuracy = QLabel("—")
         self.last_game_timing = QLabel("—")
         self.last_game_balance = QLabel("—")
+        stats.addRow("Score:", self.last_game_score)
         stats.addRow("Попадания:", self.last_game_hits)
         stats.addRow("Промахи:", self.last_game_misses)
         stats.addRow("Точность:", self.last_game_accuracy)
         stats.addRow("Среднее |Δ|:", self.last_game_timing)
         stats.addRow("Рано / поздно:", self.last_game_balance)
-        root.addWidget(stats_box, 1)
+        root.addWidget(self.game_stats_box, 1)
 
         self._refresh_last_game_stats()
+        self._game_mode_toggled(False)
+        return tab
+
+    def _build_picking_tab(self) -> QWidget:
+        tab = QWidget()
+        form = QFormLayout(tab)
+
+        self.picking_enabled = QCheckBox("Показывать экономный picking pattern в метрономе")
+        self.picking_enabled.setChecked(False)
+        self.picking_enabled.toggled.connect(self._picking_settings_changed)
+        form.addRow("", self.picking_enabled)
         return tab
 
     def _build_audio_tab(self) -> QWidget:
@@ -1192,7 +1310,36 @@ class MainWindow(QMainWindow):
             editor.set_mute_allowed(not ramp)
         if not self.engine.is_running:
             self._set_ramp_visual(self.meter_num.value())
+        self._refresh_dependent_controls()
         self._pattern_changed()
+
+    def _refresh_dependent_controls(self, *_args) -> None:
+        ramp = self.mode.currentData() != "loop"
+
+        self.bars.setEnabled(ramp)
+        self.inactive.setEnabled(ramp)
+        self.ramp_warning.setEnabled(ramp)
+
+        tempo_enabled = self.tempo_train.isChecked()
+        for widget in (self.tempo_step, self.tempo_every, self.tempo_target):
+            widget.setEnabled(tempo_enabled)
+
+        timer_enabled = self.practice_timer.isChecked()
+        self.timer_minutes.setEnabled(timer_enabled)
+        self.timer_seconds.setEnabled(timer_enabled)
+
+        self.ti_sound.setEnabled(self.ti_on.isChecked())
+        self.ti_vol.setEnabled(self.ti_on.isChecked())
+        self.ta_sound.setEnabled(self.ta_on.isChecked())
+        self.ta_vol.setEnabled(self.ta_on.isChecked())
+        self.accent.setEnabled(self.metro_on.isChecked())
+        self.metro_vol.setEnabled(self.metro_on.isChecked())
+
+        any_flash = self.metro_flash.isChecked() or self.metro_flash_whole.isChecked()
+        self.flash_color_btn.setEnabled(any_flash)
+        self.flash_color_sample.setEnabled(any_flash)
+        self.metro_flash_brightness.setEnabled(any_flash)
+
 
     def _ensure_unique_sound(self, source: str) -> None:
         if self.ti_sound.currentText() != self.ta_sound.currentText():
@@ -1223,6 +1370,8 @@ class MainWindow(QMainWindow):
         pattern = self.current_pattern()
         self.engine.set_pattern(pattern)
         self._refresh_span_visuals(pattern)
+        if hasattr(self, "picking_enabled"):
+            self._update_picking_pattern()
 
     def _refresh_span_visuals(self, pattern: BarPattern | None = None) -> None:
         pattern = pattern or self.current_pattern()
@@ -1260,6 +1409,8 @@ class MainWindow(QMainWindow):
         self._pattern_changed()
         self._config_changed()
         self._visual_config_changed()
+        self._refresh_dependent_controls()
+        self._update_picking_pattern()
 
     def _bpm_from_spin(self, value: int) -> None:
         self.bpm_slider.blockSignals(True)
@@ -1314,6 +1465,8 @@ class MainWindow(QMainWindow):
         self.play.setText("▶ Старт")
         self.clear_playhead()
         self._set_ramp_visual(self.meter_num.value())
+        self._last_ramp_warning_key = None
+        self._update_picking_pattern(self.meter_num.value())
         numerator, denominator = self._meter()
         timer_text = "00:00" if timer_finished and self.practice_timer.isChecked() else ""
         self.visual.set_state(
@@ -1328,7 +1481,7 @@ class MainWindow(QMainWindow):
         )
         self.status.setText(message)
         if timer_finished:
-            self.engine.play_notification("Bell", 0.9)
+            self.engine.play_notification("Finish horn", 0.95)
 
     def tap_tempo(self) -> None:
         now = time.perf_counter()
@@ -1353,13 +1506,21 @@ class MainWindow(QMainWindow):
         self.game_stats_visible = enabled
         self.game_start.setEnabled(enabled)
 
+        for widget in (
+            self.game_ti_key,
+            self.game_ta_key,
+            self.game_hit_sound,
+            self.game_miss_sound,
+        ):
+            widget.setEnabled(enabled and not self.game_active)
+
         if not enabled:
             if self.game_active:
                 self.stop_game("Игра остановлена")
-            self.visual.set_game_stats(False, self.game_hits, self.game_misses, self.game_recent)
+            self.visual.set_game_stats(False, self.game_hits, self.game_misses, self.game_recent, self.game_score)
             self.visual.clear_game_feedback()
         else:
-            self.visual.set_game_stats(True, self.game_hits, self.game_misses, self.game_recent)
+            self.visual.set_game_stats(True, self.game_hits, self.game_misses, self.game_recent, self.game_score)
 
     def toggle_game(self) -> None:
         if not self.game_enabled.isChecked():
@@ -1388,11 +1549,10 @@ class MainWindow(QMainWindow):
         self.game_start.setText("■ Остановить игру")
         self.game_ti_key.setEnabled(False)
         self.game_ta_key.setEnabled(False)
-        self.game_difficulty.setEnabled(False)
         self.engine.start_game_tracking()
         self.engine.start()
         self.play.setText("■ Стоп")
-        self.visual.set_game_stats(True, 0, 0, [])
+        self.visual.set_game_stats(True, 0, 0, [], 0)
         self.status.setText("Игра · COUNT-IN")
 
     def stop_game(self, message: str) -> None:
@@ -1402,23 +1562,28 @@ class MainWindow(QMainWindow):
         self.game_start.setText("▶ Запустить игру")
         self.game_ti_key.setEnabled(True)
         self.game_ta_key.setEnabled(True)
-        self.game_difficulty.setEnabled(True)
         self._stop_playback(message)
         self.visual.set_game_stats(
             self.game_enabled.isChecked(),
             self.game_hits,
             self.game_misses,
             self.game_recent,
+            self.game_score,
         )
 
     def _reset_game_stats(self) -> None:
         self.game_hits = 0
         self.game_misses = 0
+        self.game_score = 0
         self.game_recent = []
         self.game_offsets_ms = []
+        self.game_calibration_samples_ms = []
+        self.game_timing_bias_ms = 0.0
         self.game_pending = []
         self.engine.drain_game_targets()
         self.visual.clear_game_feedback()
+        self.game_stats_box.setTitle("Текущая игра")
+        self._refresh_current_game_stats()
 
     def _finalize_game_stats(self) -> None:
         total = self.game_hits + self.game_misses
@@ -1437,7 +1602,9 @@ class MainWindow(QMainWindow):
             "mean_abs_ms": mean_abs,
             "early": early,
             "late": late,
+            "score": self.game_score,
         }
+        self.game_stats_box.setTitle("Последняя игра")
         self._refresh_last_game_stats()
 
     def _refresh_last_game_stats(self) -> None:
@@ -1447,6 +1614,7 @@ class MainWindow(QMainWindow):
         hits = int(stats.get("hits", 0))
         misses = int(stats.get("misses", 0))
         total = hits + misses
+        self.last_game_score.setText(str(int(stats.get("score", 0))))
         self.last_game_hits.setText(str(hits))
         self.last_game_misses.setText(str(misses))
         self.last_game_accuracy.setText(f"{float(stats.get('accuracy', 0.0)):.1f}%" if total else "—")
@@ -1457,9 +1625,27 @@ class MainWindow(QMainWindow):
             f"{int(stats.get('early', 0))} / {int(stats.get('late', 0))}" if hits else "—"
         )
 
+    def _refresh_current_game_stats(self) -> None:
+        if not hasattr(self, "last_game_hits"):
+            return
+        total = self.game_hits + self.game_misses
+        accuracy = 100.0 * self.game_hits / total if total else 0.0
+        mean_abs = (
+            sum(abs(value) for value in self.game_offsets_ms) / len(self.game_offsets_ms)
+            if self.game_offsets_ms
+            else 0.0
+        )
+        early = sum(1 for value in self.game_offsets_ms if value < -4.0)
+        late = sum(1 for value in self.game_offsets_ms if value > 4.0)
+        self.last_game_score.setText(str(self.game_score))
+        self.last_game_hits.setText(str(self.game_hits))
+        self.last_game_misses.setText(str(self.game_misses))
+        self.last_game_accuracy.setText(f"{accuracy:.1f}%" if total else "—")
+        self.last_game_timing.setText(f"{mean_abs:.1f} ms" if self.game_hits else "—")
+        self.last_game_balance.setText(f"{early} / {late}" if self.game_hits else "—")
+
     def _game_window_seconds(self) -> float:
-        key = str(self.game_difficulty.currentData())
-        return GAME_WINDOWS_MS.get(key, 110) / 1000.0
+        return HIT_WINDOW_MS / 1000.0
 
     def _drain_game_targets(self) -> None:
         for dac_time, state, bar, beat, sub in self.engine.drain_game_targets():
@@ -1488,28 +1674,42 @@ class MainWindow(QMainWindow):
         *,
         offset_ms: float | None = None,
         detail: str = "",
+        grade_label: str = "HIT",
+        points: int = 0,
         show_feedback: bool = True,
     ) -> None:
         if hit:
             self.game_hits += 1
+            self.game_score += max(0, int(points))
             self.game_recent.append(max(0.0, min(1.0, quality)))
             if offset_ms is not None:
                 self.game_offsets_ms.append(float(offset_ms))
             if show_feedback:
                 timing = self._timing_description(float(offset_ms or 0.0))
-                self.visual.set_game_feedback("hit", "HIT", timing)
+                sync = (
+                    f" · sync {self.game_timing_bias_ms:+.0f} ms"
+                    if abs(self.game_timing_bias_ms) >= 12.0
+                    else ""
+                )
+                self.visual.set_game_feedback("hit", grade_label, f"{timing}{sync} · +{int(points)}")
+            if self.game_hit_sound.isChecked():
+                self.engine.queue_notification("game_hit", 0.70)
         else:
             self.game_misses += 1
             self.game_recent.append(0.0)
             if show_feedback:
                 self.visual.set_game_feedback("miss", "MISS", detail or "промах")
+            if self.game_miss_sound.isChecked():
+                self.engine.queue_notification("game_miss", 0.68)
 
         self.game_recent = self.game_recent[-28:]
+        self._refresh_current_game_stats()
         self.visual.set_game_stats(
             self.game_enabled.isChecked(),
             self.game_hits,
             self.game_misses,
             self.game_recent,
+            self.game_score,
         )
 
     def _game_update_misses(self, force: bool = False) -> None:
@@ -1518,9 +1718,10 @@ class MainWindow(QMainWindow):
             return
         now = self.engine.stream_time()
         window = self._game_window_seconds()
+        bias = self.game_timing_bias_ms / 1000.0
         while self.game_pending:
             target_time = float(self.game_pending[0]["time"])
-            if not force and target_time >= now - window:
+            if not force and target_time >= now - bias - window:
                 break
             target = self.game_pending.pop(0)
             expected = TI_MARK if target["state"] == TI else "ТА"
@@ -1542,46 +1743,57 @@ class MainWindow(QMainWindow):
         if st["count_in"]:
             return
 
+        self._game_update_misses()
         self._drain_game_targets()
         now = self.engine.stream_time()
-        window = self._game_window_seconds()
         if now <= 0:
             return
 
-        within: list[tuple[float, int]] = []
-        matching: list[tuple[float, int]] = []
-        for index, target in enumerate(self.game_pending):
-            signed = now - float(target["time"])
-            distance = abs(signed)
-            if distance <= window:
-                within.append((distance, index))
-                if target["state"] == state:
-                    matching.append((distance, index))
-
-        if matching:
-            _distance, index = min(matching, key=lambda pair: pair[0])
-            target = self.game_pending.pop(index)
-            offset = now - float(target["time"])
-            quality = max(0.0, 1.0 - abs(offset) / window)
-            self._record_game_result(
-                True,
-                quality,
-                offset_ms=offset * 1000.0,
-            )
-        elif within:
-            _distance, index = min(within, key=lambda pair: pair[0])
-            target = self.game_pending.pop(index)
-            offset_ms = (now - float(target["time"])) * 1000.0
-            expected = TI_MARK if target["state"] == TI else "ТА"
+        if not self.game_pending:
             entered = TI_MARK if state == TI else "ТА"
+            self._record_game_result(False, 0.0, detail=f"{entered} · нет цели")
+            return
+
+        target = self.game_pending[0]
+        raw_offset_ms = (now - float(target["time"])) * 1000.0
+        corrected_offset_ms = raw_offset_ms - self.game_timing_bias_ms
+        calibrating = len(self.game_calibration_samples_ms) < 3
+        allowed = CALIBRATION_WINDOW_MS if calibrating else HIT_WINDOW_MS
+
+        if abs(corrected_offset_ms) > allowed:
+            entered = TI_MARK if state == TI else "ТА"
+            self._record_game_result(False, 0.0, detail=f"{entered} · вне окна")
+            return
+
+        self.game_pending.pop(0)
+        expected = TI_MARK if target["state"] == TI else "ТА"
+        entered = TI_MARK if state == TI else "ТА"
+
+        if target["state"] != state:
             self._record_game_result(
                 False,
                 0.0,
-                detail=f"{entered} вместо {expected} · {self._timing_description(offset_ms)}",
+                detail=f"{entered} вместо {expected} · {self._timing_description(corrected_offset_ms)}",
             )
-        else:
-            entered = TI_MARK if state == TI else "ТА"
-            self._record_game_result(False, 0.0, detail=f"{entered} · вне окна")
+            return
+
+        # Learn the player's stable system/reaction offset from correct-state
+        # inputs. The score then measures precision around that personal centre,
+        # rather than punishing a constant late/early offset every time.
+        self.game_calibration_samples_ms.append(raw_offset_ms)
+        self.game_calibration_samples_ms = self.game_calibration_samples_ms[-12:]
+        self.game_timing_bias_ms = timing_bias(self.game_calibration_samples_ms)
+        corrected_offset_ms = raw_offset_ms - self.game_timing_bias_ms
+
+        grade = grade_timing(corrected_offset_ms)
+        self._record_game_result(
+            grade.accepted,
+            grade.quality,
+            offset_ms=corrected_offset_ms,
+            grade_label=grade.label,
+            points=grade.points,
+            detail="вне окна",
+        )
 
     def keyPressEvent(self, event) -> None:
         if self.game_active and not event.isAutoRepeat():
@@ -1595,6 +1807,94 @@ class MainWindow(QMainWindow):
                 event.accept()
                 return
         super().keyPressEvent(event)
+
+    def _picking_settings_changed(self, *_args) -> None:
+        self._update_picking_pattern()
+
+    def _update_picking_pattern(self, active_beats: int | None = None) -> None:
+        if not hasattr(self, "picking_enabled") or not self.picking_enabled.isChecked():
+            self.visual.set_picking_pattern(False)
+            return
+
+        pattern = self.current_pattern()
+        active = (
+            pattern.numerator
+            if active_beats is None
+            else max(0, min(pattern.numerator, int(active_beats)))
+        )
+        coverage = pattern.coverage()
+
+        beat_states: list[list[str]] = []
+        flat_states: list[str] = []
+        for beat_index, beat in enumerate(pattern.beats):
+            if coverage[beat_index] != beat_index:
+                states: list[str] = []
+            elif self.mode.currentData() != "loop" and beat_index >= active:
+                states = [TA] + [OFF] * max(0, beat.subdivision - 1)
+            elif beat.muted:
+                states = [OFF] * beat.subdivision
+            else:
+                states = list(beat.steps)
+            beat_states.append(states)
+            flat_states.extend(states)
+            # A covered/empty beat is also a natural picking reset.
+            if not states:
+                flat_states.append(OFF)
+
+        directions = economy_pick_pattern(flat_states, TI, TA, OFF)
+        cursor = 0
+        row5: list[str] = []
+        row6: list[str] = []
+
+        for states in beat_states:
+            if not states:
+                row5.append(" ")
+                row6.append(" ")
+                cursor += 1
+                continue
+
+            beat5: list[str] = []
+            beat6: list[str] = []
+            for state in states:
+                direction = directions[cursor]
+                if state == TI and direction:
+                    beat5.append(direction)
+                    beat6.append("─")
+                elif state == TA and direction:
+                    beat5.append("─")
+                    beat6.append(direction)
+                else:
+                    beat5.append("·")
+                    beat6.append("·")
+                cursor += 1
+
+            row5.append(" ".join(beat5))
+            row6.append(" ".join(beat6))
+
+        self.visual.set_picking_pattern(
+            True,
+            "5  " + " │ ".join(row5),
+            "6  " + " │ ".join(row6),
+        )
+
+    def _maybe_warn_ramp(self, st: dict) -> None:
+        if self.mode.currentData() == "loop" or not self.ramp_warning.isChecked():
+            return
+        if st["count_in"]:
+            return
+        if int(st["next_active_beats"]) <= int(st["active_beats"]):
+            return
+        if int(st["stage_bar"]) != int(st["bars_per_stage"]):
+            return
+        if int(st["beat"]) != 0 or int(st["sub"]) != 0 or float(st["beat_phase"]) > 0.18:
+            return
+
+        key = (int(st["stage_index"]), int(st["bar"]))
+        if key == self._last_ramp_warning_key:
+            return
+        self._last_ramp_warning_key = key
+        self.visual.trigger_ramp_warning(int(st["next_active_beats"]))
+        self.engine.queue_notification("ramp_warn", 0.72)
 
     def _poll(self) -> None:
         st = self.engine.status()
@@ -1618,15 +1918,14 @@ class MainWindow(QMainWindow):
                     self._finalize_game_stats()
                     self.game_active = False
                     self.game_start.setText("▶ Запустить игру")
-                    self.game_ti_key.setEnabled(True)
-                    self.game_ta_key.setEnabled(True)
-                    self.game_difficulty.setEnabled(True)
+                    self._game_mode_toggled(self.game_enabled.isChecked())
                 self._stop_playback("Тренировка завершена", timer_finished=True)
                 self.visual.set_game_stats(
                     self.game_enabled.isChecked(),
                     self.game_hits,
                     self.game_misses,
                     self.game_recent,
+                    self.game_score,
                 )
                 return
             timer_text = self._time_text(remaining)
@@ -1650,25 +1949,56 @@ class MainWindow(QMainWindow):
             self._game_update_misses()
 
         if st["count_in"]:
-            self.status.setText(f"COUNT-IN · {numerator}/{denominator} · {bpm} BPM")
+            self.status.setText(f"COUNT-IN · {bpm} BPM")
             self._set_ramp_visual(numerator)
+            self._update_picking_pattern(numerator)
             self.highlight(beat, None)
             return
 
         self._set_ramp_visual(active_beats)
-        stage = f"{active_beats}/{numerator}" if self.mode.currentData() != "loop" else f"{numerator}/{denominator}"
-        game_text = f" · hit {self.game_hits} miss {self.game_misses}" if self.game_active else ""
-        self.status.setText(
-            f"Такт {st['bar']} · {stage} · доля {beat + 1} · {bpm} BPM"
-            + (f" · {timer_text}" if timer_text else "")
-            + game_text
-        )
+        self._update_picking_pattern(active_beats)
+        self._maybe_warn_ramp(st)
+
+        if self.mode.currentData() != "loop":
+            stage_bar = int(st["stage_bar"])
+            bars_per_stage = int(st["bars_per_stage"])
+            remaining_bars = max(0, bars_per_stage - stage_bar)
+            stage_progress = progress_bar(stage_bar, bars_per_stage)
+            status_text = (
+                f"Уровень: {active_beats} доли · [{stage_progress}] "
+                f"{stage_bar}/{bars_per_stage} · осталось {remaining_bars} · "
+                f"доля {beat + 1} · {bpm} BPM"
+            )
+            if (
+                self.ramp_warning.isChecked()
+                and int(st["next_active_beats"]) > active_beats
+                and stage_bar == bars_per_stage
+            ):
+                status_text += f" · ↑ далее {int(st['next_active_beats'])} доли"
+        else:
+            status_text = f"Доля {beat + 1} · {bpm} BPM"
+
+        if timer_text:
+            status_text += f" · {timer_text}"
+        if self.game_active:
+            status_text += f" · Score {self.game_score}"
+
+        self.status.setText(status_text)
         self.highlight(beat, int(st["sub"]))
 
     def _set_ramp_visual(self, active_beats: int) -> None:
         ramp = self.mode.currentData() != "loop" and self.engine.is_running
+        pattern = self.current_pattern()
+        owners = pattern.coverage()
         for i, editor in enumerate(self.editors):
-            editor.set_ramp_inactive(ramp and i >= active_beats)
+            covered_by_active_note = (
+                owners[i] is not None
+                and owners[i] != i
+                and int(owners[i]) < int(active_beats)
+            )
+            editor.set_ramp_inactive(
+                ramp and i >= active_beats and not covered_by_active_note
+            )
 
     def highlight(self, beat: int, sub: int | None) -> None:
         for i, editor in enumerate(self.editors):
@@ -1818,7 +2148,7 @@ class MainWindow(QMainWindow):
 
     def session(self) -> dict:
         return {
-            "version": 3,
+            "version": 4,
             "bpm": self.bpm.value(),
             "pattern": self.current_pattern().to_dict(),
             "practice": {
@@ -1826,6 +2156,7 @@ class MainWindow(QMainWindow):
                 "bars": self.bars.value(),
                 "count": self.count.value(),
                 "inactive": self.inactive.isChecked(),
+                "ramp_warning": self.ramp_warning.isChecked(),
                 "trainer": self.tempo_train.isChecked(),
                 "step": self.tempo_step.value(),
                 "every": self.tempo_every.value(),
@@ -1890,6 +2221,7 @@ class MainWindow(QMainWindow):
         self.bars.setValue(int(practice.get("bars", 8)))
         self.count.setValue(int(practice.get("count", 1)))
         self.inactive.setChecked(bool(practice.get("inactive", True)))
+        self.ramp_warning.setChecked(bool(practice.get("ramp_warning", True)))
         self.tempo_train.setChecked(bool(practice.get("trainer", False)))
         self.tempo_step.setValue(int(practice.get("step", 2)))
         self.tempo_every.setValue(int(practice.get("every", 4)))
@@ -1960,6 +2292,7 @@ class MainWindow(QMainWindow):
                 "bars": self.bars.value(),
                 "count": self.count.value(),
                 "inactive": self.inactive.isChecked(),
+                "ramp_warning": self.ramp_warning.isChecked(),
                 "tempo_train": self.tempo_train.isChecked(),
                 "tempo_step": self.tempo_step.value(),
                 "tempo_every": self.tempo_every.value(),
@@ -1995,8 +2328,12 @@ class MainWindow(QMainWindow):
                 "enabled": self.game_enabled.isChecked(),
                 "ti_key": self.game_ti_key.keySequence().toString(),
                 "ta_key": self.game_ta_key.keySequence().toString(),
-                "difficulty": self.game_difficulty.currentData(),
+                "hit_sound": self.game_hit_sound.isChecked(),
+                "miss_sound": self.game_miss_sound.isChecked(),
                 "last_game": dict(self.last_game_stats),
+            },
+            "picking": {
+                "enabled": self.picking_enabled.isChecked(),
             },
             "audio": {
                 "device_name": device.get("name", self.engine.device_name),
@@ -2046,6 +2383,7 @@ class MainWindow(QMainWindow):
         self.bars.setValue(int(practice.get("bars", 8)))
         self.count.setValue(int(practice.get("count", 1)))
         self.inactive.setChecked(bool(practice.get("inactive", True)))
+        self.ramp_warning.setChecked(bool(practice.get("ramp_warning", True)))
         self.tempo_train.setChecked(bool(practice.get("tempo_train", False)))
         self.tempo_step.setValue(int(practice.get("tempo_step", 2)))
         self.tempo_every.setValue(int(practice.get("tempo_every", 4)))
@@ -2086,7 +2424,8 @@ class MainWindow(QMainWindow):
         game = data.get("game", {})
         self.game_ti_key.setKeySequence(QKeySequence(str(game.get("ti_key", "F"))))
         self.game_ta_key.setKeySequence(QKeySequence(str(game.get("ta_key", "J"))))
-        self._combo_data(self.game_difficulty, game.get("difficulty", "mid"))
+        self.game_hit_sound.setChecked(bool(game.get("hit_sound", True)))
+        self.game_miss_sound.setChecked(bool(game.get("miss_sound", True)))
         saved_last = game.get("last_game", {})
         if isinstance(saved_last, dict):
             self.last_game_stats = {
@@ -2096,10 +2435,15 @@ class MainWindow(QMainWindow):
                 "mean_abs_ms": float(saved_last.get("mean_abs_ms", 0.0)),
                 "early": int(saved_last.get("early", 0)),
                 "late": int(saved_last.get("late", 0)),
+                "score": int(saved_last.get("score", 0)),
             }
         self._refresh_last_game_stats()
         self.game_enabled.setChecked(bool(game.get("enabled", False)))
         self._game_mode_toggled(self.game_enabled.isChecked())
+
+        picking = data.get("picking", {})
+        self.picking_enabled.setChecked(bool(picking.get("enabled", False)))
+        self._picking_settings_changed()
 
         audio = data.get("audio", {})
         self._apply_saved_audio_device(audio)
@@ -2145,6 +2489,7 @@ class MainWindow(QMainWindow):
         self.bars.setValue(8)
         self.count.setValue(1)
         self.inactive.setChecked(True)
+        self.ramp_warning.setChecked(True)
         self.tempo_train.setChecked(False)
         self.tempo_step.setValue(2)
         self.tempo_every.setValue(4)
@@ -2178,7 +2523,8 @@ class MainWindow(QMainWindow):
         self.game_enabled.setChecked(False)
         self.game_ti_key.setKeySequence(QKeySequence("F"))
         self.game_ta_key.setKeySequence(QKeySequence("J"))
-        self.game_difficulty.setCurrentIndex(self.game_difficulty.findData("mid"))
+        self.game_hit_sound.setChecked(True)
+        self.game_miss_sound.setChecked(True)
         self.last_game_stats = {
             "hits": 0,
             "misses": 0,
@@ -2186,9 +2532,13 @@ class MainWindow(QMainWindow):
             "mean_abs_ms": 0.0,
             "early": 0,
             "late": 0,
+            "score": 0,
         }
         self._refresh_last_game_stats()
-        self.visual.set_game_stats(False, 0, 0, [])
+        self.visual.set_game_stats(False, 0, 0, [], 0)
+
+        self.picking_enabled.setChecked(False)
+        self._picking_settings_changed()
 
         self.audio_rate.setCurrentIndex(self.audio_rate.findData(0))
         self.audio_block.setCurrentIndex(self.audio_block.findData(0))
