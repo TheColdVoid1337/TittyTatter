@@ -39,9 +39,11 @@ assert grade_timing(-181).accepted is False
 assert grade_timing(301).accepted is False
 
 # Lane-only matching: an opposite-lane note can never consume the input.
+# At t=0.08 the nearest valid TA is the future TA at t=0.25 (-170 ms),
+# not the older TA at t=-0.20 (+280 ms).
 lane_targets = [(-0.20, TA), (0.00, TI), (0.25, TA), (0.50, TA)]
 assert choose_target_index(lane_targets, TI, 0.08) == 1
-assert choose_target_index(lane_targets, TA, 0.08) == 0
+assert choose_target_index(lane_targets, TA, 0.08) == 2
 
 # Same-lane nearest target wins, within the asymmetric playable window.
 subdivision_targets = [(0.00, TI), (0.25, TA), (0.50, TA), (0.75, TA)]
