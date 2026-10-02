@@ -18,6 +18,7 @@ dist/
 *.spec
 
 # Local user data
+logs/
 tittytatter.settings.json
 *.session.json
 *.log

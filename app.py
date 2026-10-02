@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
 
 from audio_engine import AudioEngine, SOUND_NAMES
 from exports import export_gp5, export_midi, export_wav
+from game_logger import GameLogSession
 from game_logic import (
     CALIBRATION_WINDOW_MS,
     HIT_WINDOW_MS,
@@ -750,7 +751,7 @@ class AudioExportDialog(QDialog):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(self, game_log_enabled: bool = False) -> None:
         super().__init__()
         self.setWindowTitle(f"{APP_NAME} {APP_VERSION}")
         self.resize(1240, 860)
@@ -761,6 +762,9 @@ class MainWindow(QMainWindow):
         self.flash_color = QColor("#ffd56a")
         self.editors: list[BeatEditor] = []
         self._settings = load_settings()
+        self.game_log_enabled = bool(game_log_enabled)
+        self.game_log: GameLogSession | None = None
+        self._game_log_last_position: tuple | None = None
 
         self.game_active = False
         self.game_stats_visible = False
@@ -1618,6 +1622,7 @@ class MainWindow(QMainWindow):
         self.game_ta_key.setEnabled(False)
         self.engine.start_game_tracking()
         self.engine.start()
+        self._start_game_log()
         self.play.setText("■ Стоп")
         self.visual.set_game_stats(True, 0, 0, [], 0)
         self.status.setText("Игра · COUNT-IN")
@@ -1630,6 +1635,7 @@ class MainWindow(QMainWindow):
         self.game_ti_key.setEnabled(True)
         self.game_ta_key.setEnabled(True)
         self._stop_playback(message)
+        self._finish_game_log("game_stopped")
         self.visual.set_game_stats(
             self.game_enabled.isChecked(),
             self.game_hits,
@@ -1647,6 +1653,7 @@ class MainWindow(QMainWindow):
         self.game_calibration_samples_ms = []
         self.game_timing_bias_ms = 0.0
         self.game_pending = []
+        self._game_log_last_position = None
         self.engine.drain_game_targets()
         self.visual.clear_game_feedback()
         self.game_stats_box.setTitle("Текущая игра")
@@ -1715,14 +1722,23 @@ class MainWindow(QMainWindow):
         return HIT_WINDOW_MS / 1000.0
 
     def _drain_game_targets(self) -> None:
+        stream_now = self.engine.stream_time()
         for dac_time, state, bar, beat, sub in self.engine.drain_game_targets():
-            self.game_pending.append({
+            target = {
                 "time": float(dac_time),
                 "state": str(state),
                 "bar": int(bar),
                 "beat": int(beat),
                 "sub": int(sub),
-            })
+            }
+            self.game_pending.append(target)
+            self._log_game_event(
+                "target_scheduled",
+                target=target,
+                stream_time=stream_now,
+                drain_offset_ms=(stream_now - float(dac_time)) * 1000.0 if stream_now > 0 else None,
+                pending_after=len(self.game_pending),
+            )
         self.game_pending.sort(key=lambda item: float(item["time"]))
 
     @staticmethod
@@ -1770,6 +1786,20 @@ class MainWindow(QMainWindow):
                 self.engine.queue_notification("game_miss", 0.68)
 
         self.game_recent = self.game_recent[-28:]
+        self._log_game_event(
+            "result",
+            hit=bool(hit),
+            grade=grade_label if hit else "MISS",
+            quality=float(quality),
+            points=int(points) if hit else 0,
+            offset_ms=offset_ms,
+            detail=detail,
+            score=self.game_score,
+            hits=self.game_hits,
+            misses=self.game_misses,
+            timing_bias_ms=self.game_timing_bias_ms,
+            calibration_samples=list(self.game_calibration_samples_ms),
+        )
         self._refresh_current_game_stats()
         self.visual.set_game_stats(
             self.game_enabled.isChecked(),
@@ -1797,6 +1827,16 @@ class MainWindow(QMainWindow):
                 break
             target = self.game_pending.pop(0)
             expected = TI_MARK if target["state"] == TI else "ТА"
+            self._log_game_event(
+                "target_expired",
+                target=target,
+                stream_time=now,
+                raw_lateness_ms=(now - float(target["time"])) * 1000.0,
+                corrected_lateness_ms=(
+                    (now - float(target["time"])) * 1000.0 - self.game_timing_bias_ms
+                ),
+                calibrating=calibrating,
+            )
             self._record_game_result(
                 False,
                 0.0,
@@ -1813,25 +1853,78 @@ class MainWindow(QMainWindow):
             return
         st = self.engine.status()
         if st["count_in"]:
+            self._log_game_event(
+                "input_ignored",
+                state=state,
+                reason="count_in",
+                stream_time=self.engine.stream_time(),
+            )
             return
+
+        input_now = self.engine.stream_time()
+        if input_now <= 0:
+            self._log_game_event(
+                "input_ignored",
+                state=state,
+                reason="invalid_stream_time",
+                stream_time=input_now,
+            )
+            return
+
+        self._log_game_event(
+            "input",
+            state=state,
+            key=(
+                self._configured_game_key(self.game_ti_key)
+                if state == TI
+                else self._configured_game_key(self.game_ta_key)
+            ),
+            stream_time=input_now,
+            timing_bias_ms=self.game_timing_bias_ms,
+            calibration_count=len(self.game_calibration_samples_ms),
+            engine_status=st,
+        )
 
         self._game_update_misses()
         self._drain_game_targets()
-        now = self.engine.stream_time()
-        if now <= 0:
-            return
 
         calibrating = len(self.game_calibration_samples_ms) < 3
         compact_targets = [
             (float(target["time"]), str(target["state"]))
             for target in self.game_pending
         ]
+
+        target_snapshot = []
+        for index, target in enumerate(self.game_pending[:32]):
+            raw_ms = (input_now - float(target["time"])) * 1000.0
+            target_snapshot.append({
+                "index": index,
+                "state": str(target["state"]),
+                "bar": int(target["bar"]),
+                "beat": int(target["beat"]),
+                "sub": int(target["sub"]),
+                "target_time": float(target["time"]),
+                "raw_offset_ms": raw_ms,
+                "corrected_offset_ms": raw_ms - self.game_timing_bias_ms,
+            })
+
         target_index = choose_target_index(
             compact_targets,
             state,
-            now,
+            input_now,
             self.game_timing_bias_ms,
             calibrating,
+        )
+        self._log_game_event(
+            "match_search",
+            state=state,
+            stream_time=input_now,
+            calibrating=calibrating,
+            hit_window_ms=HIT_WINDOW_MS,
+            calibration_window_ms=CALIBRATION_WINDOW_MS,
+            timing_bias_ms=self.game_timing_bias_ms,
+            target_index=target_index,
+            pending_targets=target_snapshot,
         )
 
         if target_index is None:
@@ -1840,10 +1933,23 @@ class MainWindow(QMainWindow):
             return
 
         target = self.game_pending.pop(target_index)
-        raw_offset_ms = (now - float(target["time"])) * 1000.0
-        corrected_offset_ms = raw_offset_ms - self.game_timing_bias_ms
+        bias_before = self.game_timing_bias_ms
+        raw_offset_ms = (input_now - float(target["time"])) * 1000.0
+        corrected_offset_ms = raw_offset_ms - bias_before
         expected = TI_MARK if target["state"] == TI else "ТА"
         entered = TI_MARK if state == TI else "ТА"
+
+        self._log_game_event(
+            "target_selected",
+            input_state=state,
+            target=target,
+            target_index=target_index,
+            stream_time=input_now,
+            raw_offset_ms=raw_offset_ms,
+            corrected_offset_ms=corrected_offset_ms,
+            timing_bias_before_ms=bias_before,
+            calibrating=calibrating,
+        )
 
         if target["state"] != state:
             self._record_game_result(
@@ -1853,13 +1959,20 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # Correct lane input also calibrates the stable device/player delay.
-        # The very first correct hit can therefore establish the centre instead
-        # of being rejected just because Bluetooth/driver latency is large.
+        # Correct-lane input calibrates the stable device/player delay.
         self.game_calibration_samples_ms.append(raw_offset_ms)
         self.game_calibration_samples_ms = self.game_calibration_samples_ms[-12:]
         self.game_timing_bias_ms = timing_bias(self.game_calibration_samples_ms)
         corrected_offset_ms = raw_offset_ms - self.game_timing_bias_ms
+
+        self._log_game_event(
+            "calibration_update",
+            raw_offset_ms=raw_offset_ms,
+            timing_bias_before_ms=bias_before,
+            timing_bias_after_ms=self.game_timing_bias_ms,
+            corrected_offset_ms=corrected_offset_ms,
+            samples=list(self.game_calibration_samples_ms),
+        )
 
         grade = grade_timing(corrected_offset_ms)
         self._record_game_result(
@@ -1976,10 +2089,101 @@ class MainWindow(QMainWindow):
         self.visual.trigger_ramp_warning(int(st["next_active_beats"]))
         self.engine.queue_notification("ramp_warn", 0.72)
 
+    def _start_game_log(self) -> None:
+        if not self.game_log_enabled:
+            return
+
+        self.game_log = GameLogSession(True, APP_VERSION)
+        config = self.engine.get_config()
+        metadata = {
+            "bpm": self.bpm.value(),
+            "pattern": self.current_pattern().to_dict(),
+            "practice_mode": self.mode.currentData(),
+            "count_in_bars": self.count.value(),
+            "bars_per_stage": self.bars.value(),
+            "tempo_trainer": self.tempo_train.isChecked(),
+            "timer_enabled": self.practice_timer.isChecked(),
+            "timer_seconds": self._timer_limit(),
+            "keys": {
+                "ti": self._configured_game_key(self.game_ti_key),
+                "ta": self._configured_game_key(self.game_ta_key),
+            },
+            "game": {
+                "hit_window_ms": HIT_WINDOW_MS,
+                "calibration_window_ms": CALIBRATION_WINDOW_MS,
+                "hit_sound": self.game_hit_sound.isChecked(),
+                "miss_sound": self.game_miss_sound.isChecked(),
+            },
+            "audio": self.engine.stream_info(),
+            "engine_config": dict(config.__dict__),
+            "picking_enabled": self.picking_enabled.isChecked(),
+        }
+        self.game_log.start(metadata)
+        self._log_game_event(
+            "engine_started",
+            stream_time=self.engine.stream_time(),
+            engine_status=self.engine.status(),
+        )
+
+    def _log_game_event(self, event: str, **data) -> None:
+        logger = self.game_log
+        if logger is not None:
+            logger.log(event, **data)
+
+    def _game_log_summary(self) -> dict:
+        total = self.game_hits + self.game_misses
+        return {
+            "score": self.game_score,
+            "hits": self.game_hits,
+            "misses": self.game_misses,
+            "accuracy": (100.0 * self.game_hits / total) if total else 0.0,
+            "timing_bias_ms": self.game_timing_bias_ms,
+            "calibration_samples_ms": list(self.game_calibration_samples_ms),
+            "hit_offsets_ms": list(self.game_offsets_ms),
+            "pending_targets": len(self.game_pending),
+            "last_game_stats": dict(self.last_game_stats),
+        }
+
+    def _finish_game_log(self, reason: str) -> None:
+        logger = self.game_log
+        self.game_log = None
+        self._game_log_last_position = None
+        if logger is None:
+            return
+        archive = logger.finish(reason, self._game_log_summary())
+        if archive is not None:
+            self.status.setToolTip(f"Game log: {archive}")
+
+    def _log_game_clock_snapshot(self, st: dict) -> None:
+        logger = self.game_log
+        if logger is None or not logger.active:
+            return
+        key = (
+            bool(st.get("count_in")),
+            int(st.get("bar", 0)),
+            int(st.get("beat", 0)),
+            int(st.get("sub", 0)),
+            int(st.get("stage_index", 0)),
+            int(st.get("stage_bar", 0)),
+        )
+        if key == self._game_log_last_position:
+            return
+        self._game_log_last_position = key
+        self._log_game_event(
+            "clock_position",
+            stream_time=self.engine.stream_time(),
+            status=st,
+            pending_targets=len(self.game_pending),
+            timing_bias_ms=self.game_timing_bias_ms,
+        )
+
     def _poll(self) -> None:
         st = self.engine.status()
         if not st["running"]:
             return
+
+        if self.game_active:
+            self._log_game_clock_snapshot(st)
 
         bpm = round(st["bpm"])
         if bpm != self.bpm.value():
@@ -1996,6 +2200,7 @@ class MainWindow(QMainWindow):
                 if self.game_active:
                     self._game_update_misses(force=False)
                     self._finalize_game_stats()
+                    self._finish_game_log("timer_finished")
                     self.game_active = False
                     self.game_start.setText("▶ Запустить игру")
                     self._game_mode_toggled(self.game_enabled.isChecked())
@@ -2639,16 +2844,25 @@ class MainWindow(QMainWindow):
         if self.game_active:
             self._game_update_misses(force=False)
             self._finalize_game_stats()
+            self._finish_game_log("window_close")
+        elif self.game_log is not None:
+            self._finish_game_log("window_close")
         self._save_app_settings()
         self.engine.close()
         event.accept()
 
 
 def main() -> int:
-    app = QApplication(sys.argv)
+    log_flags = {"-log", "--log"}
+    game_log_enabled = any(arg.lower() in log_flags for arg in sys.argv[1:])
+    qt_argv = [sys.argv[0]] + [
+        arg for arg in sys.argv[1:] if arg.lower() not in log_flags
+    ]
+
+    app = QApplication(qt_argv)
     app.setApplicationName(APP_NAME)
     app.setStyle("Fusion")
-    window = MainWindow()
+    window = MainWindow(game_log_enabled=game_log_enabled)
     window.show()
     return app.exec()
 

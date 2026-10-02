@@ -57,7 +57,7 @@ TittyTatter WSL helper
 Usage:
   ./tt install        Create/update the Windows .venv and runtime deps
   ./tt install-dev    Install runtime + development/build deps
-  ./tt run            Launch TittyTatter as a native Windows app
+  ./tt run [-log]     Launch TittyTatter as a native Windows app; -log enables per-game diagnostics
   ./tt test           Run core tests with the Windows venv
   ./tt check          Run tests, compile checks, and dependency imports
   ./tt doctor         Show WSL/Windows/Python environment diagnostics
@@ -102,9 +102,11 @@ case "$cmd" in
     echo "== core tests =="
     "$PY" "$(winpath "$TEST")"
     echo "== compile =="
-    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")"
+    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/game_logger.py")"
     echo "== export tests =="
     "$PY" "$(winpath "$ROOT/test_exports.py")"
+    echo "== game log tests =="
+    "$PY" "$(winpath "$ROOT/test_game_logger.py")"
     echo "== imports =="
     "$PY" -c "import PySide6, numpy, sounddevice, guitarpro; print('dependencies OK')"
     echo "== result =="
