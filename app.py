@@ -41,12 +41,13 @@ from audio_engine import AudioEngine, SOUND_NAMES
 from exports import export_gp5, export_midi, export_wav
 from game_logger import GameLogSession
 from game_logic import (
-    CALIBRATION_WINDOW_MS,
+    EARLY_HIT_WINDOW_MS,
     HIT_WINDOW_MS,
+    INPUT_BUFFER_MAX_MS,
+    LATE_HIT_WINDOW_MS,
     choose_target_index,
     grade_timing,
     progress_bar,
-    timing_bias,
 )
 from model import BarPattern, BeatPattern
 from picking_logic import economy_pick_pattern
@@ -1757,8 +1758,6 @@ class MainWindow(QMainWindow):
             compact_targets,
             state,
             input_now,
-            self.game_timing_bias_ms,
-            len(self.game_calibration_samples_ms) < 3,
         )
 
     def _judge_game_input(
@@ -1770,12 +1769,7 @@ class MainWindow(QMainWindow):
         buffered: bool = False,
     ) -> None:
         target = self.game_pending.pop(target_index)
-        bias_before = self.game_timing_bias_ms
         raw_offset_ms = (input_now - float(target["time"])) * 1000.0
-        corrected_offset_ms = raw_offset_ms - bias_before
-        expected = TI_MARK if target["state"] == TI else "ТА"
-        entered = TI_MARK if state == TI else "ТА"
-        calibrating = len(self.game_calibration_samples_ms) < 3
 
         self._log_game_event(
             "target_selected",
@@ -1784,40 +1778,32 @@ class MainWindow(QMainWindow):
             target_index=target_index,
             stream_time=input_now,
             raw_offset_ms=raw_offset_ms,
-            corrected_offset_ms=corrected_offset_ms,
-            timing_bias_before_ms=bias_before,
-            calibrating=calibrating,
+            corrected_offset_ms=raw_offset_ms,
+            timing_bias_before_ms=0.0,
+            calibration_enabled=False,
             buffered_input=buffered,
         )
 
+        # choose_target_index is lane-only, so a different target state here
+        # would indicate a programming error rather than a player judgement.
         if target["state"] != state:
+            self._log_game_event(
+                "matcher_invariant_failed",
+                input_state=state,
+                target=target,
+            )
             self._record_game_result(
                 False,
                 0.0,
-                detail=f"{entered} вместо {expected} · {self._timing_description(corrected_offset_ms)}",
+                detail="внутренняя ошибка сопоставления",
             )
             return
 
-        self.game_calibration_samples_ms.append(raw_offset_ms)
-        self.game_calibration_samples_ms = self.game_calibration_samples_ms[-12:]
-        self.game_timing_bias_ms = timing_bias(self.game_calibration_samples_ms)
-        corrected_offset_ms = raw_offset_ms - self.game_timing_bias_ms
-
-        self._log_game_event(
-            "calibration_update",
-            raw_offset_ms=raw_offset_ms,
-            timing_bias_before_ms=bias_before,
-            timing_bias_after_ms=self.game_timing_bias_ms,
-            corrected_offset_ms=corrected_offset_ms,
-            samples=list(self.game_calibration_samples_ms),
-            buffered_input=buffered,
-        )
-
-        grade = grade_timing(corrected_offset_ms)
+        grade = grade_timing(raw_offset_ms)
         self._record_game_result(
             grade.accepted,
             grade.quality,
-            offset_ms=corrected_offset_ms,
+            offset_ms=raw_offset_ms,
             grade_label=grade.label,
             points=grade.points,
             detail="вне окна",
@@ -1827,12 +1813,25 @@ class MainWindow(QMainWindow):
         if not self.game_pending_inputs or not self.game_pending:
             return
 
+        stream_now = self.engine.stream_time()
         remaining: list[dict[str, object]] = []
         for pending_input in self.game_pending_inputs:
             state = str(pending_input["state"])
             input_now = float(pending_input["time"])
+            waited_ms = (stream_now - input_now) * 1000.0
+
+            if waited_ms > INPUT_BUFFER_MAX_MS:
+                remaining.append(pending_input)
+                continue
+
             target_index = self._select_game_target(state, input_now)
             if target_index is None:
+                remaining.append(pending_input)
+                continue
+
+            target = self.game_pending[target_index]
+            raw_offset_ms = (input_now - float(target["time"])) * 1000.0
+            if raw_offset_ms < -EARLY_HIT_WINDOW_MS:
                 remaining.append(pending_input)
                 continue
 
@@ -1840,8 +1839,9 @@ class MainWindow(QMainWindow):
                 "input_buffer_resolved",
                 state=state,
                 input_stream_time=input_now,
-                waited_ms=(self.engine.stream_time() - input_now) * 1000.0,
+                waited_ms=waited_ms,
                 target_index=target_index,
+                raw_offset_ms=raw_offset_ms,
                 buffered_before=len(self.game_pending_inputs),
             )
             self._judge_game_input(
@@ -1857,16 +1857,11 @@ class MainWindow(QMainWindow):
         if not self.game_pending_inputs:
             return
 
-        calibrating = len(self.game_calibration_samples_ms) < 3
-        window = (
-            CALIBRATION_WINDOW_MS / 1000.0
-            if calibrating
-            else self._game_window_seconds()
-        )
         keep: list[dict[str, object]] = []
         for pending_input in self.game_pending_inputs:
             input_time = float(pending_input["time"])
-            if not force and input_time >= now - window:
+            age_ms = (now - input_time) * 1000.0
+            if not force and age_ms <= INPUT_BUFFER_MAX_MS:
                 keep.append(pending_input)
                 continue
 
@@ -1877,8 +1872,8 @@ class MainWindow(QMainWindow):
                 state=state,
                 input_stream_time=input_time,
                 stream_time=now,
-                age_ms=(now - input_time) * 1000.0,
-                calibrating=calibrating,
+                age_ms=age_ms,
+                calibration_enabled=False,
             )
             self._record_game_result(
                 False,
@@ -1915,12 +1910,7 @@ class MainWindow(QMainWindow):
                 self.game_offsets_ms.append(float(offset_ms))
             if show_feedback:
                 timing = self._timing_description(float(offset_ms or 0.0))
-                sync = (
-                    f" · sync {self.game_timing_bias_ms:+.0f} ms"
-                    if abs(self.game_timing_bias_ms) >= 12.0
-                    else ""
-                )
-                self.visual.set_game_feedback("hit", grade_label, f"{timing}{sync} · +{int(points)}")
+                self.visual.set_game_feedback("hit", grade_label, f"{timing} · +{int(points)}")
             if self.game_hit_sound.isChecked():
                 self.engine.queue_notification("game_hit", 0.70)
         else:
@@ -1943,7 +1933,7 @@ class MainWindow(QMainWindow):
             score=self.game_score,
             hits=self.game_hits,
             misses=self.game_misses,
-            timing_bias_ms=self.game_timing_bias_ms,
+            timing_bias_ms=0.0,
             calibration_samples=list(self.game_calibration_samples_ms),
         )
         self._refresh_current_game_stats()
@@ -1957,32 +1947,26 @@ class MainWindow(QMainWindow):
 
     def _game_update_misses(self, force: bool = False) -> None:
         self._drain_game_targets()
-        if not self.game_pending:
-            return
         now = self.engine.stream_time()
         self._expire_buffered_game_inputs(now, force=force)
-        calibrating = len(self.game_calibration_samples_ms) < 3
-        window = (
-            CALIBRATION_WINDOW_MS / 1000.0
-            if calibrating
-            else self._game_window_seconds()
-        )
-        bias = self.game_timing_bias_ms / 1000.0
+        if not self.game_pending:
+            return
+
+        late_window = LATE_HIT_WINDOW_MS / 1000.0
         while self.game_pending:
             target_time = float(self.game_pending[0]["time"])
-            if not force and target_time >= now - bias - window:
+            if not force and target_time >= now - late_window:
                 break
             target = self.game_pending.pop(0)
             expected = TI_MARK if target["state"] == TI else "ТА"
+            lateness_ms = (now - float(target["time"])) * 1000.0
             self._log_game_event(
                 "target_expired",
                 target=target,
                 stream_time=now,
-                raw_lateness_ms=(now - float(target["time"])) * 1000.0,
-                corrected_lateness_ms=(
-                    (now - float(target["time"])) * 1000.0 - self.game_timing_bias_ms
-                ),
-                calibrating=calibrating,
+                raw_lateness_ms=lateness_ms,
+                corrected_lateness_ms=lateness_ms,
+                calibration_enabled=False,
             )
             self._record_game_result(
                 False,
@@ -2028,8 +2012,8 @@ class MainWindow(QMainWindow):
             state=state,
             key=key,
             stream_time=input_now,
-            timing_bias_ms=self.game_timing_bias_ms,
-            calibration_count=len(self.game_calibration_samples_ms),
+            timing_bias_ms=0.0,
+            calibration_count=0,
             engine_status=st,
             pending_targets=len(self.game_pending),
             buffered_inputs=len(self.game_pending_inputs),
@@ -2043,10 +2027,10 @@ class MainWindow(QMainWindow):
             "match_search",
             state=state,
             stream_time=input_now,
-            calibrating=len(self.game_calibration_samples_ms) < 3,
+            calibrating=False,
             hit_window_ms=HIT_WINDOW_MS,
-            calibration_window_ms=CALIBRATION_WINDOW_MS,
-            timing_bias_ms=self.game_timing_bias_ms,
+            input_buffer_max_ms=INPUT_BUFFER_MAX_MS,
+            timing_bias_ms=0.0,
             target_index=target_index,
             pending_targets=[
                 {
@@ -2059,7 +2043,6 @@ class MainWindow(QMainWindow):
                     "raw_offset_ms": (input_now - float(target["time"])) * 1000.0,
                     "corrected_offset_ms": (
                         (input_now - float(target["time"])) * 1000.0
-                        - self.game_timing_bias_ms
                     ),
                 }
                 for index, target in enumerate(self.game_pending[:32])
@@ -2210,8 +2193,11 @@ class MainWindow(QMainWindow):
                 "ta": self._configured_game_key(self.game_ta_key),
             },
             "game": {
-                "hit_window_ms": HIT_WINDOW_MS,
-                "calibration_window_ms": CALIBRATION_WINDOW_MS,
+                "early_hit_window_ms": EARLY_HIT_WINDOW_MS,
+                "late_hit_window_ms": LATE_HIT_WINDOW_MS,
+                "input_buffer_max_ms": INPUT_BUFFER_MAX_MS,
+                "auto_timing_bias": False,
+                "lane_only_matching": True,
                 "hit_sound": self.game_hit_sound.isChecked(),
                 "miss_sound": self.game_miss_sound.isChecked(),
             },
@@ -2238,8 +2224,9 @@ class MainWindow(QMainWindow):
             "hits": self.game_hits,
             "misses": self.game_misses,
             "accuracy": (100.0 * self.game_hits / total) if total else 0.0,
-            "timing_bias_ms": self.game_timing_bias_ms,
-            "calibration_samples_ms": list(self.game_calibration_samples_ms),
+            "timing_bias_ms": 0.0,
+            "calibration_samples_ms": [],
+            "auto_timing_bias": False,
             "hit_offsets_ms": list(self.game_offsets_ms),
             "pending_targets": len(self.game_pending),
             "pending_inputs": len(self.game_pending_inputs),
@@ -2276,7 +2263,7 @@ class MainWindow(QMainWindow):
             stream_time=self.engine.stream_time(),
             status=st,
             pending_targets=len(self.game_pending),
-            timing_bias_ms=self.game_timing_bias_ms,
+            timing_bias_ms=0.0,
         )
 
     def _poll(self) -> None:

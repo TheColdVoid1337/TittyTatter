@@ -1,11 +1,12 @@
 from audio_engine import EngineConfig
 from game_logic import (
-    CALIBRATION_WINDOW_MS,
+    EARLY_HIT_WINDOW_MS,
     HIT_WINDOW_MS,
+    INPUT_BUFFER_MAX_MS,
+    LATE_HIT_WINDOW_MS,
     choose_target_index,
     grade_timing,
     progress_bar,
-    timing_bias,
 )
 from model import BarPattern, BeatPattern
 from picking_logic import DOWN, UP, economy_pick_pattern
@@ -26,27 +27,29 @@ assert TI_MARK == "(ТИ)"
 assert EngineConfig().ti_enabled is True
 assert EngineConfig().ta_enabled is True
 
-assert HIT_WINDOW_MS == 420.0
-assert CALIBRATION_WINDOW_MS == 800.0
+assert EARLY_HIT_WINDOW_MS == 180.0
+assert LATE_HIT_WINDOW_MS == 300.0
+assert HIT_WINDOW_MS == 300.0
+assert INPUT_BUFFER_MAX_MS == 180.0
 assert grade_timing(0).label == "PERFECT"
 assert grade_timing(100).label == "GREAT"
 assert grade_timing(200).label == "GOOD"
-assert grade_timing(330).label == "HIT"
-assert grade_timing(421).accepted is False
-assert timing_bias([180.0]) == 180.0
-assert timing_bias([170.0, 180.0, 190.0]) == 180.0
+assert grade_timing(260).label == "HIT"
+assert grade_timing(-181).accepted is False
+assert grade_timing(301).accepted is False
 
-# Lane-based target matching: stale/future TA notes must not steal a TI press.
+# Lane-only matching: an opposite-lane note can never consume the input.
 lane_targets = [(-0.20, TA), (0.00, TI), (0.25, TA), (0.50, TA)]
-assert choose_target_index(lane_targets, TI, 0.08, 0.0, True) == 1
+assert choose_target_index(lane_targets, TI, 0.08) == 1
+assert choose_target_index(lane_targets, TA, 0.08) == 0
 
-# During initial sync a late TA press belongs to the TA that already sounded,
-# not the numerically closer future TA.
+# Same-lane nearest target wins, within the asymmetric playable window.
 subdivision_targets = [(0.00, TI), (0.25, TA), (0.50, TA), (0.75, TA)]
-assert choose_target_index(subdivision_targets, TA, 0.45, 0.0, True) == 1
+assert choose_target_index(subdivision_targets, TA, 0.45) == 2
+assert choose_target_index(subdivision_targets, TI, 0.45) is None
 
-# Once +200 ms latency is learned, nearest-lane matching uses the corrected time.
-assert choose_target_index(subdivision_targets, TA, 0.70, 200.0, False) == 2
+# A wrong lane must not fall back to an opposite-lane target.
+assert choose_target_index([(0.0, TI)], TA, 0.05) is None
 
 assert progress_bar(4, 8) == "■■■■□□□□"
 

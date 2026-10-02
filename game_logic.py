@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from statistics import median
 from typing import Sequence
 
 
-# One intentionally forgiving game mode.
+# One deliberately forgiving game mode.
 #
-# Input matching is lane-based: a TI press first looks for the nearest TI
-# target and a TA press first looks for the nearest TA target. This prevents
-# one stale TA from making the following TI impossible to hit.
-HIT_WINDOW_MS = 420.0
-CALIBRATION_WINDOW_MS = 800.0
+# Inputs are lane-specific: TI can only consume a TI target and TA can only
+# consume a TA target. The previous adaptive timing-bias system was removed
+# after diagnostics showed that it could drift by a whole subdivision and make
+# an otherwise accurate player look late/early.
+EARLY_HIT_WINDOW_MS = 180.0
+LATE_HIT_WINDOW_MS = 300.0
+HIT_WINDOW_MS = LATE_HIT_WINDOW_MS
+INPUT_BUFFER_MAX_MS = 180.0
+
 PERFECT_MS = 70.0
-GREAT_MS = 145.0
-GOOD_MS = 260.0
+GREAT_MS = 140.0
+GOOD_MS = 220.0
 
 
 @dataclass(frozen=True)
@@ -25,60 +28,39 @@ class TimingGrade:
     points: int
 
 
-def timing_bias(samples_ms: list[float]) -> float:
-    """Rolling median latency/player offset used to centre the judgement lane."""
-    if not samples_ms:
-        return 0.0
-    recent = samples_ms[-12:]
-    return max(-400.0, min(400.0, float(median(recent))))
-
-
 def choose_target_index(
     targets: Sequence[tuple[float, str]],
     input_state: str,
     now_seconds: float,
-    bias_ms: float = 0.0,
-    calibrating: bool = False,
 ) -> int | None:
-    """Choose the nearest target, preferring the same TI/TA lane.
+    """Choose the nearest target in the same TI/TA lane.
 
-    During initial sync an already-sounded same-lane target is preferred over
-    a numerically closer future note. This matters for repeated TA notes: a
-    late press must not calibrate itself against the next subdivision.
+    Opposite-lane targets are never consumed. This avoids the cascading failure
+    seen in diagnostics where one wrong/missed note shifted subsequent matches.
     """
-    if not targets:
-        return None
-
-    window_ms = CALIBRATION_WINDOW_MS if calibrating else HIT_WINDOW_MS
-    candidates: list[tuple[float, float, int]] = []
-    same_lane: list[tuple[float, float, int]] = []
+    same_lane: list[tuple[float, int]] = []
 
     for index, (target_time, state) in enumerate(targets):
-        corrected_ms = (float(now_seconds) - float(target_time)) * 1000.0 - float(bias_ms)
-        distance = abs(corrected_ms)
-        if distance > window_ms:
+        if state != input_state:
             continue
-        item = (distance, corrected_ms, index)
-        candidates.append(item)
-        if state == input_state:
-            same_lane.append(item)
 
-    if calibrating and same_lane:
-        sounded = [item for item in same_lane if item[1] >= 0.0]
-        if sounded:
-            return min(sounded, key=lambda item: item[0])[2]
+        offset_ms = (float(now_seconds) - float(target_time)) * 1000.0
+        if offset_ms < -EARLY_HIT_WINDOW_MS or offset_ms > LATE_HIT_WINDOW_MS:
+            continue
 
-    if same_lane:
-        return min(same_lane, key=lambda item: item[0])[2]
-    if candidates:
-        return min(candidates, key=lambda item: item[0])[2]
-    return None
+        same_lane.append((abs(offset_ms), index))
+
+    if not same_lane:
+        return None
+    return min(same_lane, key=lambda item: item[0])[1]
 
 
 def grade_timing(offset_ms: float) -> TimingGrade:
-    distance = abs(float(offset_ms))
-    if distance > HIT_WINDOW_MS:
+    offset_ms = float(offset_ms)
+    if offset_ms < -EARLY_HIT_WINDOW_MS or offset_ms > LATE_HIT_WINDOW_MS:
         return TimingGrade(False, "MISS", 0.0, 0)
+
+    distance = abs(offset_ms)
 
     if distance <= PERFECT_MS:
         quality = 1.0 - 0.08 * (distance / PERFECT_MS)
@@ -94,8 +76,9 @@ def grade_timing(offset_ms: float) -> TimingGrade:
         quality = 0.74 - 0.20 * progress
         return TimingGrade(True, "GOOD", quality, 50)
 
-    progress = (distance - GOOD_MS) / (HIT_WINDOW_MS - GOOD_MS)
-    quality = 0.53 - 0.18 * progress
+    span = max(1.0, LATE_HIT_WINDOW_MS - GOOD_MS)
+    progress = max(0.0, (distance - GOOD_MS) / span)
+    quality = 0.53 - 0.18 * min(1.0, progress)
     return TimingGrade(True, "HIT", max(0.35, quality), 25)
 
 
