@@ -373,6 +373,10 @@ class MetronomeVisual(QWidget):
         if not self.picking_row_5 and not self.picking_row_6:
             return
 
+        # Keep picking typography isolated from other overlays (especially the
+        # Game panels). Game visibility must never change the picking font.
+        painter.save()
+
         # Picking is an overlay inside the left side of the metronome. It must
         # never participate in layout/geometry, so enabling it cannot move UI.
         panel_left = 12.0
@@ -381,7 +385,7 @@ class MetronomeVisual(QWidget):
         y5 = max(58.0, self.height() - 54.0)
         y6 = y5 + 20.0
 
-        font = painter.font()
+        font = self.font()
         font.setBold(True)
         font.setFamily("Consolas")
 
@@ -446,8 +450,7 @@ class MetronomeVisual(QWidget):
                 )
                 x += boundary_width
 
-        font.setBold(False)
-        painter.setFont(font)
+        painter.restore()
 
     def _paint_game_panels(self, painter: QPainter) -> None:
         top = 38
