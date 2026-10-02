@@ -250,8 +250,12 @@ class MetronomeVisual(QWidget):
         self.game_feedback_until = 0.0
         self.update()
 
-    def trigger_ramp_warning(self, next_active_beats: int) -> None:
-        self.ramp_warning_text = f"↑ СЛЕДУЮЩИЙ УРОВЕНЬ: {int(next_active_beats)} ДОЛИ"
+    def trigger_ramp_warning(self, current_active_beats: int, next_active_beats: int) -> None:
+        current = int(current_active_beats)
+        next_value = int(next_active_beats)
+        arrow = "↑" if next_value > current else "↓"
+        unit = "ДОЛЯ" if next_value == 1 else "ДОЛИ"
+        self.ramp_warning_text = f"{arrow} СЛЕДУЮЩИЙ УРОВЕНЬ: {next_value} {unit}"
         self.ramp_warning_until = time.perf_counter() + 0.65
         self.update()
         QTimer.singleShot(700, self.update)
@@ -2159,7 +2163,7 @@ class MainWindow(QMainWindow):
             return
         if st["count_in"]:
             return
-        if int(st["next_active_beats"]) <= int(st["active_beats"]):
+        if int(st["next_active_beats"]) == int(st["active_beats"]):
             return
         if int(st["stage_bar"]) != int(st["bars_per_stage"]):
             return
@@ -2170,7 +2174,10 @@ class MainWindow(QMainWindow):
         if key == self._last_ramp_warning_key:
             return
         self._last_ramp_warning_key = key
-        self.visual.trigger_ramp_warning(int(st["next_active_beats"]))
+        self.visual.trigger_ramp_warning(
+            int(st["active_beats"]),
+            int(st["next_active_beats"]),
+        )
         self.engine.queue_notification("ramp_warn", 0.72)
 
     def _start_game_log(self) -> None:
@@ -2345,10 +2352,13 @@ class MainWindow(QMainWindow):
             )
             if (
                 self.ramp_warning.isChecked()
-                and int(st["next_active_beats"]) > active_beats
+                and int(st["next_active_beats"]) != active_beats
                 and stage_bar == bars_per_stage
             ):
-                status_text += f" · ↑ далее {int(st['next_active_beats'])} доли"
+                next_active = int(st["next_active_beats"])
+                arrow = "↑" if next_active > active_beats else "↓"
+                unit = "доля" if next_active == 1 else "доли"
+                status_text += f" · {arrow} далее {next_active} {unit}"
         else:
             status_text = f"Доля {beat + 1} · {bpm} BPM"
 

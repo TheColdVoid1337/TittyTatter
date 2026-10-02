@@ -32,9 +32,10 @@ assert LATE_HIT_WINDOW_MS == 300.0
 assert HIT_WINDOW_MS == 300.0
 assert INPUT_BUFFER_MAX_MS == 180.0
 assert grade_timing(0).label == "PERFECT"
-assert grade_timing(100).label == "GREAT"
-assert grade_timing(200).label == "GOOD"
-assert grade_timing(260).label == "HIT"
+assert grade_timing(30).label == "PERFECT"
+assert grade_timing(50).label == "GREAT"
+assert grade_timing(100).label == "GOOD"
+assert grade_timing(200).label == "HIT"
 assert grade_timing(-181).accepted is False
 assert grade_timing(301).accepted is False
 
