@@ -16,8 +16,8 @@ Implementation order:
 
 1. **DONE — P1:** normalize Picking events and persistent/placeholder identities;
 2. **DONE — P2:** deterministic attack-alternate engine on the normalized event stream;
-3. **NEXT — P3:** practical directional Economy transitions, start-polarity search, parity, loop-boundary scoring, and explainable transition types;
-4. move repeated motifs from post-hoc rewriting into optimizer constraints;
+3. **IMPLEMENTED / CHECK PENDING — P3:** practical directional Economy transitions, start-polarity search, parity, loop-boundary scoring, linked sweep groups, and explainable transition types;
+4. **NEXT — P4:** move repeated motifs from post-hoc rewriting into optimizer constraints;
 5. solve Ramp stages jointly so real attacks keep one learned direction while stage-local placeholders remain optimizable;
 6. cut the UI over only after the v2 regression matrix is green and local GUI acceptance passes.
 

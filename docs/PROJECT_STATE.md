@@ -146,9 +146,9 @@ The canonical next design is:
 
 - [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md)
 
-Picking Logic v2 is currently at **P2 implemented**.
+Picking Logic v2 is currently at **P3 implemented, local validation pending**.
 
-P1 provides normalized events and stable real/placeholder identity. P2 now provides deterministic attack-alternate decisions directly on that event stream. Core tests lock OFF/COVERED non-consumption, string-change continuity, Ramp-placeholder attack consumption, start polarity, and reset-boundary behavior.
+P1 provides normalized events and stable real/placeholder identity. P2 provides deterministic attack-alternate decisions. P3 adds event-based practical Economy transitions, real sweep classification, start-polarity search, parity, explicit reset semantics, cyclic loop-boundary scoring, sweep-group ids, and decision explanations.
 
 The current UI/runtime arrow generator still uses the transitional path; v2 visual cutover remains deferred until the integration phase.
 
@@ -282,9 +282,9 @@ Documentation is updated in place.
 1. Treat `docs/PICKING_LOGIC_V2.md` as the canonical Picking redesign specification.
 2. Do not add another pattern-specific heuristic unless needed as a regression-preserving emergency fix.
 3. **P1 complete:** normalized Picking events plus persistent real-attack / stage-local placeholder identities.
-4. **P2 complete:** deterministic attack-alternate engine on normalized events.
-5. **Next: P3:** implement Economy transition/scoring semantics with explicit transition types, start-polarity search, parity, loop-boundary scoring, and explanations.
-6. Move motif consistency into optimizer constraints.
+4. **P2 complete and locally validated:** deterministic attack-alternate engine on normalized events.
+5. **P3 implemented; local check pending:** Economy transition/scoring semantics with explicit transition types, start-polarity search, parity, loop-boundary scoring, linked sweeps, and explanations.
+6. **Next after P3 validation: P4:** move motif consistency into optimizer constraints.
 7. Implement joint Ramp-stage solving.
 8. Run the full automated Picking regression matrix.
 9. Perform local GUI/manual acceptance before replacing the transitional runtime path.

@@ -1,6 +1,6 @@
 # Picking Logic v2
 
-Status: **P2 implemented — Alternate v2 on normalized events**  
+Status: **P3 implemented — event-based Economy transitions**  
 Target: post-0.0.4 development on `work`  
 Runtime cutover: **not yet — current arrow generation remains transitional**
 
@@ -867,18 +867,43 @@ Locked semantics:
 
 The existing visual/runtime Alternate path is intentionally not cut over yet. P6 remains the integration checkpoint after Economy/motif/Ramp v2 behavior is ready.
 
-## Phase P3 — Economy transition engine
+## Phase P3 — Economy transition engine — IMPLEMENTED
 
-Implement:
+Implemented as a pure event-based solver; runtime UI cutover remains deferred.
 
-- same-string alternation;
-- directional sweep classification;
-- start polarity search;
-- parity information;
-- loop-boundary scoring;
-- transition reasons.
+Current P3 primitives:
 
-Do not yet add player-specific escape profiles.
+- `PickingTransition`;
+- immutable `PickDecision`;
+- `classify_pick_transition(...)`;
+- `economy_pick_events(...)`;
+- `economy_pick_beats_v2(...)` compatibility projection.
+
+Implemented transition classes:
+
+- `SAME_STRING_ALTERNATE`;
+- `SAME_STRING_REPEAT`;
+- `ALTERNATE_CROSSING`;
+- `DIRECTIONAL_SWEEP`;
+- `WRONG_DIRECTION_CROSSING`;
+- `RESET`;
+- `NONE`.
+
+P3 behavior:
+
+- same-string alternation is strongly preferred;
+- valid 6->5 DOWN/DOWN and 5->6 UP/UP sweeps are explicitly recognized;
+- wrong-direction same-stroke crossings are explicitly distinguished from real sweeps;
+- DOWN and UP phrase starts are both searched;
+- attack parity is exposed on every attack decision;
+- OFF/COVERED do not reset Economy continuity;
+- explicit reset boundaries are separate from silence;
+- cyclic mode scores the real last->first attack transition;
+- sweep-linked attacks share a `sweep_group_id`;
+- every attack receives a machine-readable reason;
+- deterministic tie-breaking keeps output stable.
+
+P3 intentionally does **not** implement motif constraints or cross-stage Ramp equality. Those are P4/P5. It also does not infer USX/DSX/DBX.
 
 ## Phase P4 — motif constraints
 
