@@ -118,11 +118,11 @@ py -m venv .venv
 
 Game logging is opt-in. Launch with:
 
-```text
-python app.py -log
+```bat
+.venv\Scripts\python.exe app.py -log
 ```
 
-or pass `--log`. Normal runs do not create game diagnostic logs.
+or use `--log`. Normal runs do not create game diagnostic logs.
 
 ## Export
 
