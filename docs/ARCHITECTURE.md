@@ -191,7 +191,9 @@ The target design is canonical in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 **P4 whole-beat motif constraints are implemented:** repeated beat signatures receive deterministic motif ids, corresponding motif-relative attacks share stroke variables, and the constrained DP optimizes the full phrase/cycle with those equalities active. This replaces post-hoc motif rewriting for the v2 path. Subdivision-level motifs that cross beat boundaries remain optional future expansion based on evidence.
 
-P1-P4 are not yet wired to the visual arrow generator; joint Ramp solving (P5) and integration remain ahead.
+**P5 is implemented:** Ramp stages are optimized as one exercise. Persistent real attacks use one shared stroke across every stage where they exist, P4 motif equality remains active, each stage contributes a cyclic boundary factor, and temporary TA placeholders remain stage-local bridge attacks.
+
+P1-P5 are not yet wired to the visual arrow generator; P6 runtime integration and manual acceptance remain ahead.
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 
