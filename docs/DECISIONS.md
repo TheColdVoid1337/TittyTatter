@@ -72,7 +72,9 @@ Resetting settings requires explicit `DELETE` confirmation.
 
 ## D-014 — Development commits
 
-**Decision:** batch ordinary changes into meaningful functional/architectural commits. Microcommits are reserved for genuinely important isolated fixes or process changes.
+**Decision:** prefer frequent small but meaningful semantic commits. Each independently useful/fixable UI, logic, documentation, or release change may be committed separately. Critical one-line regression fixes may be microcommits.
+
+**Reason:** completed work should remain recoverable even if a long development session is interrupted.
 
 ## D-015 — Preserve established layout
 
@@ -107,3 +109,82 @@ Resetting settings requires explicit `DELETE` confirmation.
 **Decision:** TI is modeled as string 5 and TA as string 6 for picking guidance. The system chooses economy-picking directions automatically rather than asking the user for a fixed first stroke.
 
 **Reason:** the displayed pattern should suggest an efficient playable picking path, not merely alternate up/down mechanically.
+
+
+## D-021 — Training Mode is the exercise source of truth
+
+**Decision:** the selected Training Mode controls exercise behaviour for both normal guitar Training and Game execution.
+
+**Reason:** Pattern defines what is played; Training Mode defines how it is trained. Game is only another execution/input layer and must not own a parallel progression system.
+
+## D-022 — Game is secondary to guitar training
+
+**Decision:** TittyTatter is primarily a guitar rhythm trainer. Game remains a secondary convenience for keyboard/mouse timing practice.
+
+**Reason:** new development should improve transferable guitar practice rather than turn the project into a standalone rhythm videogame.
+
+## D-023 — Picking Guide is informational, not a Training Mode
+
+**Decision:** Штрих / Picking Guide is an optional guitar-practice aid. It is not a third peer mode beside Training and Game.
+
+**Reason:** Picking suggestions annotate how to execute the exercise on guitar; they do not define a separate exercise timeline.
+
+## D-024 — Silence removes guidance, not time
+
+**Decision:** Gap and Progressive Gap silent phases suppress rhythmic guidance while the internal exercise timeline continues.
+
+Game targets continue through silence. Yellow current-position guidance disappears during the silent phase and returns with audible guidance.
+
+**Reason:** the exercise is intended to train internal time, not pause the musical clock.
+
+## D-025 — Focus is presentation, not exercise logic
+
+**Decision:** Focus mode hides configuration UI and enlarges practice presentation without creating a separate pattern/timeline state.
+
+The Focus rhythm strip must reflect the current effective training pattern.
+
+## D-026 — Physical-key bindings should survive keyboard layout changes
+
+**Decision:** common Game bindings and the Focus shortcut use physical scan information where available, with logical-key fallback only when necessary.
+
+**Reason:** guitar/rhythm practice should not break when the active Windows keyboard layout changes.
+
+## D-027 — Focus F-key priority
+
+**Decision:** while a Game binding editor is capturing input, capture has priority. During an active Game, an F binding used by a Game lane has priority over Focus toggle. Otherwise physical F toggles Focus.
+
+## D-028 — Public README is user-facing
+
+**Decision:** root `README.md` is written for people who download/clone the project.
+
+It must not contain personal machine paths or private development-layout details. Detailed internal development workflow belongs in `docs/WORKFLOW.md`.
+
+## D-029 — README logo must be a real transparent asset
+
+**Decision:** GitHub README rendering uses a repository PNG with actual transparency.
+
+**Reason:** the application runtime can transform the source icon through Qt, but GitHub Markdown cannot execute that runtime helper.
+
+## D-030 — Direct GitHub write authorization persists until revoked
+
+**Decision:** `#writegh` authorizes direct GitHub project writes and remains active until the project owner explicitly revokes it.
+
+Repository writes still follow semantic commits, reporting, and local-validation rules.
+
+## D-031 — No default remote CI
+
+**Decision:** do not add GitHub Actions or other remote CI as a default project workflow.
+
+**Reason:** the canonical acceptance environment is the real local Windows GUI/audio runtime. Automated local tests remain useful but cannot replace manual realtime validation.
+
+## D-032 — Release integration prefers fast-forward
+
+**Decision:** when `work` is a clean descendant of `main`, release integration should fast-forward `main` rather than create an unnecessary merge commit.
+
+## D-033 — Old branches are deleted only after containment verification
+
+**Decision:** branch cleanup happens after release verification and only after proving the candidate branch has no unique commits relative to the final `main`.
+
+## D-034 — Application version and settings schema are independent
+
+**Decision:** root `VERSION` changes only at explicit release/tag checkpoints. Session/settings schema versions may change independently for persistence compatibility.
