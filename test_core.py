@@ -37,6 +37,7 @@ from picking_logic import (
     economy_pick_ramp_beats,
     normalize_picking_events,
     normalize_ramp_stage_events,
+    picking_directions_by_beat,
     strict_alternate_pick_beats,
 )
 from training_modes import (
