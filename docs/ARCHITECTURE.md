@@ -2,28 +2,60 @@
 
 ## Design goal
 
-TittyTatter separates rhythm representation, realtime audio scheduling, game judgement, UI state, export, diagnostics, and persistence so that GUI changes do not become timing changes.
+TittyTatter separates rhythm representation, Training Mode timeline logic, realtime audio scheduling, Game judgement, input binding, Picking Guide logic, UI state, export, diagnostics, and persistence.
+
+The central product rule is:
+
+> The selected Training Mode is the source of truth for both normal guitar Training and Game.
+
+Game does not own a parallel exercise progression system.
+
+## Product model
+
+```text
+PATTERN
+  rhythm data
+
+TRAINING MODE
+  temporal method applied to that pattern
+
+TRAINING
+  guitarist performs the resulting exercise
+
+GAME
+  computer input executes the same resulting exercise and receives timing grades
+
+PICKING GUIDE / ШТРИХ
+  optional guitar-practice information layered on the exercise
+```
+
+Focus mode is a presentation state, not a new exercise mode.
 
 ## Modules
 
 ### `app.py`
 
-Owns the PySide6 application shell:
+Owns the PySide6 application shell and cross-module coordination:
 
 - transport and BPM controls;
-- variable time-signature controls;
+- meter controls;
 - horizontally scrollable beat editor;
-- practice configuration;
+- top-level Training/Game selector;
+- Training Mode configuration and help UI;
+- count-in, tempo-trainer, and timer options;
 - sound controls;
 - visual metronome;
-- game-mode UI, input capture, score/statistics presentation;
-- picking overlay presentation;
+- Focus mode;
+- read-only Focus rhythm strip;
+- Game UI, input capture, score/statistics presentation, and feedback sounds;
+- Picking Guide presentation;
 - audio-device settings UI;
 - session save/load;
 - export dialogs;
-- coordination of optional game diagnostics.
+- About tab;
+- optional Game-diagnostic coordination.
 
-Qt timers are used for display/polling, not as the musical clock.
+Qt timers are used for presentation/polling, not as the musical clock.
 
 ### `model.py`
 
@@ -42,14 +74,36 @@ A bar may contain 1–16 metric beats. The denominator controls the musical dura
 
 ### `presets.py`
 
-Owns:
+Owns rhythm-grid definitions and built-in pattern cells.
 
-- TI / TA / OFF constants;
-- rhythm-grid definitions;
-- meter-aware grid labels;
-- built-in straight/triplet TI/TA cells.
+Presets are ordinary model data. They do not create a second playback path.
 
-Presets are ordinary model data, not a separate playback path.
+### `training_modes.py`
+
+Owns Training Mode definitions and timeline helpers.
+
+Current Training Modes:
+
+- `loop` — Повтор;
+- `ramp_1_4` — Разгон с 1 доли;
+- `ramp_2_4` — Разгон с 2 долей;
+- `gap` — Пропуски;
+- `progressive_gap` — Нарастающие пропуски;
+- `sparse_click` — Редкий метроном;
+- `displaced_click` — Смещённый метроном.
+
+The old internal ramp names are retained for compatibility, but ramp semantics are meter-aware rather than hard-coded to 4/4.
+
+For numerator `N`:
+
+- `ramp_1_4` stages are `1, 2, ..., N`;
+- `ramp_2_4` begins at `min(2, N)` and then uses the full bar.
+
+Gap helpers calculate audible/silent phases while preserving the continuous exercise timeline.
+
+Sparse-click helpers decide which metric beat receives the metronome.
+
+Displaced-click helpers describe the fine-grid click position independently of the pattern subdivision.
 
 ### `audio_engine.py`
 
@@ -58,54 +112,105 @@ Owns realtime sequencing, synthesized sound playback, output-device selection, c
 Core rules:
 
 - musical scheduling is performed in the PortAudio callback;
-- the engine prefers the Windows WASAPI default endpoint when available;
-- the selected device, sample rate, block size, latency mode, and optional WASAPI exclusive mode are explicit runtime settings;
+- the engine prefers the Windows WASAPI default endpoint when appropriate;
+- device, sample rate, block size, latency mode, and optional WASAPI exclusive mode are explicit runtime settings;
 - GUI timing does not schedule musical events;
-- game targets are stamped from PortAudio output/DAC timing rather than from Qt polling;
-- short in-stream cues are queued into the realtime callback;
-- the timer-completion horn uses a separate one-shot output stream after transport stop.
+- Game targets are stamped from PortAudio output/DAC timing rather than Qt polling;
+- short in-stream cues are queued into realtime playback;
+- offline export continues to reuse established sound/model semantics.
 
-The synthesized TI/TA sound bank is built at the selected output sample rate and should not be changed casually without explicit need.
+The established TI/TA training sound bank is sensitive project behavior and should not drift during unrelated work.
+
+### Fine timing grid
+
+Training modes such as displaced metronome must coexist with the current pattern grid.
+
+The audio engine therefore derives a common fine timing grid / LCM rather than assuming that metronome positions use the same subdivision as the edited rhythm.
+
+This allows, for example, a sixteenth displaced click to coexist with a triplet pattern.
 
 ### `game_logic.py`
 
-Owns deterministic game judgement primitives.
+Owns deterministic Game judgement primitives.
+
+Current constants:
+
+```text
+EARLY_HIT_WINDOW_MS = 180
+LATE_HIT_WINDOW_MS  = 300
+INPUT_BUFFER_MAX_MS = 180
+
+PERFECT_MS = 30
+GREAT_MS   = 70
+GOOD_MS    = 120
+```
 
 Current rules:
 
-- TI input can consume only TI targets; TA input can consume only TA targets;
-- matching chooses the nearest valid target in the same lane;
-- the overall acceptance window remains forgiving;
-- PERFECT/GREAT/GOOD/HIT grades score precision inside that successful window;
-- adaptive timing bias is currently disabled because diagnostic logs showed that it could drift by an entire subdivision.
+- TI input can consume only TI targets;
+- TA input can consume only TA targets;
+- matching selects the nearest valid target in the same lane;
+- PERFECT/GREAT/GOOD/HIT grade successful timing;
+- opposite-lane fallback is intentionally absent;
+- adaptive timing bias is intentionally absent.
+
+The asymmetric acceptance window and early-input buffering exist because physical input and realtime target publication are not perfectly synchronous.
+
+### `input_binding.py`
+
+Owns normalized Game bindings.
+
+Binding forms include:
+
+- physical scan-code bindings;
+- mouse-button bindings;
+- logical-key fallback for uncommon legacy keys.
+
+Common alphanumeric bindings migrate to Windows Set-1 scan-code identities, allowing the same physical key to keep working across keyboard layouts.
+
+This is also used by the Focus-key priority logic.
 
 ### `picking_logic.py`
 
-Owns economy-picking direction selection.
+Owns Picking Guide direction selection.
 
-Current model:
+Current capabilities include:
 
-- TI maps to string 5;
-- TA maps to string 6;
-- repeated notes on one string prefer alternate picking;
-- 6 → 5 transitions prefer a downstroke sweep;
-- 5 → 6 transitions prefer an upstroke sweep;
-- rests split phrases and allow the next run to choose a new optimal starting direction.
+- linear run optimization;
+- cyclic optimization;
+- minimal whole-beat period detection;
+- economy-picking generation;
+- strict-alternate generation.
 
-The UI renders the resulting arrows as a fixed overlay; it does not participate in layout geometry.
+Reference mapping:
+
+- TI → string 5;
+- TA → string 6.
+
+Rests split continuity.
+
+Repeated whole-beat patterns preserve their minimal period:
+
+```text
+A A A A -> period 1
+A B A B -> period 2
+A B C D -> period 4
+```
+
+This matters because Loop and current Ramp stages repeat cyclically. Picking suggestions must therefore respect the repeating effective bar rather than merely flattening one stored bar linearly.
 
 ### `game_logger.py`
 
-Owns optional per-game diagnostics.
+Owns optional per-Game diagnostics.
 
 When the app is launched with `-log` or `--log`:
 
-1. each game creates a unique timestamped JSONL session under `logs/`;
-2. timing/input/target/matching/result events are appended while the game runs;
-3. game completion packs the JSONL into `.tar.gz`;
+1. each Game creates a unique timestamped JSONL session;
+2. timing/input/target/matching/result events are appended;
+3. normal stop/finish/close archives the session to a unique `.tar.gz`;
 4. the raw JSONL is deleted only after successful compression.
 
-Without the CLI flag, no game log is created.
+Without the CLI flag, no Game log should be created.
 
 ### `exports.py`
 
@@ -117,70 +222,158 @@ Owns offline export:
 
 Export uses the same rhythm model as realtime playback.
 
-Current guitar mapping:
+Current guitar reference mapping:
 
-- **TI**: E3, string 5 fret 7;
-- **TA**: dead/muted open string 6.
+- TI: E3, string 5 fret 7;
+- TA: dead/muted open string 6.
 
-GP5 uses Overdriven Guitar and conservative ASCII annotations for compatibility with the legacy file format.
+GP5 uses conservative text annotations for compatibility with the legacy format.
 
 ### `settings_store.py`
 
-Owns the local ignored `tittytatter.settings.json` file.
+Owns the ignored local application settings file.
 
-The settings file stores application preferences such as geometry, audio device selection, sound/meter configuration, visual-metronome settings, game keys, game feedback options, picking visibility, and the last-game summary.
+Settings include Training Mode state, training parameters, tempo/timer options, Game configuration, feedback audio, Picking Guide, Focus state, last tab, visual configuration, and other preferences.
 
-It is user-local state and must not be committed.
+Session/settings schema versioning is independent of the application semantic `VERSION`.
 
 ### Tests
 
-- `test_core.py` — deterministic rhythm/model/game checks that do not open the GUI or audio stream.
+- `test_core.py` — deterministic rhythm/model/training/Game/picking checks that do not open the GUI or audio stream.
 - `test_exports.py` — offline MIDI/GP5/WAV regression checks.
 - `test_game_logger.py` — diagnostic-log creation/archive/cleanup checks.
 
 ## Rhythm model
 
-A metric beat uses one grid. Supported grid families include:
-
-- one event spanning multiple metric beats where musically valid;
-- one event per metric beat;
-- duplet;
-- triplet;
-- four equal subdivisions;
-- eight equal subdivisions.
-
 Each subdivision state is:
 
-- `TI`
-- `TA`
-- `OFF`
+- `TI`;
+- `TA`;
+- `OFF`.
 
-The meter denominator defines the metric-beat duration, so the same grid family adapts its displayed notation to 4-, 8-, or 16-based meters.
+A metric beat uses one selected grid. Supported families include whole-beat events, duplets, triplets, four-way subdivisions, eight-way subdivisions, and long-note/span coverage where musically valid.
 
-## Practice stages
+The meter denominator defines metric-beat duration, so the same grid family adapts to different meters.
 
-Practice ramps operate on the current bar without creating a second pattern representation.
+## Training Mode timeline semantics
 
-Current modes:
+### Loop
 
-- full-bar loop;
-- progressive 1 → 2 → … → full bar;
-- 2 → full bar.
+The complete current effective bar repeats continuously.
 
-Inactive ramp beats are represented semantically as TA followed by silence for both visual preview and game input. Their audio pulse remains controlled by the inactive-pulse option.
+### Ramp modes
 
-The UI shows stage progress and warns before both upward stage changes and full-stage wrap back to the first stage.
+Ramp modes expose a meter-aware number of active beats without creating another stored pattern representation.
 
-## Game timing
+A ramp stage is conceptually a cyclic effective bar.
 
-When game mode is running:
+### Gap modes
 
-1. scheduled TI/TA events are timestamped against `outputBufferDacTime`;
-2. callback-published targets are drained into the GUI-side pending list;
-3. a short early-input buffer bridges the case where keyboard input arrives just before the audio callback publishes the corresponding future target;
-4. matching is lane-only and nearest-target within the accepted early/late window;
-5. successful hits record signed early/late offset, timing grade, quality, and Score;
-6. expired targets and unmatched inputs count as misses;
-7. Qt renders feedback/statistics but is not the musical timing authority.
+Gap modes change **guidance**, not the exercise clock.
 
-The diagnostic logger was used to identify and remove two earlier failure modes: premature MISS on not-yet-published future targets and adaptive timing-bias drift.
+During a silent phase:
+
+- TI/TA rhythmic audio guidance is suppressed;
+- metronome guidance is suppressed;
+- the internal timeline continues;
+- Game targets continue;
+- yellow current-position guidance is hidden;
+- guidance returns when the audible phase resumes.
+
+### Sparse click
+
+The rhythm remains intact while metronome events are filtered to the selected beat/bar pattern.
+
+### Displaced click
+
+The rhythm remains intact while the metronome is scheduled on a separate off-beat/fine-grid phase.
+
+## Top-level Training/Game execution
+
+The UI stores concepts equivalent to:
+
+```text
+training_mode
+game_enabled
+picking_guide_enabled
+```
+
+not three peer "modes".
+
+When Game is selected:
+
+- Start/Space execute the Game version of the current training exercise;
+- the selected Training Mode still controls ramps, gaps, click filtering, and the exercise timeline.
+
+Picking Guide and Game are mutually exclusive because Picking is intended for guitar practice.
+
+## Game timing path
+
+When Game is active:
+
+1. the realtime audio callback schedules exercise events;
+2. eligible TI/TA events are published as DAC-timestamped targets;
+3. GUI/input handling records physical keyboard or mouse input;
+4. a short early-input buffer bridges input that arrives before a future target has been published;
+5. the matcher selects the nearest same-lane target inside the valid asymmetric window;
+6. accepted timing is graded;
+7. missed/expired targets are recorded;
+8. the GUI renders feedback/statistics without becoming the musical timing authority.
+
+## Focus presentation
+
+Focus is a presentation layer over the same application state.
+
+It hides configuration-heavy controls and expands the visual metronome.
+
+The Focus rhythm strip is read-only and is derived from the current **effective** pattern, including ramp-stage activity and long-note coverage.
+
+Count-in may show the pattern without an active playhead.
+
+Silent Gap phases hide the current-position outline.
+
+Focus metronome geometry scales the actual needle, pivot, lamps, and flash rather than only changing the widget size.
+
+The Game history graph is deliberately capped in Focus so it remains a diagnostic panel.
+
+## Focus F-key priority
+
+Focus uses the physical F key where possible.
+
+Priority rules:
+
+1. while a Game binding editor is capturing a key, capture wins;
+2. during an active Game, if F is bound to a Game lane, Game input wins;
+3. otherwise F toggles Focus.
+
+This priority must be preserved when input handling changes.
+
+## About/icon path
+
+The application icon source is:
+
+```text
+assets/app_icon.png
+```
+
+Runtime Qt code applies transparency/safe-area handling for the window/About rendering.
+
+The public README uses a separate repository asset with real PNG transparency because Markdown cannot execute the Qt runtime conversion.
+
+## Validation architecture
+
+Automated checks intentionally do not claim to validate all GUI/audio behavior.
+
+The canonical project gate is:
+
+```bash
+./tt check
+```
+
+Meaningful GUI/runtime changes also require:
+
+```bash
+./tt run
+```
+
+Local Windows acceptance remains authoritative for realtime GUI/audio behavior.
