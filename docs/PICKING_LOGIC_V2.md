@@ -1,6 +1,6 @@
 # Picking Logic v2
 
-Status: **P3 implemented — event-based Economy transitions**  
+Status: **P4 implemented — whole-beat motif constraints**  
 Target: post-0.0.4 development on `work`  
 Runtime cutover: **not yet — current arrow generation remains transitional**
 
@@ -905,11 +905,30 @@ P3 behavior:
 
 P3 intentionally does **not** implement motif constraints or cross-stage Ramp equality. Those are P4/P5. It also does not infer USX/DSX/DBX.
 
-## Phase P4 — motif constraints
+## Phase P4 — motif constraints — WHOLE-BEAT STAGE IMPLEMENTED
 
-Replace post-hoc repeated-beat rewriting with constraints active during optimization.
+The first P4 stage is implemented for repeated whole-beat motifs.
 
-Start with whole-beat motifs, then support subdivision-level motifs across beat boundaries if needed.
+Current primitives:
+
+- `annotate_whole_beat_motifs(...)`;
+- deterministic whole-beat signature grouping;
+- shared motif-relative attack variables;
+- exact constrained Economy DP via `_solve_economy_constrained(...)`.
+
+Behavior now covered:
+
+- `A A A A` shares one A motor pattern;
+- `A A A B` keeps one A motor pattern;
+- `A B A B` preserves A and B identities independently;
+- repeated A at visual bar end/start remains the same motif;
+- OFF participates in motif shape without consuming attack parity;
+- motif equality is enforced inside Economy optimization, not by rewriting arrows afterward;
+- valid sweeps can survive motif stability when the full cyclic mechanics allow them.
+
+The constrained solver retains only motif variables that must reappear later, so one-off attacks stay cheap in the DP state.
+
+Subdivision-level motif detection that crosses beat boundaries is not implemented yet. Add it only if real patterns demonstrate that whole-beat motif identity is insufficient; do not block P5 merely to invent speculative motif cases.
 
 ## Phase P5 — joint Ramp solver
 
