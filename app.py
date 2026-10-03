@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSlider,
     QSpinBox,
     QTabWidget,
@@ -1225,6 +1226,10 @@ class MainWindow(QMainWindow):
         out.addWidget(self.status)
 
         self.beats_group = QGroupBox()
+        self.beats_group.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Maximum,
+        )
         beats_outer = QVBoxLayout(self.beats_group)
         self.beat_scroll = QScrollArea()
         self.beat_scroll.setWidgetResizable(True)
@@ -1238,6 +1243,10 @@ class MainWindow(QMainWindow):
         out.addWidget(self.beats_group)
 
         self.tabs = QTabWidget()
+        self.tabs.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Expanding,
+        )
         self.tabs.addTab(self._build_practice_tab(), "Тренировка")
         self.tabs.addTab(self._build_sound_tab(), "Звук")
         self.tabs.addTab(self._build_metronome_tab(), "Метроном")
@@ -1246,7 +1255,11 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self._build_audio_tab(), "Аудио")
         self.tabs.addTab(self._build_export_tab(), "Экспорт")
         self.tabs.addTab(self._build_about_tab(), "About")
-        out.addWidget(self.tabs)
+        # Keep the beat editor at its natural height and give all remaining
+        # vertical space to the tab area. Otherwise QVBoxLayout can redistribute
+        # spare height after visiting a page with a different size hint, making
+        # the beat block grow and the About page shrink.
+        out.addWidget(self.tabs, 1)
 
         footer = QHBoxLayout()
         save = QPushButton("Сохранить сессию")
