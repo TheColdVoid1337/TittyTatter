@@ -3033,7 +3033,13 @@ class MainWindow(QMainWindow):
             status_text += f" · Score {self.game_score}"
 
         self.status.setText(status_text)
-        self.highlight(beat, int(st["sub"]))
+        # Gap modes deliberately remove the rhythmic crutch during silent bars.
+        # Hide the yellow TI/TA playhead together with the audio, then restore
+        # it automatically when the audible phase returns.
+        if mode in GAP_MODES and bool(st["training_silent"]):
+            self.highlight(beat, None)
+        else:
+            self.highlight(beat, int(st["sub"]))
 
     def _set_ramp_visual(self, active_beats: int) -> None:
         ramp = self.mode.currentData() in RAMP_MODES and self.engine.is_running
