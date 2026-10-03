@@ -10,7 +10,13 @@ from game_logic import (
 )
 from input_binding import binding_display, binding_identity, normalize_binding, scan_binding
 from model import BarPattern, BeatPattern
-from picking_logic import DOWN, UP, economy_pick_beats, economy_pick_pattern
+from picking_logic import (
+    DOWN,
+    UP,
+    economy_pick_beats,
+    economy_pick_pattern,
+    strict_alternate_pick_beats,
+)
 from training_modes import (
     GAP_MODES,
     RAMP_MODES,
@@ -139,6 +145,18 @@ assert progress_bar(4, 8) == "■■■■□□□□"
 
 assert economy_pick_pattern([TI, TI, TA, TA], TI, TA, OFF) == [DOWN, UP, UP, DOWN]
 assert economy_pick_pattern([TA, TA, TI, TI], TI, TA, OFF) == [UP, DOWN, DOWN, UP]
+
+
+strict_alt = strict_alternate_pick_beats(
+    [[TI, TA, OFF, TI], [TA, TA]],
+    TI,
+    TA,
+    OFF,
+)
+assert strict_alt == [
+    [DOWN, UP, None, DOWN],
+    [UP, DOWN],
+]
 
 
 # Loop picking preserves the shortest whole-beat period. Four identical

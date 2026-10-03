@@ -208,6 +208,40 @@ def economy_pick_pattern(
     return result
 
 
+def strict_alternate_pick_beats(
+    beats: list[list[str]],
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+    *,
+    start_direction: str = DOWN,
+) -> list[list[str | None]]:
+    """Assign strict down/up alternation across every attack in the bar.
+
+    Rests and covered beats do not consume a pick direction. The displayed bar
+    starts with the requested direction (down by default), making this strategy
+    predictable for deliberate alternate-picking drills.
+    """
+    direction = start_direction if start_direction in (DOWN, UP) else DOWN
+    result: list[list[str | None]] = []
+
+    for states in beats:
+        if not states:
+            result.append([])
+            continue
+
+        beat_result: list[str | None] = []
+        for state in states:
+            if state in (ti_state, ta_state):
+                beat_result.append(direction)
+                direction = UP if direction == DOWN else DOWN
+            else:
+                beat_result.append(None)
+        result.append(beat_result)
+
+    return result
+
+
 def _minimal_beat_period(beats: list[list[str]]) -> int:
     """Return the shortest whole-beat period that tiles the complete bar."""
     count = len(beats)
