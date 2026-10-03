@@ -35,6 +35,7 @@ class PickingEvent:
     attack: bool
     string: int | None
     phrase_boundary_before: bool
+    reset_before: bool
     motif_id: str | None
     persistent_attack_id: str | None
     rhythmic_phase: Fraction
@@ -110,6 +111,7 @@ def normalize_picking_events(
                     phrase_boundary_before=(
                         not events or beat_index in reset_set
                     ),
+                    reset_before=beat_index in reset_set,
                     motif_id=None,
                     persistent_attack_id=None,
                     rhythmic_phase=Fraction(0, 1),
@@ -163,6 +165,10 @@ def normalize_picking_events(
                             subdivision_index == 0
                             and beat_index in reset_set
                         )
+                    ),
+                    reset_before=(
+                        subdivision_index == 0
+                        and beat_index in reset_set
                     ),
                     motif_id=None,
                     persistent_attack_id=persistent_attack_id,
@@ -311,6 +317,396 @@ def alternate_pick_beats_v2(
     return picking_directions_by_beat(
         events,
         directions,
+        len(full_beats),
+    )
+
+
+class PickingTransition(str, Enum):
+    """Mechanical relation from the previous attack to the current attack."""
+
+    NONE = "none"
+    RESET = "reset"
+    SAME_STRING_ALTERNATE = "same_string_alternate"
+    SAME_STRING_REPEAT = "same_string_repeat"
+    ALTERNATE_CROSSING = "alternate_crossing"
+    DIRECTIONAL_SWEEP = "directional_sweep"
+    WRONG_DIRECTION_CROSSING = "wrong_direction_crossing"
+
+
+@dataclass(frozen=True)
+class PickDecision:
+    """Picking Logic v2 decision aligned to one normalized event."""
+
+    stroke: str | None
+    transition_from_previous: PickingTransition
+    sweep_group_id: str | None
+    reason: str
+    attack_parity: int | None
+    loop_boundary: bool = False
+
+
+def classify_pick_transition(
+    previous_string: int,
+    previous_stroke: str,
+    string: int,
+    stroke: str,
+) -> PickingTransition:
+    """Classify one attack-to-attack mechanical transition."""
+    if previous_string == string:
+        if previous_stroke != stroke:
+            return PickingTransition.SAME_STRING_ALTERNATE
+        return PickingTransition.SAME_STRING_REPEAT
+
+    if previous_stroke != stroke:
+        return PickingTransition.ALTERNATE_CROSSING
+
+    if (
+        previous_string == 6
+        and string == 5
+        and stroke == DOWN
+    ) or (
+        previous_string == 5
+        and string == 6
+        and stroke == UP
+    ):
+        return PickingTransition.DIRECTIONAL_SWEEP
+
+    return PickingTransition.WRONG_DIRECTION_CROSSING
+
+
+def _economy_transition_cost_v2(
+    previous_string: int,
+    previous_stroke: str,
+    string: int,
+    stroke: str,
+) -> float:
+    transition = classify_pick_transition(
+        previous_string,
+        previous_stroke,
+        string,
+        stroke,
+    )
+    if transition is PickingTransition.SAME_STRING_ALTERNATE:
+        return 0.0
+    if transition is PickingTransition.DIRECTIONAL_SWEEP:
+        return -4.0
+    if transition is PickingTransition.ALTERNATE_CROSSING:
+        return 0.0
+    if transition is PickingTransition.SAME_STRING_REPEAT:
+        return 100.0
+    if transition is PickingTransition.WRONG_DIRECTION_CROSSING:
+        return 100.0
+    raise AssertionError(f"unexpected transition: {transition}")
+
+
+def _transition_reason(
+    transition: PickingTransition,
+    previous_string: int,
+    previous_stroke: str,
+    string: int,
+    stroke: str,
+) -> str:
+    if transition is PickingTransition.SAME_STRING_ALTERNATE:
+        return f"same-string alternate on string {string}: {previous_stroke}->{stroke}"
+    if transition is PickingTransition.SAME_STRING_REPEAT:
+        return f"same-string repeated stroke on string {string}: {stroke}"
+    if transition is PickingTransition.DIRECTIONAL_SWEEP:
+        return (
+            f"directional sweep {previous_string}->{string}: "
+            f"{previous_stroke}->{stroke}"
+        )
+    if transition is PickingTransition.ALTERNATE_CROSSING:
+        return (
+            f"alternate string crossing {previous_string}->{string}: "
+            f"{previous_stroke}->{stroke}"
+        )
+    if transition is PickingTransition.WRONG_DIRECTION_CROSSING:
+        return (
+            f"same-stroke crossing is not a directional sweep "
+            f"{previous_string}->{string}: {stroke}"
+        )
+    return transition.value
+
+
+def _solve_economy_attack_segment(
+    attacks: list[PickingEvent],
+    *,
+    cyclic: bool,
+) -> list[str]:
+    """Choose DOWN/UP for one reset-free attack segment."""
+    if not attacks:
+        return []
+
+    directions = (DOWN, UP)
+    best_total = float("inf")
+    best_result: list[str] | None = None
+
+    for first_stroke in directions:
+        layers: list[dict[str, tuple[float, str | None]]] = [
+            {
+                first_stroke: (
+                    0.0 if first_stroke == DOWN else 0.01,
+                    None,
+                )
+            }
+        ]
+
+        for attack_index in range(1, len(attacks)):
+            previous_string = attacks[attack_index - 1].string
+            string = attacks[attack_index].string
+            if previous_string not in (5, 6) or string not in (5, 6):
+                raise ValueError("attack event must map to string 5 or 6")
+
+            layer: dict[str, tuple[float, str | None]] = {}
+            for stroke in directions:
+                best_cost = float("inf")
+                best_previous: str | None = None
+                for previous_stroke, (previous_cost, _parent) in layers[-1].items():
+                    candidate = previous_cost + _economy_transition_cost_v2(
+                        previous_string,
+                        previous_stroke,
+                        string,
+                        stroke,
+                    )
+                    if candidate < best_cost:
+                        best_cost = candidate
+                        best_previous = previous_stroke
+                layer[stroke] = (best_cost, best_previous)
+            layers.append(layer)
+
+        for final_stroke, (path_cost, _parent) in layers[-1].items():
+            total = path_cost
+            if cyclic:
+                last_string = attacks[-1].string
+                first_string = attacks[0].string
+                if last_string not in (5, 6) or first_string not in (5, 6):
+                    raise ValueError("attack event must map to string 5 or 6")
+                total += _economy_transition_cost_v2(
+                    last_string,
+                    final_stroke,
+                    first_string,
+                    first_stroke,
+                )
+
+            if total >= best_total:
+                continue
+
+            result = [final_stroke]
+            for attack_index in range(len(attacks) - 1, 0, -1):
+                previous = layers[attack_index][result[-1]][1]
+                assert previous is not None
+                result.append(previous)
+            result.reverse()
+
+            best_total = total
+            best_result = result
+
+    assert best_result is not None
+    return best_result
+
+
+def economy_pick_events(
+    events: list[PickingEvent],
+    *,
+    cyclic: bool,
+) -> list[PickDecision]:
+    """Solve practical directional Economy on normalized PickingEvent data.
+
+    P3 handles transition mechanics only. Motif equality and joint Ramp-stage
+    constraints are deliberately deferred to P4/P5.
+
+    OFF/COVERED slots do not break continuity. Only explicit `reset_before`
+    boundaries split phrases. If there is no explicit reset, `cyclic=True`
+    scores the real last->first loop transition.
+    """
+    decisions = [
+        PickDecision(
+            stroke=None,
+            transition_from_previous=PickingTransition.NONE,
+            sweep_group_id=None,
+            reason="non-attack slot",
+            attack_parity=None,
+        )
+        for _event in events
+    ]
+
+    attack_indices = [
+        index
+        for index, event in enumerate(events)
+        if event.attack
+    ]
+    if not attack_indices:
+        return decisions
+
+    for index in attack_indices:
+        if events[index].string not in (5, 6):
+            raise ValueError("attack event must map to string 5 or 6")
+
+    explicit_reset_positions = [
+        position
+        for position, event_index in enumerate(attack_indices)
+        if events[event_index].reset_before
+    ]
+
+    segments: list[list[int]] = []
+    cycle_segment = cyclic and not explicit_reset_positions
+
+    if cycle_segment:
+        segments = [attack_indices]
+    else:
+        current: list[int] = []
+        for event_index in attack_indices:
+            if events[event_index].reset_before and current:
+                segments.append(current)
+                current = []
+            current.append(event_index)
+        if current:
+            segments.append(current)
+
+    strokes_by_event: dict[int, str] = {}
+    parity_by_event: dict[int, int] = {}
+
+    for segment in segments:
+        attacks = [events[index] for index in segment]
+        strokes = _solve_economy_attack_segment(
+            attacks,
+            cyclic=cycle_segment and len(segments) == 1,
+        )
+        for parity, (event_index, stroke) in enumerate(zip(segment, strokes)):
+            strokes_by_event[event_index] = stroke
+            parity_by_event[event_index] = parity % 2
+
+    transition_by_event: dict[int, PickingTransition] = {}
+    reason_by_event: dict[int, str] = {}
+    loop_by_event: dict[int, bool] = {}
+    sweep_group_by_event: dict[int, str] = {}
+
+    for segment_index, segment in enumerate(segments):
+        for local_index, event_index in enumerate(segment):
+            event = events[event_index]
+            stroke = strokes_by_event[event_index]
+
+            if local_index == 0:
+                if cycle_segment and len(segments) == 1:
+                    previous_index = segment[-1]
+                    previous_event = events[previous_index]
+                    previous_stroke = strokes_by_event[previous_index]
+                    transition = classify_pick_transition(
+                        previous_event.string,
+                        previous_stroke,
+                        event.string,
+                        stroke,
+                    )
+                    transition_by_event[event_index] = transition
+                    reason_by_event[event_index] = (
+                        "loop boundary: "
+                        + _transition_reason(
+                            transition,
+                            previous_event.string,
+                            previous_stroke,
+                            event.string,
+                            stroke,
+                        )
+                    )
+                    loop_by_event[event_index] = True
+                else:
+                    transition = (
+                        PickingTransition.RESET
+                        if event.reset_before
+                        else PickingTransition.NONE
+                    )
+                    transition_by_event[event_index] = transition
+                    if transition is PickingTransition.RESET:
+                        reason_by_event[event_index] = (
+                            f"explicit phrase reset; start {stroke}"
+                        )
+                    else:
+                        reason_by_event[event_index] = (
+                            f"phrase start selected by economy search: {stroke}"
+                        )
+                    loop_by_event[event_index] = False
+                continue
+
+            previous_index = segment[local_index - 1]
+            previous_event = events[previous_index]
+            previous_stroke = strokes_by_event[previous_index]
+            transition = classify_pick_transition(
+                previous_event.string,
+                previous_stroke,
+                event.string,
+                stroke,
+            )
+            transition_by_event[event_index] = transition
+            reason_by_event[event_index] = _transition_reason(
+                transition,
+                previous_event.string,
+                previous_stroke,
+                event.string,
+                stroke,
+            )
+            loop_by_event[event_index] = False
+
+    # A directional sweep is a linked two-attack motion. Give both attacks the
+    # same group id so later UI/debug code can distinguish a real sweep from
+    # two unrelated identical arrows.
+    for segment in segments:
+        for local_index, event_index in enumerate(segment):
+            transition = transition_by_event[event_index]
+            if transition is not PickingTransition.DIRECTIONAL_SWEEP:
+                continue
+            if local_index == 0 and cycle_segment:
+                previous_index = segment[-1]
+            elif local_index > 0:
+                previous_index = segment[local_index - 1]
+            else:
+                continue
+            group_id = (
+                f"sweep:{events[previous_index].slot_id}"
+                f"->{events[event_index].slot_id}"
+            )
+            sweep_group_by_event[previous_index] = group_id
+            sweep_group_by_event[event_index] = group_id
+
+    for event_index in attack_indices:
+        decisions[event_index] = PickDecision(
+            stroke=strokes_by_event[event_index],
+            transition_from_previous=transition_by_event[event_index],
+            sweep_group_id=sweep_group_by_event.get(event_index),
+            reason=reason_by_event[event_index],
+            attack_parity=parity_by_event[event_index],
+            loop_boundary=loop_by_event[event_index],
+        )
+
+    return decisions
+
+
+def economy_pick_beats_v2(
+    full_beats: list[list[str]],
+    effective_beats: list[list[str]],
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+    *,
+    placeholder_beats: set[int] | frozenset[int] | tuple[int, ...] = (),
+    reset_before_beats: set[int] | frozenset[int] | tuple[int, ...] = (),
+    cyclic: bool = True,
+    stage_id: str = "economy",
+) -> list[list[str | None]]:
+    """Compatibility projection for the P3 event-based Economy engine."""
+    events = normalize_picking_events(
+        full_beats,
+        effective_beats,
+        ti_state,
+        ta_state,
+        off_state,
+        placeholder_beats=placeholder_beats,
+        reset_before_beats=reset_before_beats,
+        stage_id=stage_id,
+    )
+    decisions = economy_pick_events(events, cyclic=cyclic)
+    return picking_directions_by_beat(
+        events,
+        [decision.stroke for decision in decisions],
         len(full_beats),
     )
 

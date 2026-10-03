@@ -23,10 +23,15 @@ from picking_logic import (
     DOWN,
     PICKING_COVERED,
     UP,
+    PickDecision,
     PickingEventSource,
+    PickingTransition,
     alternate_pick_beats_v2,
     alternate_pick_events,
+    classify_pick_transition,
     economy_pick_beats,
+    economy_pick_beats_v2,
+    economy_pick_events,
     economy_pick_pattern,
     economy_pick_ramp_beats,
     normalize_picking_events,
@@ -126,6 +131,7 @@ beat1_first = next(
     if event.beat_index == 1 and event.subdivision_index == 0
 )
 assert beat1_first.phrase_boundary_before is True
+assert beat1_first.reset_before is True
 
 # Ramp real attacks preserve identity across stages while temporary TA pulses
 # are stage-local placeholders with no persistent attack id.
@@ -327,6 +333,135 @@ assert p2_rows == [
 
 # P2 is deterministic.
 assert alternate_pick_events(p2_events) == p2_directions
+
+
+# Picking Logic v2 P3: practical directional Economy on normalized events.
+p3_down_sweep_events = normalize_picking_events(
+    [[TA, TI]],
+    [[TA, TI]],
+    TI,
+    TA,
+    OFF,
+    stage_id="economy:down-sweep",
+)
+p3_down_sweep = economy_pick_events(p3_down_sweep_events, cyclic=False)
+assert [decision.stroke for decision in p3_down_sweep] == [DOWN, DOWN]
+assert (
+    p3_down_sweep[1].transition_from_previous
+    is PickingTransition.DIRECTIONAL_SWEEP
+)
+assert p3_down_sweep[0].sweep_group_id == p3_down_sweep[1].sweep_group_id
+assert p3_down_sweep[0].sweep_group_id is not None
+assert "directional sweep 6->5" in p3_down_sweep[1].reason
+
+# Start polarity is a real optimization choice: 5->6 is most efficient when
+# the phrase starts UP so the second attack can continue the upstroke sweep.
+p3_up_sweep_events = normalize_picking_events(
+    [[TI, TA]],
+    [[TI, TA]],
+    TI,
+    TA,
+    OFF,
+    stage_id="economy:up-sweep",
+)
+p3_up_sweep = economy_pick_events(p3_up_sweep_events, cyclic=False)
+assert [decision.stroke for decision in p3_up_sweep] == [UP, UP]
+assert (
+    p3_up_sweep[1].transition_from_previous
+    is PickingTransition.DIRECTIONAL_SWEEP
+)
+
+# Same-string Economy prefers alternate strokes and exposes attack parity.
+p3_same_events = normalize_picking_events(
+    [[TI, TI, TI, TI]],
+    [[TI, TI, TI, TI]],
+    TI,
+    TA,
+    OFF,
+    stage_id="economy:same-string",
+)
+p3_same = economy_pick_events(p3_same_events, cyclic=False)
+assert [decision.stroke for decision in p3_same] == [DOWN, UP, DOWN, UP]
+assert [decision.attack_parity for decision in p3_same] == [0, 1, 0, 1]
+assert all(
+    decision.transition_from_previous is PickingTransition.SAME_STRING_ALTERNATE
+    for decision in p3_same[1:]
+)
+
+# OFF does not reset Economy continuity: the same 6->5 sweep is available
+# across an internal silent slot.
+p3_off_events = normalize_picking_events(
+    [[TA, OFF, TI]],
+    [[TA, OFF, TI]],
+    TI,
+    TA,
+    OFF,
+    stage_id="economy:off-continuity",
+)
+p3_off = economy_pick_events(p3_off_events, cyclic=False)
+assert [decision.stroke for decision in p3_off] == [DOWN, None, DOWN]
+assert (
+    p3_off[2].transition_from_previous
+    is PickingTransition.DIRECTIONAL_SWEEP
+)
+assert p3_off[2].attack_parity == 1
+
+# An explicit reset is different from silence and starts a fresh phrase.
+p3_reset_events = normalize_picking_events(
+    [[TA], [TI]],
+    [[TA], [TI]],
+    TI,
+    TA,
+    OFF,
+    reset_before_beats={1},
+    stage_id="economy:reset",
+)
+p3_reset = economy_pick_events(p3_reset_events, cyclic=False)
+assert [decision.stroke for decision in p3_reset] == [DOWN, DOWN]
+assert p3_reset[1].transition_from_previous is PickingTransition.RESET
+assert "explicit phrase reset" in p3_reset[1].reason
+assert p3_reset[1].attack_parity == 0
+
+# Cyclic scoring includes the real last->first transition. A two-attack 6->5
+# phrase therefore avoids a one-way sweep that would create an awkward
+# same-stroke crossing every time the bar loops.
+p3_cycle = economy_pick_events(p3_down_sweep_events, cyclic=True)
+assert [decision.stroke for decision in p3_cycle] == [DOWN, UP]
+assert p3_cycle[0].loop_boundary is True
+assert (
+    p3_cycle[0].transition_from_previous
+    is PickingTransition.ALTERNATE_CROSSING
+)
+assert "loop boundary" in p3_cycle[0].reason
+
+# Wrong-direction same-stroke crossings are classified separately from sweeps.
+assert (
+    classify_pick_transition(6, UP, 5, UP)
+    is PickingTransition.WRONG_DIRECTION_CROSSING
+)
+assert (
+    classify_pick_transition(5, DOWN, 6, DOWN)
+    is PickingTransition.WRONG_DIRECTION_CROSSING
+)
+
+# The beat adapter projects the same P3 decisions without changing the event
+# engine's semantics.
+assert economy_pick_beats_v2(
+    [[TA, OFF, TI]],
+    [[TA, OFF, TI]],
+    TI,
+    TA,
+    OFF,
+    cyclic=False,
+) == [[DOWN, None, DOWN]]
+
+# P3 is deterministic and every attack decision explains itself.
+assert economy_pick_events(p3_off_events, cyclic=False) == p3_off
+assert all(
+    decision.reason
+    for event, decision in zip(p3_off_events, p3_off)
+    if event.attack
+)
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are
