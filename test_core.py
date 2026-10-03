@@ -24,6 +24,8 @@ from picking_logic import (
     PICKING_COVERED,
     UP,
     PickingEventSource,
+    alternate_pick_beats_v2,
+    alternate_pick_events,
     economy_pick_beats,
     economy_pick_pattern,
     economy_pick_ramp_beats,
@@ -200,6 +202,132 @@ covered_stage1 = next(
 )
 assert covered_stage1.state == PICKING_COVERED
 assert covered_stage1.source is PickingEventSource.REAL_PATTERN
+
+
+# Picking Logic v2 P2: Alternate means attack-alternate on normalized events.
+p2_events = normalize_picking_events(
+    [
+        [TA, OFF, TA, TI],
+        [OFF, TI],
+        [],
+        [TA],
+    ],
+    [
+        [TA, OFF, TA, TI],
+        [OFF, TI],
+        [],
+        [TA],
+    ],
+    TI,
+    TA,
+    OFF,
+    reset_before_beats={3},
+    stage_id="alternate:p2",
+)
+p2_directions = alternate_pick_events(p2_events)
+
+# Attacks alternate globally regardless of string changes.
+p2_attack_directions = [
+    direction
+    for event, direction in zip(p2_events, p2_directions)
+    if event.attack
+]
+assert p2_attack_directions == [DOWN, UP, DOWN, UP, DOWN]
+
+# OFF and COVERED do not consume parity and receive no stroke.
+for event, direction in zip(p2_events, p2_directions):
+    if not event.attack:
+        assert direction is None
+
+# Explicit reset boundaries do not restart public Alternate: consecutive
+# attacks still flip across the complete effective exercise stream.
+beat3_attack = next(
+    (event, direction)
+    for event, direction in zip(p2_events, p2_directions)
+    if event.beat_index == 3 and event.attack
+)
+assert beat3_attack[0].phrase_boundary_before is True
+assert beat3_attack[1] == DOWN
+
+# UP is a supported explicit starting polarity; invalid input falls back DOWN.
+assert [
+    direction
+    for event, direction in zip(
+        p2_events,
+        alternate_pick_events(p2_events, start_direction=UP),
+    )
+    if event.attack
+][:3] == [UP, DOWN, UP]
+assert [
+    direction
+    for event, direction in zip(
+        p2_events,
+        alternate_pick_events(p2_events, start_direction="invalid"),
+    )
+    if event.attack
+][:2] == [DOWN, UP]
+
+# Ramp placeholder attacks consume Alternate parity exactly like real attacks.
+p2_ramp = normalize_ramp_stage_events(
+    [
+        [TA, OFF, TI, TA],
+        [TI, TA, TI, TA],
+        [TA, TI, TA, TI],
+        [TI, TI, TA, TA],
+    ],
+    1,
+    TI,
+    TA,
+    OFF,
+    stage_id="alternate:ramp1",
+)
+p2_ramp_directions = alternate_pick_events(p2_ramp)
+p2_ramp_attacks = [
+    (event, direction)
+    for event, direction in zip(p2_ramp, p2_ramp_directions)
+    if event.attack
+]
+assert [direction for _event, direction in p2_ramp_attacks] == [
+    DOWN,
+    UP,
+    DOWN,
+    UP,
+    DOWN,
+    UP,
+    DOWN,
+]
+assert sum(
+    event.source is PickingEventSource.RAMP_PLACEHOLDER
+    for event, _direction in p2_ramp_attacks
+) == 3
+
+# The beat-shaped adapter is only a projection of the normalized event result.
+p2_rows = alternate_pick_beats_v2(
+    [
+        [TA, OFF, TA, TI],
+        [OFF, TI],
+        [],
+        [TA],
+    ],
+    [
+        [TA, OFF, TA, TI],
+        [OFF, TI],
+        [],
+        [TA],
+    ],
+    TI,
+    TA,
+    OFF,
+)
+assert p2_rows == [
+    [DOWN, None, UP, DOWN],
+    [None, UP],
+    [],
+    [DOWN],
+]
+
+# P2 is deterministic.
+assert alternate_pick_events(p2_events) == p2_directions
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are

@@ -9,7 +9,8 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ### Added
 
-- Picking Logic v2 P1 normalized event model with explicit real-pattern vs Ramp-placeholder sources, persistent real-attack identities across stages, explicit covered slots, exact rhythmic phase, and caller-controlled phrase-reset boundaries. Runtime Picking output is not cut over to v2 yet.
+- Picking Logic v2 P1 normalized event model with explicit real-pattern vs Ramp-placeholder sources, persistent real-attack identities across stages, explicit covered slots, exact rhythmic phase, and caller-controlled phrase-reset boundaries.
+- Picking Logic v2 P2 deterministic attack-alternate engine on normalized events. OFF/COVERED slots do not consume parity, string changes do not interrupt alternation, Ramp placeholders count as attacks, and explicit phrase-reset markers do not restart the public Alternate strategy. Runtime UI cutover remains deferred until the v2 integration phase.
 
 ### Fixed
 

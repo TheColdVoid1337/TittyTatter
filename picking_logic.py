@@ -218,6 +218,103 @@ def normalize_ramp_stage_events(
     )
 
 
+def alternate_pick_events(
+    events: list[PickingEvent],
+    *,
+    start_direction: str = DOWN,
+) -> list[str | None]:
+    """Assign deterministic attack-alternate strokes to normalized events.
+
+    Alternate v2 advances only on attacks. OFF, COVERED, and any other
+    non-attack slots receive no stroke and do not consume alternation parity.
+    Explicit phrase/reset boundaries are intentionally ignored: the public
+    Alternate strategy means consecutive attacks alternate across the complete
+    effective exercise stream.
+
+    The result is aligned one-to-one with `events`.
+    """
+    direction = start_direction if start_direction in (DOWN, UP) else DOWN
+    result: list[str | None] = []
+
+    for event in events:
+        if not event.attack:
+            result.append(None)
+            continue
+        if event.string not in (5, 6):
+            raise ValueError("attack event must map to string 5 or 6")
+        result.append(direction)
+        direction = UP if direction == DOWN else DOWN
+
+    return result
+
+
+def picking_directions_by_beat(
+    events: list[PickingEvent],
+    directions: list[str | None],
+    beat_count: int,
+) -> list[list[str | None]]:
+    """Project event-aligned stroke decisions back to beat/subdivision rows.
+
+    This is a compatibility adapter for the current UI shape. Picking Logic v2
+    itself operates on normalized events.
+    """
+    if len(events) != len(directions):
+        raise ValueError("event and direction counts must match")
+
+    count = max(0, int(beat_count))
+    rows: list[list[str | None]] = [[] for _ in range(count)]
+
+    for event, direction in zip(events, directions):
+        if event.beat_index < 0 or event.beat_index >= count:
+            raise ValueError("event beat index out of range")
+        if event.subdivision_index is None:
+            continue
+
+        row = rows[event.beat_index]
+        subdivision = event.subdivision_index
+        while len(row) <= subdivision:
+            row.append(None)
+        row[subdivision] = direction
+
+    return rows
+
+
+def alternate_pick_beats_v2(
+    full_beats: list[list[str]],
+    effective_beats: list[list[str]],
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+    *,
+    placeholder_beats: set[int] | frozenset[int] | tuple[int, ...] = (),
+    start_direction: str = DOWN,
+    stage_id: str = "alternate",
+) -> list[list[str | None]]:
+    """Compatibility adapter for Alternate v2.
+
+    Normalize the exercise first, solve attack alternation on PickingEvent
+    objects, then project the result back to the existing per-beat UI shape.
+    """
+    events = normalize_picking_events(
+        full_beats,
+        effective_beats,
+        ti_state,
+        ta_state,
+        off_state,
+        placeholder_beats=placeholder_beats,
+        stage_id=stage_id,
+    )
+    directions = alternate_pick_events(
+        events,
+        start_direction=start_direction,
+    )
+    return picking_directions_by_beat(
+        events,
+        directions,
+        len(full_beats),
+    )
+
+
 def _transition_cost(previous_string: int, previous_direction: str, string: int, direction: str) -> float:
     if previous_string == string:
         # Repeated notes on one string are fastest with alternate picking.
