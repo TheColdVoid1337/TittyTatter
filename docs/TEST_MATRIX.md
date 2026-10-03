@@ -252,6 +252,13 @@ With Gap or Progressive Gap plus Game:
 - inactive Ramp TA placeholders alternate instead of restarting every beat with DOWN;
 - compare the previously reported Ramp screenshots/cases against expected behavior before deleting transitional code.
 
+Current manual status on `e611ec2`:
+
+- PASS — Ramp 1->2->3->4 Economy, sweep-compatible `TA TI TI TA` motif: stable `DOWN DOWN UP UP`, both directional sweeps retained, real strokes unchanged across stages, placeholder entry/stream clean;
+- PENDING — Ramp 2->full Economy;
+- PENDING — public Alternate with OFF slots;
+- PENDING — non-Ramp Economy repeated-motif case.
+
 #### Economy
 
 - TI/TA reference strings are correct;
