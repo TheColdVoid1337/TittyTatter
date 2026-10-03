@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from audio_engine import AudioEngine, SOUND_NAMES
+from audio_engine import AudioEngine, GAME_HIT_SOUNDS, GAME_MISS_SOUNDS, SOUND_NAMES
 from exports import export_gp5, export_midi, export_wav
 from game_logger import GameLogSession
 from input_binding import binding_display, binding_identity, normalize_binding, scan_binding
@@ -1486,13 +1486,42 @@ class MainWindow(QMainWindow):
         mode_box = QGroupBox("Опции игры")
         form = QFormLayout(mode_box)
 
-        self.game_hit_sound = QCheckBox("Звук HIT")
+        hit_row = QWidget()
+        hit_layout = QHBoxLayout(hit_row)
+        hit_layout.setContentsMargins(0, 0, 0, 0)
+        self.game_hit_sound = QCheckBox("HIT")
         self.game_hit_sound.setChecked(True)
-        form.addRow("", self.game_hit_sound)
+        self.game_hit_choice = QComboBox()
+        for label, key in GAME_HIT_SOUNDS:
+            self.game_hit_choice.addItem(label, key)
+        self.game_hit_choice.setFixedWidth(92)
+        self.game_hit_volume = self._volume_slider(70)
+        self.game_hit_volume.setMaximumWidth(120)
+        hit_layout.addWidget(self.game_hit_sound)
+        hit_layout.addWidget(self.game_hit_choice)
+        hit_layout.addWidget(QLabel("Громк."))
+        hit_layout.addWidget(self.game_hit_volume, 1)
+        form.addRow("HIT:", hit_row)
 
-        self.game_miss_sound = QCheckBox("Звук MISS")
+        miss_row = QWidget()
+        miss_layout = QHBoxLayout(miss_row)
+        miss_layout.setContentsMargins(0, 0, 0, 0)
+        self.game_miss_sound = QCheckBox("MISS")
         self.game_miss_sound.setChecked(True)
-        form.addRow("", self.game_miss_sound)
+        self.game_miss_choice = QComboBox()
+        for label, key in GAME_MISS_SOUNDS:
+            self.game_miss_choice.addItem(label, key)
+        self.game_miss_choice.setFixedWidth(92)
+        self.game_miss_volume = self._volume_slider(68)
+        self.game_miss_volume.setMaximumWidth(120)
+        miss_layout.addWidget(self.game_miss_sound)
+        miss_layout.addWidget(self.game_miss_choice)
+        miss_layout.addWidget(QLabel("Громк."))
+        miss_layout.addWidget(self.game_miss_volume, 1)
+        form.addRow("MISS:", miss_row)
+
+        self.game_hit_sound.toggled.connect(self._refresh_game_sound_controls)
+        self.game_miss_sound.toggled.connect(self._refresh_game_sound_controls)
 
         self.game_start = QPushButton("▶ Запустить игру")
         self.game_start.setEnabled(False)
@@ -2074,8 +2103,14 @@ class MainWindow(QMainWindow):
             self.game_ta_key,
             self.game_hit_sound,
             self.game_miss_sound,
+            self.game_hit_choice,
+            self.game_miss_choice,
+            self.game_hit_volume,
+            self.game_miss_volume,
         ):
             widget.setEnabled(enabled and not self.game_active)
+
+        self._refresh_game_sound_controls()
 
         if not enabled:
             if self.game_active:
@@ -2096,6 +2131,15 @@ class MainWindow(QMainWindow):
                 self.game_recent,
                 self.game_score,
             )
+
+    def _refresh_game_sound_controls(self, *_args) -> None:
+        if not hasattr(self, "game_hit_choice"):
+            return
+        editable = self.game_enabled.isChecked() and not self.game_active
+        self.game_hit_choice.setEnabled(editable and self.game_hit_sound.isChecked())
+        self.game_hit_volume.setEnabled(editable and self.game_hit_sound.isChecked())
+        self.game_miss_choice.setEnabled(editable and self.game_miss_sound.isChecked())
+        self.game_miss_volume.setEnabled(editable and self.game_miss_sound.isChecked())
 
     def toggle_game(self) -> None:
         if not self.game_enabled.isChecked():
@@ -2414,14 +2458,20 @@ class MainWindow(QMainWindow):
                 timing = self._timing_description(float(offset_ms or 0.0))
                 self.visual.set_game_feedback("hit", grade_label, f"{timing} · +{int(points)}")
             if self.game_hit_sound.isChecked():
-                self.engine.queue_notification("game_hit", 0.70)
+                self.engine.queue_notification(
+                    str(self.game_hit_choice.currentData()),
+                    self.game_hit_volume.value() / 100.0,
+                )
         else:
             self.game_misses += 1
             self.game_recent.append(0.0)
             if show_feedback:
                 self.visual.set_game_feedback("miss", "MISS", detail or "промах")
             if self.game_miss_sound.isChecked():
-                self.engine.queue_notification("game_miss", 0.68)
+                self.engine.queue_notification(
+                    str(self.game_miss_choice.currentData()),
+                    self.game_miss_volume.value() / 100.0,
+                )
 
         self.game_recent = self.game_recent[-28:]
         self._log_game_event(
@@ -2737,7 +2787,11 @@ class MainWindow(QMainWindow):
                 "auto_timing_bias": False,
                 "lane_only_matching": True,
                 "hit_sound": self.game_hit_sound.isChecked(),
+                "hit_sound_key": self.game_hit_choice.currentData(),
+                "hit_volume": self.game_hit_volume.value(),
                 "miss_sound": self.game_miss_sound.isChecked(),
+                "miss_sound_key": self.game_miss_choice.currentData(),
+                "miss_volume": self.game_miss_volume.value(),
             },
             "audio": self.engine.stream_info(),
             "engine_config": dict(config.__dict__),
@@ -3287,7 +3341,11 @@ class MainWindow(QMainWindow):
                 "ti_key": self.game_ti_key.binding(),
                 "ta_key": self.game_ta_key.binding(),
                 "hit_sound": self.game_hit_sound.isChecked(),
+                "hit_sound_key": self.game_hit_choice.currentData(),
+                "hit_volume": self.game_hit_volume.value(),
                 "miss_sound": self.game_miss_sound.isChecked(),
+                "miss_sound_key": self.game_miss_choice.currentData(),
+                "miss_volume": self.game_miss_volume.value(),
                 "last_game": dict(self.last_game_stats),
             },
             "picking": {
@@ -3391,7 +3449,11 @@ class MainWindow(QMainWindow):
         self.game_ti_key.set_binding(str(game.get("ti_key", "F")))
         self.game_ta_key.set_binding(str(game.get("ta_key", "J")))
         self.game_hit_sound.setChecked(bool(game.get("hit_sound", True)))
+        self._combo_data(self.game_hit_choice, game.get("hit_sound_key", "game_hit"))
+        self.game_hit_volume.setValue(int(game.get("hit_volume", 70)))
         self.game_miss_sound.setChecked(bool(game.get("miss_sound", True)))
+        self._combo_data(self.game_miss_choice, game.get("miss_sound_key", "game_miss"))
+        self.game_miss_volume.setValue(int(game.get("miss_volume", 68)))
         saved_last = game.get("last_game", {})
         if isinstance(saved_last, dict):
             self.last_game_stats = {
@@ -3501,7 +3563,11 @@ class MainWindow(QMainWindow):
         self.game_ti_key.set_binding("key:F")
         self.game_ta_key.set_binding("key:J")
         self.game_hit_sound.setChecked(True)
+        self._combo_data(self.game_hit_choice, "game_hit")
+        self.game_hit_volume.setValue(70)
         self.game_miss_sound.setChecked(True)
+        self._combo_data(self.game_miss_choice, "game_miss")
+        self.game_miss_volume.setValue(68)
         self.last_game_stats = {
             "hits": 0,
             "misses": 0,

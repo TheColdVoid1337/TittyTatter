@@ -21,6 +21,17 @@ from training_modes import (
     sparse_click_matches,
 )
 
+GAME_HIT_SOUNDS = (
+    ("Hit 1", "game_hit"),
+    ("Hit 2", "game_hit_2"),
+    ("Hit 3", "game_hit_3"),
+)
+GAME_MISS_SOUNDS = (
+    ("Miss 1", "game_miss"),
+    ("Miss 2", "game_miss_2"),
+    ("Miss 3", "game_miss_3"),
+)
+
 SOUND_NAMES = (
     "Wood",
     "Low tick",
@@ -843,6 +854,33 @@ class AudioEngine:
             tone(118, 0.110, 0.042, 0.55),
         ), 0.42)
 
+        # Keep game_hit/game_miss byte-for-byte equivalent to the existing
+        # feedback choices above; the extra variants are additive.
+        game_hit_2 = normalize(mix_layers(
+            tone(720, 0.055, 0.016, 0.90),
+            tone(1080, 0.060, 0.020, 0.58),
+            tone(1800, 0.038, 0.010, 0.24),
+        ), 0.42)
+        game_hit_3 = normalize(mix_layers(
+            tone(1040, 0.050, 0.014, 0.80),
+            tone(1560, 0.070, 0.026, 0.60),
+            tone(2080, 0.045, 0.012, 0.28),
+        ), 0.42)
+
+        miss2_n = int(sr * 0.080)
+        miss2_t = np.arange(miss2_n, dtype=np.float32) / sr
+        miss2_noise = rng.normal(0.0, 1.0, miss2_n).astype(np.float32)
+        game_miss_2 = normalize(
+            miss2_noise * np.exp(-miss2_t / 0.020)
+            + tone(105, 0.100, 0.038, 0.70),
+            0.42,
+        )
+        game_miss_3 = normalize(mix_layers(
+            tone(210, 0.070, 0.020, 0.90),
+            tone(140, 0.120, 0.050, 0.72),
+            tone(82, 0.145, 0.060, 0.38),
+        ), 0.42)
+
         ramp_warn = normalize(mix_layers(
             tone(660, 0.105, 0.040, 0.70),
             tone(990, 0.125, 0.052, 0.48),
@@ -885,7 +923,11 @@ class AudioEngine:
             "metro": metro,
             "metro_accent": metro_accent,
             "game_hit": game_hit,
+            "game_hit_2": game_hit_2,
+            "game_hit_3": game_hit_3,
             "game_miss": game_miss,
+            "game_miss_2": game_miss_2,
+            "game_miss_3": game_miss_3,
             "ramp_warn": ramp_warn,
             "finish_horn": finish_horn,
         }
