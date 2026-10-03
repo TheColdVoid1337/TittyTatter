@@ -7,6 +7,10 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ## Unreleased
 
+No changes yet.
+
+## 0.0.4 — 2026-10-04
+
 ### Added
 
 - Seven first-class Training Modes driven by the same pattern/timeline: Повтор, Разгон с 1 доли, Разгон с 2 долей, Пропуски, Нарастающие пропуски, Редкий метроном, and Смещённый метроном.

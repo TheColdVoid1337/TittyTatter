@@ -4,7 +4,7 @@
 
 # TittyTatter
 
-> Current release: **0.0.3**
+> Current release: **0.0.4**
 
 **TittyTatter** is a Windows-first desktop **guitar rhythm trainer** for building and practising custom TI / TA rhythm patterns.
 

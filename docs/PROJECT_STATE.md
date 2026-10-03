@@ -3,8 +3,8 @@
 ## Baseline
 
 - Project: **TittyTatter**
-- Published application version: **0.0.3**
-- Published tag: **v0.0.3**
+- Published application version: **0.0.4**
+- Published tag: **v0.0.4**
 - Active development/release-preparation branch: **work**
 - Integration/release branch: **main**
 - Primary platform: Windows desktop
@@ -14,7 +14,7 @@
 - Preferred Windows backend: WASAPI
 - Development workflow: **vFLOW**
 
-The 0.0.3 release baseline is immutable.
+The 0.0.3 release baseline remains immutable. This document is prepared for the 0.0.4 release commit and intended `v0.0.4` tag.
 
 The current functional post-0.0.3 runtime baseline was manually accepted at:
 
@@ -32,7 +32,7 @@ for that functional baseline.
 
 Subsequent commits in the current release-preparation sequence are documentation/public-asset changes and do not by themselves constitute new local runtime validation.
 
-The next numeric release version has **not yet been selected in this document**. Root `VERSION` remains `0.0.3` until the explicit release metadata checkpoint.
+Release version **0.0.4** has been explicitly selected. Root `VERSION` is `0.0.4` at this release metadata checkpoint. Final publication still requires the exact release commit to pass the local release gate, be fast-forwarded to `main`, and receive the verified annotated tag `v0.0.4`.
 
 ## Current product definition
 
@@ -232,16 +232,13 @@ Current documentation goals:
 
 ## Immediate release sequence
 
-1. Finish documentation/public asset preparation on `work`.
-2. Review local `git status --short`.
-3. Confirm the intended next release version.
-4. Apply dedicated release metadata update.
-5. Pull the exact release candidate locally.
-6. Run the final release gate.
-7. Fast-forward `main` if the branch relationship remains clean.
-8. Create/verify annotated `vX.Y.Z` tag.
-9. Synchronize retained `work` to the final release commit.
-10. Delete obsolete old branches only after final containment verification.
+1. Pull the exact 0.0.4 release candidate locally.
+2. Run the final release gate from `TEST_MATRIX.md` / `WORKFLOW.md`.
+3. Re-check that `work` remains a clean descendant of `main`.
+4. Fast-forward `main` to the accepted release commit.
+5. Create and verify the annotated `v0.0.4` tag.
+6. Synchronize retained `work` to the final release commit.
+7. Delete obsolete old branches only after final containment verification.
 
 ## Durable repository rules
 
