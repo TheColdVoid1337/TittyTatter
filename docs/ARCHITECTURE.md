@@ -193,7 +193,9 @@ The target design is canonical in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 **P5 is implemented:** Ramp stages are optimized as one exercise. Persistent real attacks use one shared stroke across every stage where they exist, P4 motif equality remains active, each stage contributes a cyclic boundary factor, and temporary TA placeholders remain stage-local bridge attacks.
 
-P1-P5 are not yet wired to the visual arrow generator; P6 runtime integration and manual acceptance remain ahead.
+**P6 runtime cutover is implemented:** `app.py` now routes Alternate to the v2 attack-alternate adapter, normal Economy to the event-based v2 Economy adapter, and Ramp Economy to the P5 joint-stage solver. The public UI shape is unchanged.
+
+Manual acceptance is still required before the transitional legacy picking functions are removed.
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 
