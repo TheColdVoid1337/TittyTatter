@@ -146,9 +146,9 @@ The canonical next design is:
 
 - [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md)
 
-Picking Logic v2 is currently at **P4 whole-beat motif constraints implemented; local validation pending**.
+Picking Logic v2 is currently at **P5 joint Ramp solver implemented; local validation pending**.
 
-P1 provides normalized events and stable real/placeholder identity. P2 provides deterministic attack-alternate decisions. P3 provides event-based practical Economy transitions and was locally validated green on `4949c74`. P4 now moves repeated whole-beat motif consistency into the Economy optimization itself through shared motif-relative stroke variables.
+P1 provides normalized events and stable real/placeholder identity. P2 provides deterministic attack-alternate decisions. P3 provides event-based practical Economy transitions. P4 whole-beat motif constraints were locally validated green on `86fb7ab`. P5 now solves all configured Ramp stages together with persistent real-attack stroke identity, stage-local placeholders, motif constraints, and per-stage cyclic boundaries.
 
 The current UI/runtime arrow generator still uses the transitional path; v2 visual cutover remains deferred until the integration phase.
 
@@ -284,10 +284,10 @@ Documentation is updated in place.
 3. **P1 complete:** normalized Picking events plus persistent real-attack / stage-local placeholder identities.
 4. **P2 complete and locally validated:** deterministic attack-alternate engine on normalized events.
 5. **P3 complete and locally validated:** Economy transition/scoring semantics with explicit transition types, start-polarity search, parity, loop-boundary scoring, linked sweeps, and explanations.
-6. **P4 whole-beat stage implemented; local check pending:** motif consistency is enforced inside the optimizer rather than post-hoc.
-7. **Next after P4 validation: P5:** implement joint Ramp-stage solving using persistent real-attack identities and stage-local placeholders.
-8. Run the full automated Picking regression matrix.
-9. Perform local GUI/manual acceptance before replacing the transitional runtime path.
+6. **P4 complete and locally validated:** motif consistency is enforced inside the optimizer rather than post-hoc.
+7. **P5 implemented; local check pending:** all Ramp stages are solved jointly with persistent real attacks, stage-local placeholders, motif constraints, and cyclic stage boundaries.
+8. **Next after P5 validation: P6:** cut the v2 engines into the Picking Guide runtime and run the full automated/manual acceptance matrix.
+9. Perform local GUI/manual acceptance before deleting the transitional picking path.
 
 ## Durable repository rules
 
