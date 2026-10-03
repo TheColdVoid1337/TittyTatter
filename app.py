@@ -1786,6 +1786,7 @@ class MainWindow(QMainWindow):
         root.addStretch(1)
         return tab
 
+    @staticmethod
     def _volume_slider(value: int) -> QSlider:
         slider = QSlider(Qt.Horizontal)
         slider.setRange(0, 200)
