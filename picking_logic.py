@@ -357,10 +357,11 @@ def _stabilise_repeated_beat_runs(
     """Keep consecutive identical beats as one repeatable motor pattern.
 
     Economy picking should not flip an otherwise identical beat merely to save
-    a small transition cost at the edge of a repeated run. A repeated beat is
-    therefore optimized as its own cycle and the same picking is copied to
-    every repetition. In cyclic mode the end/start bar boundary also counts as
-    adjacent.
+    a small transition cost at the edge of a repeated run. The phrase-level
+    optimizer is allowed to find context-sensitive variants first; among those
+    repeated copies, the most sweep-rich variant becomes the stable motor
+    pattern for the whole run. In cyclic mode the end/start bar boundary also
+    counts as adjacent.
     """
     result = [list(row) for row in directions]
     count = len(beats)
