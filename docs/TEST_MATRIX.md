@@ -52,6 +52,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Game matching | nearest same-lane target inside the accepted window |
 | Game grading | PERFECT/GREAT/GOOD/HIT boundaries |
 | Picking | representative economy/alternate/cyclic behavior |
+| Picking v2 P1 | normalized real/OFF/covered slots, exact rhythmic phase, stable real-attack identity across Ramp stages, stage-local placeholder identity, explicit reset boundaries |
 | Syntax | application modules compile |
 
 ## Automated export coverage

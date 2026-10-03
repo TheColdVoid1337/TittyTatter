@@ -146,7 +146,9 @@ The canonical next design is:
 
 - [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md)
 
-Picking Logic v2 is currently at **P0 specification**. Runtime implementation of the v2 event/state/constraint model has not yet begun.
+Picking Logic v2 is currently at **P1 implemented**.
+
+The normalized event/identity layer now exists in `picking_logic.py` and is covered by deterministic core tests. The current UI/runtime arrow generator still uses the transitional optimizer; P1 is infrastructure only and does not claim a visual behavior cutover.
 
 Picking Guide and Game remain mutually exclusive in the UI.
 
@@ -277,8 +279,8 @@ Documentation is updated in place.
 
 1. Treat `docs/PICKING_LOGIC_V2.md` as the canonical Picking redesign specification.
 2. Do not add another pattern-specific heuristic unless needed as a regression-preserving emergency fix.
-3. Begin P1 with normalized Picking events and persistent/placeholder identities.
-4. Implement Alternate v2 and lock it with deterministic tests.
+3. **P1 complete:** normalized Picking events plus persistent real-attack / stage-local placeholder identities.
+4. **Next: P2:** implement Alternate v2 on normalized events and lock its attack-alternate semantics with deterministic tests.
 5. Implement Economy transition/scoring semantics.
 6. Move motif consistency into optimizer constraints.
 7. Implement joint Ramp-stage solving.

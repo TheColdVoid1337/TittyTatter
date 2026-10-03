@@ -1,8 +1,8 @@
 # Picking Logic v2
 
-Status: **design specification**  
+Status: **P1 implemented — normalized event/identity layer**  
 Target: post-0.0.4 development on `work`  
-Runtime implementation: **not started by this document**
+Runtime cutover: **not yet — current arrow generation remains transitional**
 
 This document defines the next picking-engine design for TittyTatter. It exists to stop the Picking Guide from accumulating one-off fixes for individual patterns and to make the intended guitar-practice behavior explicit before another runtime rewrite.
 
@@ -816,17 +816,32 @@ This document.
 
 No runtime behavior is changed merely by accepting P0.
 
-## Phase P1 — normalized event model
+## Phase P1 — normalized event model — IMPLEMENTED
 
-Add pure data structures/helpers for:
+Implemented on `work` without changing the current UI/runtime arrow path.
 
-- PickingEvent;
-- persistent attack identity;
-- placeholder identity;
-- continuity/reset classification;
-- transition classification.
+Current P1 primitives in `picking_logic.py`:
 
-Keep the old UI/runtime path working.
+- `PickingEventSource.REAL_PATTERN`;
+- `PickingEventSource.RAMP_PLACEHOLDER`;
+- immutable `PickingEvent`;
+- explicit `COVERED` slots;
+- exact `Fraction` rhythmic phase;
+- stable coordinate-based `persistent_attack_id` for real attacks;
+- stage-local placeholder slots with no persistent attack id;
+- explicit caller-controlled `phrase_boundary_before`;
+- `normalize_picking_events(...)`;
+- `normalize_ramp_stage_events(...)`.
+
+Important P1 invariant:
+
+> OFF is normalized as a rhythmic slot but does not automatically create a phrase reset.
+
+Covered long-note beats are also represented explicitly instead of disappearing from the normalized stream.
+
+P1 intentionally leaves `motif_id=None`; motif detection/constraints belong to P4.
+
+The old UI/runtime path remains working and is not cut over by P1.
 
 ## Phase P2 — Alternate v2
 
