@@ -5,7 +5,8 @@
 - Project: **TittyTatter**
 - Published application version: **0.0.4**
 - Published tag: **v0.0.4**
-- Active development/release-preparation branch: **work**
+- Published release commit: `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`
+- Active development branch: **work**
 - Integration/release branch: **main**
 - Primary platform: Windows desktop
 - Language: Python
@@ -14,25 +15,26 @@
 - Preferred Windows backend: WASAPI
 - Development workflow: **vFLOW**
 
-The 0.0.3 release baseline remains immutable. This document is prepared for the 0.0.4 release commit and intended `v0.0.4` tag.
+The 0.0.4 release is complete and immutable.
 
-The current functional post-0.0.3 runtime baseline was manually accepted at:
+At release close:
 
 ```text
-2ffca5d Refine focus rhythm strip and beat lamps
+main -> 1722c0a Release TittyTatter 0.0.4
+work -> 1722c0a Release TittyTatter 0.0.4
+tag  -> v0.0.4 (annotated) -> 1722c0a
 ```
 
-The project owner also confirmed a green:
+The project owner confirmed both:
 
 ```text
 ./tt check
+TittyTatter checks OK
 ```
 
-for that functional baseline.
+and the manual GUI/audio smoke for that exact release commit.
 
-Subsequent commits in the current release-preparation sequence are documentation/public-asset changes and do not by themselves constitute new local runtime validation.
-
-Release version **0.0.4** has been explicitly selected. Root `VERSION` is `0.0.4` at this release metadata checkpoint. Final publication still requires the exact release commit to pass the local release gate, be fast-forwarded to `main`, and receive the verified annotated tag `v0.0.4`.
+Post-0.0.4 development continues on `work`. Root `VERSION` remains `0.0.4` until a future explicit release checkpoint.
 
 ## Current product definition
 
@@ -96,7 +98,7 @@ Current first-class Training Modes:
 
 The Training Mode is the source of truth in both normal Training and Game.
 
-Gap modes remove audible/visual rhythmic guidance during silence while the internal timeline continues.
+Gap modes remove audible/visual rhythmic guidance while the internal timeline continues.
 
 ### Game
 
@@ -121,7 +123,7 @@ Opposite-lane fallback and adaptive timing bias remain intentionally absent.
 
 ### Picking Guide / Штрих
 
-Current Picking Guide includes:
+The published 0.0.4 baseline includes:
 
 - economy strategy;
 - strict alternate strategy;
@@ -131,7 +133,22 @@ Current Picking Guide includes:
 - cyclic repeated-beat period preservation;
 - cyclic Ramp-stage behavior.
 
-Picking Guide and Game are mutually exclusive in the UI.
+Post-0.0.4 `work` contains additional transitional picking fixes derived from manual practice screenshots:
+
+- repeated active motifs are stabilized;
+- repeated patterns may preserve a sweep-rich phrase-level variant;
+- Ramp stages attempt to keep already-learned strokes stable;
+- inactive Ramp TA pulses are treated as a continuing attack stream rather than unrelated one-note phrases.
+
+These fixes are useful regression evidence, but they are **not** the final Picking architecture.
+
+The canonical next design is:
+
+- [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md)
+
+Picking Logic v2 is currently at **P0 specification**. Runtime implementation of the v2 event/state/constraint model has not yet begun.
+
+Picking Guide and Game remain mutually exclusive in the UI.
 
 ### Focus mode
 
@@ -158,67 +175,91 @@ The application has:
 
 The public README uses a dedicated transparent repository asset so GitHub does not depend on Qt runtime image conversion.
 
+## Current development focus
+
+Immediate focus after 0.0.4:
+
+> **Picking Logic v2**
+
+The purpose is to replace accumulating pattern-specific Picking heuristics with one coherent, testable optimizer.
+
+The accepted design direction includes:
+
+- Alternate = attack-alternate;
+- Economy = practical directional economy, not maximum sweeping;
+- stable repeated motor motifs;
+- explicit continuity rather than OFF-always-reset behavior;
+- start-polarity search;
+- parity and loop-boundary awareness;
+- transition classification including real directional sweeps;
+- future escape-profile hook without pretending to infer user biomechanics;
+- joint Ramp-stage optimization with persistent real attacks and stage-local placeholders;
+- deterministic explanations/regression cases.
+
+See `docs/PICKING_LOGIC_V2.md` for the complete state model, scoring priorities, 42-case regression matrix, and phased implementation plan.
+
 ## Validation state
 
-Confirmed by the project owner for the accepted functional baseline:
+### Published 0.0.4
 
-- `work @ 2ffca5d`;
+Confirmed:
+
+- release commit `1722c0a`;
 - `./tt check` green;
-- Focus visual state manually accepted;
-- latest TI pill / beat-lamp positioning accepted.
+- manual GUI/audio smoke accepted;
+- annotated `v0.0.4` verified to peel to the same commit.
 
-Release-preparation documentation/asset commits were created after that acceptance.
+### Post-0.0.4 work
 
-Before the final tag, pull the exact release commit and perform the final release gate described in `TEST_MATRIX.md` and `WORKFLOW.md`.
+Recent Picking changes on `work` were investigated through manual screenshots and direct practice feedback.
+
+The last runtime Picking commit before the v2 design-document commits is:
+
+```text
+cdda56a Alternate inactive ramp TA pulses
+```
+
+That exact runtime change still requires normal local confirmation if it has not yet been checked after pull.
+
+The later Picking Logic v2 commits are documentation-only and do not themselves validate or alter runtime behavior.
+
+Do not report post-release runtime code as locally validated without explicit user evidence.
 
 ## Repository / branch state
 
-At the beginning of this release-preparation cycle:
+Remote release cleanup is complete.
 
-- `main` was `ac0c83f` — Release TittyTatter 0.0.3;
-- `work` was a clean descendant of `main`;
-- `main...work` was 30 commits ahead / 0 behind at the accepted functional baseline.
+Expected remote branches:
 
-Release-preparation commits are being added to `work`.
+```text
+main
+work
+```
 
-Old branches checked during release preparation:
+Published `main` remains on the immutable 0.0.4 release commit.
 
-- `dev/0.0.2` is fully contained in the current `main` history (no unique commits relative to `main`);
-- `release/0.0.1` is fully contained in the current `main` history (no unique commits relative to `main`).
+`work` is a clean descendant of `main` and contains post-release Picking experiments plus the Picking Logic v2 specification/documentation.
 
-They are cleanup candidates **after** the new release is tagged and verified.
+Obsolete remote branches `dev/0.0.2` and `release/0.0.1` were removed only after containment verification showed no unique commits.
 
 Do not delete `work` by default.
 
-## Repository cleanup result so far
-
-The tracked repository root and `docs/` listing were inspected during release preparation.
-
-No obvious tracked temporary/generated junk was identified for deletion.
-
-Local untracked files cannot be inspected through the GitHub connector, so final release preparation still requires the project owner to provide:
-
-```bash
-git status --short
-```
-
-Unknown local files must not be deleted automatically.
-
 ## Documentation state
 
-The release-preparation cycle is updating documentation in place.
+Current canonical project documents include:
 
-Current documentation goals:
-
-- public root README written for end users;
-- dedicated transparent README logo asset;
+- public root README for end users;
 - current User Guide;
 - current Architecture;
-- current Training-focused Roadmap;
+- vFLOW Workflow;
+- Picking Logic v2 design;
+- Training-focused Roadmap;
 - durable Decisions;
-- expanded Test Matrix;
-- post-0.0.3 Unreleased Changelog;
-- canonical vFLOW Workflow document.
+- Test Matrix;
+- Changelog;
+- this Project State.
+
+Documentation is updated in place.
 
 ## Known limitations
 
@@ -229,16 +270,20 @@ Current documentation goals:
 - No finalized installer/updater or packaged binary release workflow.
 - Practice history is limited compared with a long-term statistics database.
 - Picking Guide currently uses the project's TI/string-5 and TA/string-6 reference model.
+- Current Picking runtime logic remains transitional until Picking Logic v2 replaces the accumulated post-0.0.4 heuristics.
+- Player-specific USX/DSX/DBX behavior is not inferred or configured yet.
 
-## Immediate release sequence
+## Immediate sequence
 
-1. Pull the exact 0.0.4 release candidate locally.
-2. Run the final release gate from `TEST_MATRIX.md` / `WORKFLOW.md`.
-3. Re-check that `work` remains a clean descendant of `main`.
-4. Fast-forward `main` to the accepted release commit.
-5. Create and verify the annotated `v0.0.4` tag.
-6. Synchronize retained `work` to the final release commit.
-7. Delete obsolete old branches only after final containment verification.
+1. Treat `docs/PICKING_LOGIC_V2.md` as the canonical Picking redesign specification.
+2. Do not add another pattern-specific heuristic unless needed as a regression-preserving emergency fix.
+3. Begin P1 with normalized Picking events and persistent/placeholder identities.
+4. Implement Alternate v2 and lock it with deterministic tests.
+5. Implement Economy transition/scoring semantics.
+6. Move motif consistency into optimizer constraints.
+7. Implement joint Ramp-stage solving.
+8. Run the full automated Picking regression matrix.
+9. Perform local GUI/manual acceptance before replacing the transitional runtime path.
 
 ## Durable repository rules
 
@@ -256,3 +301,4 @@ Current documentation goals:
 12. Stable TI/TA training sound synthesis should not drift during unrelated work.
 13. Add functionality without unnecessarily replacing working functionality.
 14. Do not claim local validation succeeded without user evidence.
+15. New Picking failures should become regression cases against the v2 model instead of accumulating ad-hoc special cases.
