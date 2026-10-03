@@ -62,9 +62,9 @@ from game_logic import (
 )
 from model import BarPattern, BeatPattern
 from picking_logic import (
-    economy_pick_beats,
-    economy_pick_ramp_beats,
-    strict_alternate_pick_beats,
+    alternate_pick_beats_v2,
+    economy_pick_beats_v2,
+    economy_pick_ramp_stages_v2,
 )
 from presets import (
     CORE_PRACTICE_PRESETS,
@@ -3191,6 +3191,7 @@ class MainWindow(QMainWindow):
         mode = self.mode.currentData()
         full_beat_states: list[list[str]] = []
         beat_states: list[list[str]] = []
+        placeholder_beats: set[int] = set()
 
         for beat_index, beat in enumerate(pattern.beats):
             if coverage[beat_index] != beat_index:
@@ -3201,10 +3202,11 @@ class MainWindow(QMainWindow):
                 full_states = list(beat.steps)
 
             if mode in RAMP_MODES and beat_index >= active and full_states:
-                # A not-yet-opened ramp beat is practised as TA on the beat,
-                # then silence. Its temporary stroke may still be optimized,
-                # but opened beats keep the canonical full-pattern picking.
+                # A not-yet-opened Ramp beat is a stage-local TA placeholder.
+                # Picking Logic v2 keeps it separate from the persistent real
+                # attack that will replace it when this beat opens.
                 states = [TA] + [OFF] * max(0, beat.subdivision - 1)
+                placeholder_beats.add(beat_index)
             else:
                 states = list(full_states)
 
@@ -3212,29 +3214,35 @@ class MainWindow(QMainWindow):
             beat_states.append(states)
 
         if self.picking_strategy.currentData() == "alternate":
-            directions_by_beat = strict_alternate_pick_beats(
-                beat_states,
-                TI,
-                TA,
-                OFF,
-            )
-        elif mode in RAMP_MODES:
-            directions_by_beat = economy_pick_ramp_beats(
+            directions_by_beat = alternate_pick_beats_v2(
                 full_beat_states,
                 beat_states,
-                active,
-                ramp_stages(mode, pattern.numerator),
                 TI,
                 TA,
                 OFF,
+                placeholder_beats=placeholder_beats,
+                stage_id=f"{mode}:alternate:{active}",
             )
+        elif mode in RAMP_MODES:
+            configured_stages = ramp_stages(mode, pattern.numerator)
+            if active not in configured_stages:
+                configured_stages = (*configured_stages, active)
+            directions_by_beat = economy_pick_ramp_stages_v2(
+                full_beat_states,
+                configured_stages,
+                TI,
+                TA,
+                OFF,
+            )[active]
         else:
-            directions_by_beat = economy_pick_beats(
+            directions_by_beat = economy_pick_beats_v2(
+                full_beat_states,
                 beat_states,
                 TI,
                 TA,
                 OFF,
-                loop=True,
+                cyclic=True,
+                stage_id=f"{mode}:economy",
             )
         row5: list[list[str]] = []
         row6: list[list[str]] = []
