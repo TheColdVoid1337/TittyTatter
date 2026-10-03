@@ -197,6 +197,39 @@ abab_loop = economy_pick_beats(
 assert abab_loop[0] == abab_loop[2]
 assert abab_loop[1] == abab_loop[3]
 
+# A silent beat is a picking boundary, so a repeated active motif before it
+# must still keep one stable picking pattern instead of flipping on the last
+# repetition because the whole four-beat bar itself is not periodic.
+rest_separated_loop = economy_pick_beats(
+    [
+        [TI, TA, TA, TA],
+        [TI, TA, TA, TA],
+        [TI, TA, TA, TA],
+        [OFF, OFF, OFF, OFF],
+    ],
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+assert rest_separated_loop[0] == rest_separated_loop[1] == rest_separated_loop[2]
+assert rest_separated_loop[3] == [None, None, None, None]
+
+# The same rule also works when a repeated active section crosses the visual
+# end/start boundary of the bar.
+wrapped_rest_loop = economy_pick_beats(
+    [
+        [TI, TA, TA, TA],
+        [OFF, OFF, OFF, OFF],
+        [TI, TA, TA, TA],
+    ],
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+assert wrapped_rest_loop[0] == wrapped_rest_loop[2]
+
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
 assert len(CORE_PRACTICE_PRESETS) == 24

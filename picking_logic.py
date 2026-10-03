@@ -256,25 +256,16 @@ def _minimal_beat_period(beats: list[list[str]]) -> int:
     return count
 
 
-def economy_pick_beats(
+def _economy_pick_beat_block(
     beats: list[list[str]],
     ti_state: str,
     ta_state: str,
     off_state: str,
     *,
-    loop: bool,
+    period: int,
+    cyclic: bool,
 ) -> list[list[str | None]]:
-    """Choose picking per beat while preserving repeated loop structure.
-
-    In loop mode the shortest whole-beat period is optimized as a cycle and
-    then repeated. Therefore four identical rhythmic beats receive four
-    identical picking patterns, and A/B/A/B keeps the same A and B picking on
-    both repetitions.
-    """
-    if not beats:
-        return []
-
-    period = _minimal_beat_period(beats) if loop else len(beats)
+    """Optimize one beat block and repeat its requested whole-beat period."""
     base_beats = beats[:period]
 
     flat: list[str] = []
@@ -295,7 +286,7 @@ def economy_pick_beats(
         ti_state,
         ta_state,
         off_state,
-        cyclic=loop,
+        cyclic=cyclic,
     )
 
     base_directions: list[list[str | None]] = []
@@ -309,3 +300,92 @@ def economy_pick_beats(
         list(base_directions[index % period])
         for index in range(len(beats))
     ]
+
+
+def economy_pick_beats(
+    beats: list[list[str]],
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+    *,
+    loop: bool,
+) -> list[list[str | None]]:
+    """Choose picking per beat while preserving repeated loop structure.
+
+    In loop mode repeated whole-beat motifs keep the same picking on every
+    repetition. Fully silent beats split picking continuity, so a repeated
+    motif immediately before/after silence is detected inside that active
+    section instead of being flattened into one long phrase.
+    """
+    if not beats:
+        return []
+
+    if not loop:
+        return _economy_pick_beat_block(
+            beats,
+            ti_state,
+            ta_state,
+            off_state,
+            period=len(beats),
+            cyclic=False,
+        )
+
+    silent_beats = [
+        index
+        for index, states in enumerate(beats)
+        if not any(state in (ti_state, ta_state) for state in states)
+    ]
+    if not silent_beats:
+        period = _minimal_beat_period(beats)
+        return _economy_pick_beat_block(
+            beats,
+            ti_state,
+            ta_state,
+            off_state,
+            period=period,
+            cyclic=True,
+        )
+
+    # A fully silent beat is already a hard picking boundary. Rotate the bar
+    # to such a boundary so an active section that wraps across bar end/start
+    # stays contiguous while we detect its own repeated whole-beat period.
+    cut = silent_beats[0]
+    rotated = beats[cut:] + beats[:cut]
+    rotated_result: list[list[str | None]] = [
+        [None] * len(states)
+        for states in rotated
+    ]
+
+    index = 0
+    while index < len(rotated):
+        states = rotated[index]
+        if not any(state in (ti_state, ta_state) for state in states):
+            index += 1
+            continue
+
+        end = index + 1
+        while end < len(rotated) and any(
+            state in (ti_state, ta_state)
+            for state in rotated[end]
+        ):
+            end += 1
+
+        active_block = rotated[index:end]
+        period = _minimal_beat_period(active_block)
+        repeated = period < len(active_block)
+        block_result = _economy_pick_beat_block(
+            active_block,
+            ti_state,
+            ta_state,
+            off_state,
+            period=period,
+            cyclic=repeated,
+        )
+        rotated_result[index:end] = block_result
+        index = end
+
+    result: list[list[str | None]] = [[] for _ in beats]
+    for rotated_index, directions in enumerate(rotated_result):
+        original_index = (cut + rotated_index) % len(beats)
+        result[original_index] = directions
+    return result

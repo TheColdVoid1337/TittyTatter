@@ -7,7 +7,9 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ## Unreleased
 
-No changes yet.
+### Fixed
+
+- Picking Guide now preserves the same whole-beat picking pattern for repeated active motifs separated by fully silent beats, including motifs that cross the bar boundary.
 
 ## 0.0.4 — 2026-10-04
 
