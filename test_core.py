@@ -379,6 +379,31 @@ sweep_stage2 = economy_pick_ramp_beats(
 assert sweep_stage2[0] == sweep_stage2[1]
 assert sweep_stage2[0][0] == DOWN and sweep_stage2[0][1] == DOWN
 
+# Generated inactive TA pulses are not separate phrases. Keep the first pulse
+# chosen by the phrase-level transition, then alternate subsequent same-string
+# TA pulses instead of restarting every isolated TA as a downstroke.
+stage1_effective = [
+    list(sweep_beat),
+    [TA, OFF, OFF, OFF],
+    [TA, OFF, OFF, OFF],
+    [TA, OFF, OFF, OFF],
+]
+stage1_result = economy_pick_ramp_beats(
+    sweep_full,
+    stage1_effective,
+    1,
+    (1, 2, 3, 4),
+    TI,
+    TA,
+    OFF,
+)
+inactive_directions = [
+    stage1_result[index][0]
+    for index in (1, 2, 3)
+]
+assert inactive_directions[1] != inactive_directions[0]
+assert inactive_directions[2] == inactive_directions[0]
+
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
 assert len(CORE_PRACTICE_PRESETS) == 24

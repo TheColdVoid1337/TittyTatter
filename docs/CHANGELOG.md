@@ -13,6 +13,7 @@ Numeric headings are added when a release version is chosen. Future development 
 - Economy picking keeps consecutive identical beats as one stable motor pattern instead of flipping a later repetition for a small boundary-transition advantage; looping runs also stay consistent across the bar boundary.
 - Ramp modes now keep one learned economy-picking scheme across stages without forcing the fully-open bar to define it: the latest incomplete stage anchors the pattern, preserving useful sweeps into temporary inactive TA pulses while earlier and later stages keep already-learned stroke directions stable.
 - Repeated-beat stabilization now chooses the sweep-rich phrase-level Economy variant already found in context instead of re-optimizing the repeated beat as an isolated cycle, preventing common ramp patterns from degenerating into strict alternate picking.
+- Generated TA pulses on still-inactive Ramp beats now preserve the first context-dependent transition and then alternate down/up across subsequent same-string pulses instead of restarting every pulse with a downstroke.
 
 ## 0.0.4 — 2026-10-04
 

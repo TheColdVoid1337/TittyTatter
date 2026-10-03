@@ -561,10 +561,11 @@ def economy_pick_ramp_beats(
 
     Use the latest *incomplete* ramp stage as the anchor instead. It contains
     the most real musical context available before the bar is fully opened,
-    while still preserving the useful transition into the final temporary TA
+    while still preserving the useful transition into the first temporary TA
     pulse. Earlier stages inherit the already-open prefix from that anchor;
     later/full stages keep that learned prefix and optimize only newly opened
-    beats.
+    beats. Consecutive temporary TA pulses then alternate on string 6 instead
+    of resetting to a downstroke after each generated silent tail.
     """
     if len(full_beats) != len(effective_beats):
         raise ValueError("full and effective ramp beat counts must match")
@@ -603,8 +604,34 @@ def economy_pick_ramp_beats(
         loop=True,
     )
 
+    def alternate_inactive_ta_pulses(
+        directions: list[list[str | None]],
+    ) -> list[list[str | None]]:
+        """Preserve the first transition, then alternate generated TA pulses."""
+        result = [list(row) for row in directions]
+        placeholders = [
+            beat_index
+            for beat_index in range(active, beat_count)
+            if effective_beats[beat_index]
+            and effective_beats[beat_index][0] == ta_state
+            and all(
+                state == off_state
+                for state in effective_beats[beat_index][1:]
+            )
+        ]
+        if len(placeholders) < 2:
+            return result
+
+        first_direction = result[placeholders[0]][0]
+        direction = first_direction if first_direction in (DOWN, UP) else DOWN
+        for beat_index in placeholders:
+            if result[beat_index]:
+                result[beat_index][0] = direction
+            direction = UP if direction == DOWN else DOWN
+        return result
+
     if active == anchor_active and effective_beats == anchor_beats:
-        return [list(row) for row in anchor_directions]
+        return alternate_inactive_ta_pulses(anchor_directions)
 
     fixed_by_beat: list[list[str | None]] = []
     learned_prefix = min(active, anchor_active)
@@ -631,7 +658,7 @@ def economy_pick_ramp_beats(
         else:
             fixed_by_beat.append([None] * len(states))
 
-    return _economy_pick_beat_block(
+    result = _economy_pick_beat_block(
         effective_beats,
         ti_state,
         ta_state,
@@ -640,3 +667,4 @@ def economy_pick_ramp_beats(
         cyclic=True,
         fixed_by_beat=fixed_by_beat,
     )
+    return alternate_inactive_ta_pulses(result)
