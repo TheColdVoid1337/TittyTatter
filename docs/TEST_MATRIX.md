@@ -2,21 +2,39 @@
 
 ## Canonical local gate
 
-Normal validation is local:
+Normal automated validation is local:
 
 ```bash
 ./tt check
 ```
 
-The gate currently runs:
+The gate currently runs approximately:
 
-- `test_core.py`;
-- Python compile checks for application modules;
-- `test_exports.py`;
-- `test_game_logger.py`;
-- dependency imports.
+1. `test_core.py`;
+2. compile checks for the main Python modules;
+3. `test_exports.py`;
+4. `test_game_logger.py`;
+5. dependency imports.
+
+Expected green ending:
+
+```text
+== core tests ==
+core tests OK
+== compile ==
+== export tests ==
+export tests OK
+== game log tests ==
+game log tests OK
+== imports ==
+dependencies OK
+== result ==
+TittyTatter checks OK
+```
 
 GitHub Actions are not required for ordinary validation.
+
+A green automated gate does **not** replace manual GUI/audio acceptance.
 
 ## Automated core coverage
 
@@ -26,137 +44,293 @@ GitHub Actions are not required for ordinary validation.
 | Grid labels | meter-aware labels |
 | Meter model | non-4/4 bars serialize/deserialize |
 | Legacy sessions | old subdivision values migrate |
-| Mute | serialized and restored |
+| Mute | serialized/restored where applicable |
 | Span coverage | long notes cover expected metric beats |
-| Defaults | TI and TA audio enabled by default |
+| Defaults | established TI/TA audio defaults |
+| Training modes | meter-aware ramp/gap/click helper behavior |
 | Game lanes | TI/TA input cannot consume the opposite-lane target |
-| Game matching | nearest same-lane target is selected inside the accepted window |
+| Game matching | nearest same-lane target inside the accepted window |
 | Game grading | PERFECT/GREAT/GOOD/HIT boundaries |
-| Picking | economy transitions for representative 5/6-string sequences |
+| Picking | representative economy/alternate/cyclic behavior |
 | Syntax | application modules compile |
 
 ## Automated export coverage
 
 | Export | Gate |
 |---|---|
-| MIDI | valid SMF header/chunk and repeated bar markers |
-| GP5 | file writes and parses back through PyGuitarPro |
-| GP5 repeats | requested number of measures exists |
-| GP5 labels | annotations only occur in the first exported measure |
-| GP5 dead note | TA parses as dead note without Palm Mute |
-| WAV | expected sample rate, sample width, mono channel, frames |
+| MIDI | valid SMF structure / repeated pattern |
+| GP5 | file writes and parses through PyGuitarPro |
+| GP5 repeats | requested measures exist |
+| GP5 labels | annotation placement remains controlled |
+| GP5 dead note | TA exports as the intended dead-note representation |
+| WAV | expected sample rate/sample width/channel/frame behavior |
 
 ## Automated diagnostic-log coverage
 
-- logging disabled does not create the logs directory;
-- logging enabled creates a raw JSONL session;
-- input/event records serialize;
-- finish creates a `.tar.gz` archive;
-- raw JSONL is deleted after successful compression;
-- archive content reads back correctly.
+- logging disabled does not create a Game log;
+- logging enabled creates a unique raw JSONL session;
+- records serialize;
+- finish/stop creates a `.tar.gz`;
+- raw JSONL is deleted after successful archival;
+- archived content reads back correctly.
 
-## Manual GUI checks
+## Manual release acceptance
 
-Before tagging:
+Before tagging, verify the exact release commit locally.
+
+### Startup / layout
 
 - application opens without traceback;
-- meter can change across representative signatures such as 4/4, 3/4, 6/8, 7/8, 5/16;
-- beat editors rebuild correctly and horizontal scrolling works;
-- established overall layout remains stable;
-- playback auto-scroll keeps the active beat visible;
-- grid/preset changes apply immediately;
-- step buttons cycle (ТИ) → ТА → OFF;
-- per-beat Mute dims the beat and remains visibly red;
-- Mute is disabled in ramp modes;
-- mode-dependent controls grey out when their parent option is disabled;
-- random-bar generation fits the current meter;
-- timer counts down and stops playback;
-- factory-style timer completion horn sounds reliably;
-- session save/load restores the exercise;
-- local settings survive restart;
-- settings reset requires exact DELETE confirmation.
+- switching tabs does not cause unexpected window growth/shrink;
+- normal editable beat cards remain correctly laid out;
+- horizontal scrolling remains usable for wide meters;
+- About tab opens correctly;
+- TittyTatter icon renders correctly;
+- TheColdVoid1337/repository link remains clickable.
 
-## Manual ramp checks
+### Training / Game selector
 
-- inactive ramp beats display TA followed by silence;
-- game input expects TA for inactive ramp beats;
-- stage progress shows completed/remaining repetitions;
-- warning fires before every upward stage change;
-- warning also fires before full-stage wrap back to the first stage;
-- picking overlay updates as each new ramp beat becomes active.
+- top **Тренировка / Игра** selector is mutually exclusive;
+- normal Training launch works;
+- when **Игра** is selected, Start starts Game execution of the current Training Mode;
+- Space follows the same Training/Game execution state;
+- Picking Guide and Game remain mutually exclusive.
 
-## Manual picking checks
+### Meter / pattern editor
 
-- overlay remains on the left side of the metronome and does not move layout;
-- beat separators align across strings 5 and 6;
-- upstroke arrows are green;
-- downstroke arrows are red;
-- suggested directions change according to TI/TA string transitions rather than fixed alternate picking.
+Check representative meters such as:
 
-## Manual audio checks
+- 4/4;
+- 3/4;
+- 6/8;
+- 7/8;
+- 5/16.
 
-On the actual Windows output device:
+Verify:
+
+- beat editors rebuild correctly;
+- step states cycle correctly;
+- long-note/span coverage remains correct;
+- Mute behavior remains correct where available;
+- grid/preset changes apply as intended.
+
+### Training modes
+
+#### Повтор
+
+- complete effective pattern repeats continuously.
+
+#### Разгон с 1 доли
+
+- stage sequence expands from beat 1 to the full numerator;
+- bars-per-stage configuration works;
+- stage status/warnings remain correct.
+
+#### Разгон с 2 долей
+
+- starts from `min(2, numerator)`;
+- expands to the full bar;
+- one-beat meters behave sensibly.
+
+#### Пропуски
+
+- configured audible/silent block lengths are respected;
+- all rhythmic audio guidance disappears in silent bars;
+- internal timeline continues;
+- yellow playhead/current-cell guidance disappears during silence;
+- guidance returns automatically when sound returns.
+
+#### Нарастающие пропуски
+
+- audible block remains fixed;
+- silent block grows 1 → 2 → 3 ... to configured maximum;
+- cycle then restarts;
+- silent-phase timeline/playhead rules match normal Gap.
+
+#### Редкий метроном
+
+Verify each current option:
+
+- Все доли;
+- Только 2 и 4;
+- Только 1 и 3;
+- Только 1;
+- Только 1 раз в 2 такта.
+
+#### Смещённый метроном
+
+Verify click positions:
+
+- eighth `&`;
+- sixteenth `e`;
+- sixteenth `&`;
+- sixteenth `a`.
+
+Confirm that displaced click works correctly with pattern grids that do not share the same subdivision, including triplets.
+
+### Training options
+
+- Count-in works;
+- Tempo Trainer enables/disables without collapsing its subordinate options;
+- Timer enables/disables without collapsing its subordinate options;
+- Tempo Trainer changes BPM at intended boundaries;
+- timer completion stops playback and plays its completion cue;
+- compact BPM controls work;
+- TAP [T] works.
+
+### Focus mode
+
+- physical F toggles Focus with a non-English keyboard layout;
+- Focus hide/show cycle is stable;
+- configuration tabs and editable beat cards are hidden in Focus;
+- large metronome remains centered/usable;
+- size setting changes actual needle/pivot/lamp/flash geometry;
+- check representative size settings such as 60%, 100%, 150%, 200%;
+- Game graph remains compact in Focus;
+- read-only rhythm strip spans the lower display cleanly;
+- TI cells are compact rounded/pill-like;
+- TA/rest cells remain rectangular;
+- current subdivision has a clear yellow outline;
+- beat lamps do not collide with the needle pivot/base;
+- count-in does not show an active current-subdivision outline;
+- Gap/Progressive Gap silence hides yellow guidance;
+- no layout regression appears when leaving Focus.
+
+### Game input
+
+- keyboard TI/TA bindings work;
+- bindings work with a non-English active keyboard layout where physical scan capture is expected;
+- mouse Game bindings work;
+- binding capture accepts physical F rather than toggling Focus;
+- during an active Game, an F lane binding has priority over Focus toggle;
+- TI input consumes TI targets only;
+- TA input consumes TA targets only;
+- short early input is buffered correctly when target publication is slightly delayed;
+- opposite-lane fallback is not present;
+- adaptive timing bias is not present.
+
+### Game timing / feedback
+
+- PERFECT/GREAT/GOOD/HIT grades appear at appropriate offsets;
+- Score increments by grade;
+- missed/out-of-window input becomes MISS;
+- signed early/late timing is displayed;
+- quality/history graph updates;
+- Current Game stats update while playing;
+- Last Game summary persists after stop;
+- TI/TA split HIT feedback works;
+- original TI Hit 1/2/3 sounds remain recognizably unchanged;
+- TA lower variants work;
+- guitar-style TI E3 / muted E2 set works;
+- MISS choices work;
+- feedback volumes behave correctly.
+
+### Silent Game exercise
+
+With Gap or Progressive Gap plus Game:
+
+- audio guidance disappears in silent bars;
+- Game targets continue;
+- the player can still enter TI/TA and receive timing results;
+- the yellow visual guidance remains hidden until audible guidance returns.
+
+### Picking Guide
+
+#### Economy
+
+- TI/TA reference strings are correct;
+- repeated single-beat pattern `A A A A` preserves period 1;
+- repeated `A B A B` preserves period 2;
+- cyclic boundary behaves correctly in Loop;
+- cyclic boundary behaves correctly in Ramp stages;
+- rests split continuity.
+
+#### Strict alternate
+
+- attacks alternate ↓↑;
+- rests do not consume a direction.
+
+#### Presentation
+
+- current large cue shows arrow/string;
+- following-strokes row works;
+- count 1–8 works;
+- future strokes progress horizontally;
+- upstroke remains green;
+- downstroke remains red;
+- current-beat highlight works.
+
+### Audio
+
+On the actual target Windows output device:
 
 - selected output device is correct;
 - WASAPI path is stable where supported;
-- no recurring crackle at normal levels;
+- no recurring crackle at normal settings;
 - TI/TA/metronome remain rhythmically locked;
-- Wood and Low tick defaults are both audible/enabled;
-- TI and TA cannot be assigned the same sound;
+- established TI/TA timbres are unchanged;
 - BPM changes during playback remain stable;
 - count-in transitions cleanly;
-- tempo trainer changes tempo only on intended boundaries;
-- changing device/system settings while stopped works;
-- optional WASAPI exclusive mode is tested only on a compatible device.
+- audio-system changes while stopped work.
 
-## Manual game checks
+### Sessions / settings
 
-- Game-mode checkbox hides/shows game overlays and dependent controls;
-- Start game restarts playback/count-in;
-- assigned TI and TA keys work;
-- TI input matches only TI targets and TA input matches only TA targets;
-- early valid input can be buffered briefly until its target is published;
-- Score increments by grade;
-- PERFECT/GREAT/GOOD/HIT grades feel appropriately strict while overall matching remains playable;
-- correct hit flashes green;
-- wrong/out-of-window/missed input flashes red;
-- left feedback reports grade and early/late milliseconds;
-- right graph updates quality/history;
-- Current Game stats update while playing;
-- Last Game preserves the completed-game summary;
-- ordinary playback still works with game mode disabled.
+- session save/load restores the exercise;
+- Training Mode parameters persist appropriately;
+- Game settings persist;
+- Picking/Focus settings persist;
+- older settings receive valid fallback defaults;
+- session schema behavior remains independent of app semantic VERSION.
 
-## Manual diagnostic-log check
+### Diagnostic log
 
-Optional when debugging game timing:
+Optional timing-debug acceptance:
 
 ```bash
 ./tt run -log
 ```
 
-After a game finishes:
+After a Game finishes:
 
-- a new uniquely named archive exists under `logs/`;
+- a new unique archive exists;
 - previous archives remain untouched;
 - no raw JSONL remains after successful compression.
 
-## Manual export checks
+### Export
 
-Open produced files in real target applications:
+Create real files and inspect them:
 
-- MIDI opens with correct tempo/meter and repeated pattern;
-- GP5 opens in Guitar Pro without mojibake;
-- GP5 annotation appears only over the first exported bar;
-- GP5 TA is a plain dead-note `x` with no P.M.;
-- GP5 TI maps to string 5 fret 7;
-- WAV duration/quality match the export dialog and playback sounds correct.
+- MIDI opens with correct tempo/meter/pattern repetition;
+- GP5 opens through a compatible Guitar Pro reader;
+- TA is a dead/muted note as intended;
+- TI maps to string 5 fret 7;
+- legacy text does not produce unwanted encoding corruption;
+- WAV duration/quality match the dialog;
+- WAV sounds consistent with current realtime sound configuration.
+
+## Silent-exit procedure
+
+If `./tt run` exits without a useful traceback, run from the repository root:
+
+```bash
+./.venv/Scripts/python.exe -X faulthandler -u "$(wslpath -w "$PWD/app.py")"
+echo "EXIT=$?"
+```
+
+Do not patch blindly before inspecting the resulting failure.
 
 ## Release gate
 
 A release candidate is accepted only after:
 
-1. `./tt doctor`;
-2. `./tt check`;
-3. focused manual GUI/audio/game/export checks on the target Windows machine.
+1. exact `work` HEAD is known;
+2. `git status --short` is reviewed locally;
+3. `./tt check` is user-confirmed green;
+4. `./tt run` receives focused manual GUI/audio/Game acceptance;
+5. release documentation/assets are current;
+6. release version is explicitly chosen;
+7. the final release commit is pulled and rechecked as required;
+8. `main` is fast-forwarded when history permits;
+9. annotated tag points to exactly the final release commit.
 
-Only then should `work` be integrated into `main`, the numeric version be chosen/updated, and the annotated tag be created manually.
+Repository writes alone are not proof of local runtime success.
