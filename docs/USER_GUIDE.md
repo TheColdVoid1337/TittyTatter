@@ -1,24 +1,30 @@
 # User guide
 
+TittyTatter is primarily a guitar rhythm trainer. The main workflow is:
+
+1. build a rhythm pattern;
+2. choose how that pattern should be trained;
+3. practise it on guitar, or optionally execute the same exercise through Game input;
+4. use Focus and Picking Guide when useful.
+
 ## Start
 
-From WSL:
+On Windows, the simplest source launch is:
 
-```bash
-cd /mnt/f/_PROJECT/TittyTatter
-./tt install
-./tt run
+```bat
+run.bat
 ```
 
-TittyTatter runs through the Windows interpreter at `.venv/Scripts/python.exe`. Do not activate a Linux virtual environment for this project.
+On first launch, `run.bat` creates the local `.venv`, installs `requirements.txt`, and starts the application.
 
-For game diagnostics only:
+Manual equivalent:
 
-```bash
-./tt run -log
+```bat
+py -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe app.py
 ```
-
-Without `-log` / `--log`, no diagnostic files are written.
 
 ## Build a rhythm
 
@@ -27,199 +33,426 @@ Choose the time signature at the top of the window.
 - Numerator: 1–16.
 - Denominator: 2, 4, 8, or 16.
 
-Each metric beat has its own editor. Choose a grid, choose a preset when available, or click individual step buttons to cycle:
+Each metric beat has its own editor. Choose a grid/preset or edit the individual subdivision buttons.
+
+Subdivision states are:
 
 ```text
 (ТИ) → ТА → OFF
 ```
 
-For wide meters, the beat row scrolls horizontally. During playback it follows the currently active beat.
+Supported grids include whole-beat cells, straight subdivisions, triplets, sixteenths, and denser divisions where available.
 
-### Mute
+Long-note coverage is represented by the model rather than duplicated as independent hits.
 
-Each beat has a red `Mute` toggle. A muted beat becomes visually dim and produces no beat content/metronome click for that beat.
+For wide meters, the beat row scrolls horizontally.
 
-Mute is unavailable in practice-ramp modes.
+### Beat Mute
 
-## Practice tab
+Individual beat cards can be muted where the current training mode allows it.
 
-Contains:
+A muted beat becomes visually dim and produces no beat content/metronome guidance for that beat.
 
-- loop/ramp mode;
-- bars per stage;
-- count-in;
-- optional TA pulse on inactive ramp beats;
-- optional audible/visual warning before each ramp-stage change;
-- random full-bar generation;
-- tempo trainer;
-- optional practice timer.
+Ramp modes intentionally control their own effective beat activity, so Mute is not used there.
 
-Ramp status shows the current active-beat level, stage progress, repetitions remaining, and the next level on the final repetition.
+## Training / Game selector
 
-Inactive ramp beats are displayed as TA followed by silence rather than revealing the future full-pattern content.
+The top-level selector is:
 
-When the timer expires, playback stops and a dedicated factory-style completion horn sounds.
+- **Тренировка**
+- **Игра**
 
-## Sound tab
+This selector changes how the current exercise is executed. It does **not** select a separate progression system.
 
-(ТИ), ТА, metronome, and master levels are independent.
+The currently selected **Training Mode** remains the source of truth in both cases.
 
-Current defaults:
+Example:
 
-- (ТИ): **Wood**, enabled;
-- ТА: **Low tick**, enabled;
-- metronome: enabled.
+- Training Mode: **Пропуски**
+- audible bars: 4
+- silent bars: 2
 
-(ТИ) and ТА cannot use the same sound simultaneously.
+In normal Training, audio guidance disappears for the two silent bars while the guitarist continues playing.
 
-Controls that depend on an enable checkbox remain disabled until their parent option is enabled.
+In Game, the same silent phase occurs, but the internal timeline and Game targets continue, so the player must continue entering TI/TA in time.
 
-## Metronome tab
+## Training tab
 
-The visual metronome can configure:
+The Training tab is organized conceptually into three parts.
 
-- size;
-- needle color;
-- flash color;
-- flash circle;
-- whole-panel flash;
-- flash brightness;
-- needle width;
-- swing angle;
-- beat lamps.
+### Режим тренировки
 
-Whole-panel flashing works independently from the flash-circle toggle.
+Choose one Training Mode. Only the parameters relevant to that mode are shown.
 
-## Game tab
+Current modes:
 
-Enable **Game mode** first. When disabled, game controls/overlays are inactive.
+#### Повтор
 
-Configure:
+Repeats the complete current pattern continuously.
 
-- key for (ТИ);
-- key for ТА;
-- optional HIT sound;
-- optional MISS sound.
+#### Разгон с 1 доли
 
-There is currently one deliberately playable scoring mode rather than Low/Mid/High difficulties.
+Progressively exposes more metric beats:
 
-Press **Start game**. This restarts playback/count-in so scoring begins from a clean timeline.
+```text
+1 → 2 → ... → full bar
+```
 
-During the game:
+The number of bars per stage is configurable.
 
-- a matching TI key is judged only against TI targets;
-- a matching TA key is judged only against TA targets;
-- short early-input buffering handles the case where a key arrives just before the audio callback publishes its future target;
-- successful hits are graded PERFECT / GREAT / GOOD / HIT;
-- PERFECT gives 100 points, GREAT 75, GOOD 50, HIT 25;
-- correct input flashes the metronome area green;
-- incorrect input/miss flashes it red;
-- the left side shows the grade plus early/late timing;
-- the right side shows Score, hit/miss count, accuracy, and recent-quality graph.
+#### Разгон с 2 долей
 
-Current grading thresholds are intentionally stricter than the overall acceptance window:
+Starts from the first two beats and then expands to the full bar.
 
-- PERFECT: within 30 ms;
-- GREAT: within 70 ms;
-- GOOD: within 120 ms;
-- HIT: other accepted timings.
+For a one-beat meter, it starts from one beat.
 
-The Game tab shows **Current Game** statistics while playing and returns to **Last Game** after the game ends.
+#### Пропуски
 
-## Picking tab
+Alternates audible and silent blocks.
 
-Enable the economy-picking overlay to show suggested pick directions inside the left side of the metronome area.
+During silent bars:
 
-Current mapping:
+- TI/TA rhythmic guidance disappears;
+- metronome guidance disappears;
+- the exercise timeline continues;
+- Game targets continue if Game is active;
+- the yellow current-position/playhead guidance disappears;
+- the playhead returns automatically when audible guidance returns.
+
+#### Нарастающие пропуски
+
+Keeps the audible block fixed while the silent block grows:
+
+```text
+1 silent bar → 2 → 3 → ... → configured maximum → restart
+```
+
+The same "timeline continues during silence" rule applies.
+
+#### Редкий метроном
+
+Reduces click density without changing the rhythm pattern.
+
+Current choices:
+
+- Все доли
+- Только 2 и 4
+- Только 1 и 3
+- Только 1
+- Только 1 раз в 2 такта
+
+#### Смещённый метроном
+
+Moves the click away from the normal beat positions.
+
+Current positions:
+
+- `&` between beats;
+- `e` — second sixteenth;
+- `&` — third sixteenth;
+- `a` — fourth sixteenth.
+
+The displaced click is independent of the pattern subdivision and can coexist with triplets, eighths, sixteenths, and other grids.
+
+### Опции
+
+These are modifiers, not Training Modes:
+
+- Count-in;
+- **Разгон темпа** / Tempo Trainer;
+- **Таймер** / Timer.
+
+Tempo Trainer and Timer subordinate settings remain visible when disabled, but are greyed out rather than removed.
+
+### Как пользоваться
+
+The help area describes:
+
+- what the selected Training Mode does;
+- how to use it;
+- what guitar skill it is intended to train.
+
+## Tempo
+
+The top transport keeps the BPM control intentionally compact.
+
+Available interaction:
+
+- numeric BPM spinbox;
+- Up / Down for small changes;
+- Shift+Up / Shift+Down for larger changes;
+- TAP **[T]**.
+
+The old BPM slider and separate +/- button cluster are intentionally not part of the current UI.
+
+## Focus mode
+
+Use:
+
+```text
+Фокус режим [F]
+```
+
+Focus mode hides configuration-heavy UI and turns TittyTatter into a large practice display.
+
+It keeps:
+
+- top transport;
+- large visual metronome;
+- status;
+- session buttons;
+- a read-only rhythm strip inside the black metronome area.
+
+The rhythm strip reflects the **effective** current training pattern, including ramp-stage activity.
+
+Visual states:
+
+- TI — compact rounded blue pill;
+- TA — dark rectangular cell;
+- rest — dark/subtle cell with a dot;
+- current subdivision — yellow outline.
+
+During count-in, the pattern may remain visible but no current-subdivision outline is active.
+
+During silent Gap / Progressive Gap phases, the yellow guidance disappears and returns automatically when sound returns.
+
+The Focus metronome scales its actual needle/pivot/lamp geometry with the size setting.
+
+When Game is active, the Game graph remains a compact diagnostic panel rather than expanding to full height.
+
+## Штрих / Picking Guide
+
+The tab is named **Штрих**.
+
+Picking Guide is an informational guitar-practice aid, not a Training Mode.
+
+Current controls include:
+
+- enable/disable Picking Guide;
+- picking strategy;
+- show following strokes;
+- number of following strokes;
+- current-beat highlighting;
+- large cue size.
+
+Current strategies:
+
+### Экономный
+
+Uses the string-aware economy-picking optimizer.
+
+Current reference mapping:
 
 - TI → string 5;
 - TA → string 6.
 
-The optimizer chooses directions automatically. It alternates efficiently on one string and can keep the same pick direction across a string change when that produces an economy/sweep motion.
+Repeated whole-beat patterns preserve their minimal repeating beat period, so identical repeated beats do not receive inconsistent arrows merely because the full bar was flattened.
 
-Display colors:
+Ramp stages are treated as cyclic effective bars.
 
-- `↑` upstroke — green;
-- `↓` downstroke — red;
-- rests/fillers — gray.
+Rests split picking continuity.
 
-In ramp modes the scheme is recalculated as each new beat becomes active. Not-yet-active beats show the TA reference hit plus silence.
+### Строго переменный ↓↑
 
-## Audio tab
+Alternates down/up across attacks.
 
-Select:
+Rests do not consume a picking direction.
 
-- output device;
-- sample rate;
-- block size;
-- low/high latency request;
-- WASAPI exclusive mode.
+### Following strokes
+
+The guide can show 1–8 upcoming strokes in a horizontal row.
+
+The large cue shows the current arrow and string.
+
+Current colors:
+
+- `↑` — green;
+- `↓` — red.
+
+Picking Guide and Game are mutually exclusive in the UI. Enabling Picking while Game is selected returns the application to Training.
+
+## Game
+
+Game is a secondary way to practise the same exercise without a guitar.
+
+When the top selector is **Игра**, Start and Space start the Game version of the currently selected Training Mode.
+
+### Input
+
+TI and TA can be bound to:
+
+- keyboard keys;
+- mouse buttons.
+
+Common historical defaults are:
+
+- TI = F
+- TA = J
+
+Keyboard handling uses physical scan information where possible, so common bindings continue to work independently of English/Russian/Thai keyboard layout.
+
+### Focus-key priority
+
+Physical F toggles Focus in normal use.
+
+During an active Game session, if F is bound to a Game lane, Game input has priority.
+
+While a Game binding control is capturing a new key, F can be captured instead of toggling Focus.
+
+### Timing model
+
+Matching is lane-specific:
+
+- TI input consumes only TI targets;
+- TA input consumes only TA targets.
+
+The nearest same-lane target inside the valid acceptance window is selected.
+
+Current acceptance window:
+
+- up to 180 ms early;
+- up to 300 ms late.
+
+Current grades:
+
+| Grade | Distance | Points |
+|---|---:|---:|
+| PERFECT | <= 30 ms | 100 |
+| GREAT | <= 70 ms | 75 |
+| GOOD | <= 120 ms | 50 |
+| HIT | other accepted timing | 25 |
+| MISS | outside acceptance window | 0 |
+
+A short early-input buffer exists because the physical input can arrive slightly before the realtime callback publishes the corresponding future target.
+
+The current matcher deliberately does not use opposite-lane fallback or adaptive timing bias.
+
+### HIT / MISS feedback
+
+Game feedback sounds are separate from the normal TI/TA training sound bank.
+
+TI HIT choices include:
+
+- Hit 1
+- Hit 2
+- Hit 3
+- Гитара E3
+
+TA HIT choices include lower variants and:
+
+- Глушёная E2
+
+MISS choices include:
+
+- Miss 1
+- Miss 2
+- Miss 3
+- Мимо струны
+
+The original Hit 1/2/3 timbres remain the TI reference set.
+
+An option allows TI and TA to use different HIT feedback.
+
+### Statistics
+
+Game shows:
+
+- score;
+- hit/miss count;
+- accuracy;
+- timing grade and signed early/late offset;
+- recent-quality graph;
+- current/last Game statistics.
+
+## Sound / audio
+
+TI, TA, metronome, and master levels are independent.
+
+The established TI/TA training sound bank is intentionally stable.
+
+Current historical defaults:
+
+- TI Wood enabled;
+- TA Low tick enabled.
+
+Audio settings expose the available output-device/system controls, including sample rate, block size, latency request, and WASAPI options where supported.
 
 Stop playback before changing audio-system settings.
 
-`./tt audio-info` provides a command-line view of available output devices and the engine selection.
-
 ## Diagnostic logs
 
-Launch with:
+Game diagnostics are opt-in.
 
-```bash
-./tt run -log
-```
-
-Each started game creates its own diagnostic session. On normal game completion/stop, the raw JSONL is compressed into a uniquely named archive such as:
+Launch the application with:
 
 ```text
-logs/game_2026-10-02_23-51-06_239053.tar.gz
+-log
 ```
 
-Previous logs are never overwritten. The raw JSONL is removed after successful compression. `logs/` is ignored by Git.
+or:
 
-## Export tab
+```text
+--log
+```
+
+Without one of those flags, no Game diagnostic log is created.
+
+When enabled:
+
+1. each Game creates a unique JSONL session;
+2. events are appended while the Game runs;
+3. normal completion/stop archives the session to a unique `.tar.gz`;
+4. the raw JSONL is removed after successful archival.
+
+## Export
 
 ### MIDI
 
-Choose repeat count and whether to include labels, then save a `.mid` file.
+Exports the current pattern as a Standard MIDI File.
 
 ### Guitar Pro 5
 
-Choose repeat count and labels, then save `.gp5`.
+Exports a `.gp5` file through PyGuitarPro.
 
-Current mapping:
+Current reference guitar mapping:
 
-- TI: string 5, fret 7, E3;
-- TA: dead note `x` on string 6;
-- track instrument: Overdriven Guitar.
+- TI: E3, string 5 fret 7;
+- TA: dead/muted open string 6.
 
-Pattern annotations are written only above the first exported bar and deliberately avoid legacy-GP encoding-sensitive Cyrillic.
+Text annotations are intentionally conservative for legacy GP5 encoding compatibility.
 
 ### WAV
 
-Choose duration and PCM quality in the export dialog. WAV export loops the current pattern using the current BPM, sounds, levels, and metronome configuration.
+Renders the current exercise audio to WAV with selectable duration/quality.
+
+Export uses the same rhythm model as realtime playback.
 
 ## Sessions and settings
 
-**Session files** are explicit exercise snapshots saved/loaded from the UI.
+Session files are explicit exercise snapshots saved/loaded from the UI.
 
-**Application settings** are stored automatically in:
+Application settings persist local preferences such as:
 
-```text
-tittytatter.settings.json
-```
+- Training Mode and its parameters;
+- tempo trainer;
+- timer;
+- Game configuration;
+- Game sounds/volumes and last statistics;
+- Picking Guide options;
+- Focus state;
+- selected tab;
+- visual/audio settings.
 
-This file is ignored by Git.
+Older settings use fallback defaults where practical.
 
-The Audio tab contains **Reset settings…**. Reset requires typing exactly:
-
-```text
-DELETE
-```
-
-before the settings file is removed/reset.
+The settings/session schema version is separate from the TittyTatter application release version.
 
 ## Keyboard shortcuts
 
-- Space — start/stop.
-- T — tap tempo.
-- Up / Down — ±1 BPM.
-- Shift+Up / Shift+Down — ±5 BPM.
+Current important shortcuts:
+
+- Space — start/stop according to the selected Training/Game top-level state;
+- F — Focus toggle, subject to active-Game binding priority;
+- T — tap tempo;
+- Up / Down — BPM step;
+- Shift+Up / Shift+Down — larger BPM step.
