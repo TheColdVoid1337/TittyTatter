@@ -18,6 +18,7 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ### Fixed
 
+- Ramp v2 equal-cost placeholder bridges now prefer alternating cleanly from the last active same-string stroke, moving an unavoidable odd-cycle repeat to the loop boundary instead of placing it at the active-to-placeholder transition.
 - Picking Guide now preserves the same whole-beat picking pattern for repeated active motifs separated by fully silent beats, including motifs that cross the bar boundary.
 - Economy picking keeps consecutive identical beats as one stable motor pattern instead of flipping a later repetition for a small boundary-transition advantage; looping runs also stay consistent across the bar boundary.
 - Ramp modes now keep one learned economy-picking scheme across stages without forcing the fully-open bar to define it: the latest incomplete stage anchors the pattern, preserving useful sweeps into temporary inactive TA pulses while earlier and later stages keep already-learned stroke directions stable.

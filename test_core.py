@@ -659,6 +659,30 @@ assert economy_pick_ramp_stages_v2(
     OFF,
 ) == p5_joint
 
+# P6 screenshot regression: when an equal-cost odd placeholder chain makes one
+# same-string repeat unavoidable, keep the active->placeholder entry clean and
+# move that repeat to the cyclic return boundary instead.
+p6_control_a = [TA, TI, TA, TA]
+p6_control = economy_pick_ramp_stages_v2(
+    [
+        p6_control_a,
+        p6_control_a,
+        p6_control_a,
+        [TI, TA, TI, TA],
+    ],
+    (1, 2, 3, 4),
+    TI,
+    TA,
+    OFF,
+)
+p6_stage1_placeholders = [
+    p6_control[1][beat_index][0]
+    for beat_index in (1, 2, 3)
+]
+assert p6_stage1_placeholders[0] != p6_control[1][0][-1]
+assert p6_stage1_placeholders[0] != p6_stage1_placeholders[1]
+assert p6_stage1_placeholders[0] == p6_stage1_placeholders[2]
+
 
 # Training modes remain additive: the original repeat and beat-ramp modes are
 # preserved while the new guitar-practice modes share the same engine timeline.
