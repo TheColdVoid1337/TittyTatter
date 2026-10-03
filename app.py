@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QEvent, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCloseEvent, QIcon, QKeySequence, QPainter, QPen, QPixmap, QShortcut
+from PySide6.QtGui import QColor, QCloseEvent, QIcon, QImage, QKeySequence, QPainter, QPen, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -88,6 +88,58 @@ REPO_URL = "https://github.com/TheColdVoid1337/TittyTatter"
 ICON_PATH = Path(__file__).resolve().parent / "assets" / "app_icon.png"
 VERSION_FILE = Path(__file__).with_name("VERSION")
 APP_VERSION = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else "0.0.1"
+
+def _app_icon_pixmap(size: int = 256) -> QPixmap:
+    """Load the logo with transparent corners and icon-safe padding.
+
+    The source artwork is RGB with a near-black matte around the rounded
+    square. Only neutral near-black pixels are keyed out, so coloured shadows
+    inside the artwork stay intact. A small transparent safe area prevents
+    Windows/Qt icon masks from clipping the top and bottom edges.
+    """
+    size = max(32, int(size))
+    if not ICON_PATH.exists():
+        return QPixmap()
+
+    image = QImage(str(ICON_PATH)).convertToFormat(QImage.Format_ARGB32)
+    if image.isNull():
+        return QPixmap()
+
+    for y in range(image.height()):
+        for x in range(image.width()):
+            color = image.pixelColor(x, y)
+            high = max(color.red(), color.green(), color.blue())
+            low = min(color.red(), color.green(), color.blue())
+            neutral = high - low <= 10
+            if neutral and high <= 6:
+                color.setAlpha(0)
+            elif neutral and high < 38:
+                color.setAlpha(int(255 * (high - 6) / 32))
+            else:
+                color.setAlpha(255)
+            image.setPixelColor(x, y, color)
+
+    source = QPixmap.fromImage(image)
+    content_size = max(1, int(round(size * 0.88)))
+    scaled = source.scaled(
+        content_size,
+        content_size,
+        Qt.KeepAspectRatio,
+        Qt.SmoothTransformation,
+    )
+
+    canvas = QPixmap(size, size)
+    canvas.fill(Qt.transparent)
+    painter = QPainter(canvas)
+    painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+    painter.drawPixmap(
+        (size - scaled.width()) // 2,
+        (size - scaled.height()) // 2,
+        scaled,
+    )
+    painter.end()
+    return canvas
+
 
 STATE_TEXT = {TI: TI_MARK, TA: "ТА", OFF: "·"}
 STATE_STYLE = {
@@ -1045,8 +1097,9 @@ class MainWindow(QMainWindow):
     def __init__(self, game_log_enabled: bool = False) -> None:
         super().__init__()
         self.setWindowTitle(f"{APP_NAME} {APP_VERSION}")
-        if ICON_PATH.exists():
-            self.setWindowIcon(QIcon(str(ICON_PATH)))
+        icon_pixmap = _app_icon_pixmap(256)
+        if not icon_pixmap.isNull():
+            self.setWindowIcon(QIcon(icon_pixmap))
         self.resize(1240, 860)
 
         self.engine = AudioEngine()
@@ -1736,17 +1789,9 @@ class MainWindow(QMainWindow):
 
         logo = QLabel()
         logo.setAlignment(Qt.AlignCenter)
-        if ICON_PATH.exists():
-            pixmap = QPixmap(str(ICON_PATH))
-            if not pixmap.isNull():
-                logo.setPixmap(
-                    pixmap.scaled(
-                        160,
-                        160,
-                        Qt.KeepAspectRatio,
-                        Qt.SmoothTransformation,
-                    )
-                )
+        pixmap = _app_icon_pixmap(180)
+        if not pixmap.isNull():
+            logo.setPixmap(pixmap)
         layout.addWidget(logo)
 
         title = QLabel(f"<h2>{APP_NAME}</h2><div>Version {APP_VERSION}</div>")
@@ -3798,8 +3843,9 @@ def main() -> int:
 
     app = QApplication(qt_argv)
     app.setApplicationName(APP_NAME)
-    if ICON_PATH.exists():
-        app.setWindowIcon(QIcon(str(ICON_PATH)))
+    icon_pixmap = _app_icon_pixmap(256)
+    if not icon_pixmap.isNull():
+        app.setWindowIcon(QIcon(icon_pixmap))
     app.setStyle("Fusion")
     window = MainWindow(game_log_enabled=game_log_enabled)
     window.show()
