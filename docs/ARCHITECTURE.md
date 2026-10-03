@@ -187,9 +187,11 @@ The target design is canonical in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 **P2 is implemented:** Alternate v2 consumes the normalized event stream and advances only on attacks. OFF/COVERED slots do not consume parity, string changes do not interrupt alternation, and Ramp placeholders count as attacks. Compatibility helpers can project event decisions back to the existing beat/subdivision UI shape.
 
-**P3 is implemented:** Economy v2 now produces `PickDecision` objects with explicit transition classification, real directional-sweep identity, start-polarity search, attack parity, reset semantics, cyclic last-to-first scoring, linked sweep groups, and decision reasons. Motif equality and joint Ramp-stage constraints remain intentionally deferred to P4/P5.
+**P3 is implemented:** Economy v2 now produces `PickDecision` objects with explicit transition classification, real directional-sweep identity, start-polarity search, attack parity, reset semantics, cyclic last-to-first scoring, linked sweep groups, and decision reasons.
 
-P1-P3 are not yet wired to the visual arrow generator; runtime cutover remains a later integration step.
+**P4 whole-beat motif constraints are implemented:** repeated beat signatures receive deterministic motif ids, corresponding motif-relative attacks share stroke variables, and the constrained DP optimizes the full phrase/cycle with those equalities active. This replaces post-hoc motif rewriting for the v2 path. Subdivision-level motifs that cross beat boundaries remain optional future expansion based on evidence.
+
+P1-P4 are not yet wired to the visual arrow generator; joint Ramp solving (P5) and integration remain ahead.
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 
