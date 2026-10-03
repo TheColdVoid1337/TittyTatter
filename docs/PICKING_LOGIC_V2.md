@@ -1,6 +1,6 @@
 # Picking Logic v2
 
-Status: **P5 implemented — joint Ramp solver**  
+Status: **P6 runtime cutover implemented — manual acceptance pending**  
 Target: post-0.0.4 development on `work`  
 Runtime cutover: **not yet — current arrow generation remains transitional**
 
@@ -950,9 +950,17 @@ The implementation exploits Ramp's prefix structure: internal real-attack edges 
 
 The old transitional Ramp anchor/cleanup path remains in the runtime until P6 cutover and manual acceptance.
 
-## Phase P6 — integration and manual acceptance
+## Phase P6 — integration and manual acceptance — CUTOVER IMPLEMENTED
 
-Wire v2 into the existing Picking Guide UI without changing the public two-strategy layout.
+The live Picking Guide now uses Picking Logic v2:
+
+- Alternate -> `alternate_pick_beats_v2(...)`;
+- non-Ramp Economy -> `economy_pick_beats_v2(...)`;
+- Ramp Economy -> `economy_pick_ramp_stages_v2(...)`.
+
+The public two-strategy UI is unchanged.
+
+The old transitional picking functions remain in `picking_logic.py` for regression comparison until local manual acceptance confirms the v2 runtime path. Do not delete them before that checkpoint.
 
 Required local gate:
 
@@ -961,7 +969,19 @@ Required local gate:
 ./tt run
 ```
 
-Manual acceptance must include representative screenshots for Loop and both Ramp modes.
+Manual acceptance must include:
+
+- Loop / Economy;
+- Loop / Alternate;
+- Ramp from 1 beat / Economy across every stage;
+- Ramp from 2 beats / Economy;
+- Ramp / Alternate;
+- repeated whole-beat motifs;
+- the previously reported sweep cases;
+- inactive Ramp TA placeholders alternating rather than restarting DOWN;
+- already-open real Ramp attacks keeping the same stroke when later beats appear.
+
+P6 is complete only after both automated and manual acceptance are explicitly confirmed.
 
 ## Phase P7 — optional advanced mechanics
 
