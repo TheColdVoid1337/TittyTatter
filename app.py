@@ -312,6 +312,8 @@ class MetronomeVisual(QWidget):
         self.picking_next_count = 1
         self.picking_highlight_current = True
         self.picking_cue_size = 52
+        self.focus_pattern: list[list[str]] = []
+        self.focus_playhead_visible = True
         self.expand_to_fill = False
 
         self._apply_height()
@@ -334,6 +336,22 @@ class MetronomeVisual(QWidget):
         self._apply_height()
         self.updateGeometry()
         self.update()
+
+    def set_focus_pattern(self, beats: list[list[str]]) -> None:
+        self.focus_pattern = [list(states) for states in beats]
+        self.update()
+
+    def set_focus_playhead_visible(self, visible: bool) -> None:
+        visible = bool(visible)
+        if self.focus_playhead_visible == visible:
+            return
+        self.focus_playhead_visible = visible
+        self.update()
+
+    def _focus_pattern_strip_height(self) -> int:
+        if not self.expand_to_fill or not self.focus_pattern:
+            return 0
+        return max(78, min(112, int(self.height() * 0.115)))
 
     def configure(
         self,
@@ -529,7 +547,7 @@ class MetronomeVisual(QWidget):
         panel_w = min(380, max(210, self.width() // 4, 125 + next_count * 34))
         left = self.width() - panel_w - 12
         top = 28
-        bottom = self.height() - 10
+        bottom = self.height() - self._focus_pattern_strip_height() - 10
         rect = QRectF(left, top, panel_w, max(52, bottom - top))
 
         painter.setPen(QColor(165, 172, 182))
@@ -613,7 +631,8 @@ class MetronomeVisual(QWidget):
         h = self.height()
         cx = w / 2
         scale = max(0.60, min(2.00, self.scale_percent / 100.0))
-        pivot_y = h - (25 if self.show_beat_lamps else 14)
+        focus_strip_h = self._focus_pattern_strip_height()
+        pivot_y = h - focus_strip_h - (25 if self.show_beat_lamps else 14)
         if self.expand_to_fill:
             # In Focus mode the widget itself fills the window, so scale the
             # metronome geometry rather than only the widget's size hint.
@@ -681,7 +700,7 @@ class MetronomeVisual(QWidget):
             usable = max(80.0, w - 120.0)
             gap = 0.0 if count == 1 else min(34.0, usable / (count - 1))
             start_x = cx - gap * (count - 1) / 2
-            lamp_y = h - 12
+            lamp_y = h - focus_strip_h - 12
             base_radius = 5 if count > 8 else 6
             radius = (
                 max(4, min(11, int(base_radius * scale)))
@@ -706,6 +725,9 @@ class MetronomeVisual(QWidget):
         if self.timer_text:
             painter.setPen(QColor(235, 238, 244))
             painter.drawText(self.rect().adjusted(0, 5, -14, 0), Qt.AlignRight | Qt.AlignTop, self.timer_text)
+
+        if focus_strip_h > 0:
+            self._paint_focus_pattern(painter, focus_strip_h)
 
         if self.picking_visible:
             self._paint_picking_pattern(painter)
@@ -736,7 +758,8 @@ class MetronomeVisual(QWidget):
         panel_left = 12.0
         panel_right = max(panel_left + 120.0, self.width() / 2.0 - 26.0)
         panel_width = max(120.0, panel_right - panel_left)
-        y5 = max(58.0, self.height() - 54.0)
+        focus_strip_h = self._focus_pattern_strip_height()
+        y5 = max(58.0, self.height() - focus_strip_h - 54.0)
         y6 = y5 + 20.0
 
         font = self.font()
@@ -821,6 +844,97 @@ class MetronomeVisual(QWidget):
                     int(y6 + 4),
                 )
                 x += boundary_width
+
+        painter.restore()
+
+    def _paint_focus_pattern(self, painter: QPainter, strip_h: int) -> None:
+        if not self.focus_pattern or strip_h <= 0:
+            return
+
+        painter.save()
+        width = float(self.width())
+        height = float(self.height())
+        left = 14.0
+        right = max(left + 1.0, width - 14.0)
+        top = height - strip_h + 10.0
+        bottom = height - 10.0
+
+        beat_count = max(1, len(self.focus_pattern))
+        beat_gap = 9.0 if beat_count <= 8 else 5.0
+        usable = max(1.0, right - left - beat_gap * (beat_count - 1))
+        beat_w = usable / beat_count
+
+        label_font = self.font()
+        label_font.setBold(True)
+        label_font.setPointSize(8 if beat_count <= 8 else 7)
+
+        for beat_index, states in enumerate(self.focus_pattern):
+            beat_left = left + beat_index * (beat_w + beat_gap)
+            beat_rect = QRectF(beat_left, top, beat_w, max(34.0, bottom - top))
+
+            # A very subtle beat group boundary keeps subdivisions readable
+            # without recreating the nested editor boxes hidden by Focus mode.
+            painter.setPen(QPen(QColor(67, 72, 81), 1))
+            painter.setBrush(QColor(34, 38, 44, 190))
+            painter.drawRoundedRect(beat_rect, 7, 7)
+
+            if not states:
+                painter.setPen(QColor(115, 121, 132))
+                painter.setFont(label_font)
+                painter.drawText(beat_rect, Qt.AlignCenter, "—")
+                continue
+
+            count = max(1, len(states))
+            inner_margin = 5.0
+            cell_gap = 4.0 if count <= 4 else 2.0
+            cell_usable = max(
+                1.0,
+                beat_rect.width() - 2 * inner_margin - cell_gap * (count - 1),
+            )
+            cell_w = cell_usable / count
+            cell_top = beat_rect.top() + 5.0
+            cell_h = max(24.0, beat_rect.height() - 10.0)
+
+            for sub_index, state in enumerate(states):
+                cell_left = beat_rect.left() + inner_margin + sub_index * (cell_w + cell_gap)
+                cell = QRectF(cell_left, cell_top, cell_w, cell_h)
+
+                if state == TI:
+                    fill = QColor(45, 112, 220)
+                    text_color = QColor(245, 248, 255)
+                    label = "ТИ"
+                elif state == TA:
+                    fill = QColor(57, 62, 71)
+                    text_color = QColor(245, 248, 255)
+                    label = "ТА"
+                else:
+                    fill = QColor(38, 42, 48)
+                    text_color = QColor(130, 137, 148)
+                    label = "·"
+
+                painter.setBrush(fill)
+                painter.setPen(QPen(QColor(91, 98, 109), 1))
+                painter.drawRoundedRect(cell, 6, 6)
+
+                current = (
+                    self.focus_playhead_visible
+                    and self.running
+                    and not self.count_in
+                    and beat_index == self.beat
+                    and sub_index == self.sub
+                )
+                if current:
+                    # Two-pass outline reads clearly on the dark metronome
+                    # without covering the state colour underneath.
+                    painter.setBrush(Qt.NoBrush)
+                    painter.setPen(QPen(QColor(255, 198, 20, 105), 7))
+                    painter.drawRoundedRect(cell.adjusted(-1, -1, 1, 1), 7, 7)
+                    painter.setPen(QPen(QColor(255, 224, 70), 3))
+                    painter.drawRoundedRect(cell.adjusted(-1, -1, 1, 1), 7, 7)
+
+                painter.setFont(label_font)
+                painter.setPen(text_color)
+                painter.drawText(cell, Qt.AlignCenter, label)
 
         painter.restore()
 
@@ -2218,12 +2332,46 @@ class MainWindow(QMainWindow):
         numerator, denominator = self._meter()
         return BarPattern([editor.pattern() for editor in self.editors], numerator, denominator)
 
+    def _update_focus_pattern(self, active_beats: int | None = None) -> None:
+        if not self.editors:
+            self.visual.set_focus_pattern([])
+            return
+
+        pattern = self.current_pattern()
+        if active_beats is None:
+            if self.mode.currentData() == "ramp_1_4":
+                active = min(1, pattern.numerator)
+            elif self.mode.currentData() == "ramp_2_4":
+                active = min(2, pattern.numerator)
+            else:
+                active = pattern.numerator
+        else:
+            active = max(0, min(pattern.numerator, int(active_beats)))
+
+        coverage = pattern.coverage()
+        beat_states: list[list[str]] = []
+        for beat_index, beat in enumerate(pattern.beats):
+            owner = coverage[beat_index]
+            if owner is not None and owner != beat_index:
+                # Covered cells belong to a long note that began earlier.
+                states: list[str] = []
+            elif self.mode.currentData() in RAMP_MODES and beat_index >= active:
+                states = [TA] + [OFF] * max(0, beat.subdivision - 1)
+            elif beat.muted:
+                states = [OFF] * beat.subdivision
+            else:
+                states = list(beat.steps)
+            beat_states.append(states)
+
+        self.visual.set_focus_pattern(beat_states)
+
     def _pattern_changed(self) -> None:
         if not self.editors:
             return
         pattern = self.current_pattern()
         self.engine.set_pattern(pattern)
         self._refresh_span_visuals(pattern)
+        self._update_focus_pattern()
         if hasattr(self, "picking_enabled"):
             self._update_picking_pattern()
 
@@ -3240,11 +3388,14 @@ class MainWindow(QMainWindow):
             self.status.setText(f"COUNT-IN · {bpm} BPM")
             self._set_ramp_visual(numerator)
             self._update_picking_pattern(numerator)
+            self._update_focus_pattern(numerator)
+            self.visual.set_focus_playhead_visible(False)
             self.highlight(beat, None)
             return
 
         self._set_ramp_visual(active_beats)
         self._update_picking_pattern(active_beats)
+        self._update_focus_pattern(active_beats)
         self._maybe_warn_ramp(st)
 
         mode = self.mode.currentData()
@@ -3305,7 +3456,11 @@ class MainWindow(QMainWindow):
         # Gap modes deliberately remove the rhythmic crutch during silent bars.
         # Hide the yellow TI/TA playhead together with the audio, then restore
         # it automatically when the audible phase returns.
-        if mode in GAP_MODES and bool(st["training_silent"]):
+        focus_playhead_visible = not (
+            mode in GAP_MODES and bool(st["training_silent"])
+        )
+        self.visual.set_focus_playhead_visible(focus_playhead_visible)
+        if not focus_playhead_visible:
             self.highlight(beat, None)
         else:
             self.highlight(beat, int(st["sub"]))
@@ -3331,6 +3486,7 @@ class MainWindow(QMainWindow):
     def clear_playhead(self) -> None:
         for editor in self.editors:
             editor.playhead(None)
+        self.visual.set_focus_playhead_visible(False)
 
     def _refresh_audio_devices(self) -> None:
         selected_index = None
