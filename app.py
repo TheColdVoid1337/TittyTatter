@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QEvent, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCloseEvent, QKeySequence, QPainter, QPen, QShortcut
+from PySide6.QtGui import QColor, QCloseEvent, QIcon, QKeySequence, QPainter, QPen, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -84,6 +84,8 @@ from training_modes import (
 )
 
 APP_NAME = "TittyTatter"
+REPO_URL = "https://github.com/TheColdVoid1337/TittyTatter"
+ICON_PATH = Path(__file__).resolve().parent / "assets" / "app_icon.png"
 VERSION_FILE = Path(__file__).with_name("VERSION")
 APP_VERSION = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else "0.0.1"
 
@@ -1043,6 +1045,8 @@ class MainWindow(QMainWindow):
     def __init__(self, game_log_enabled: bool = False) -> None:
         super().__init__()
         self.setWindowTitle(f"{APP_NAME} {APP_VERSION}")
+        if ICON_PATH.exists():
+            self.setWindowIcon(QIcon(str(ICON_PATH)))
         self.resize(1240, 860)
 
         self.engine = AudioEngine()
@@ -1182,6 +1186,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self._build_picking_tab(), "Штрих")
         self.tabs.addTab(self._build_audio_tab(), "Аудио")
         self.tabs.addTab(self._build_export_tab(), "Экспорт")
+        self.tabs.addTab(self._build_about_tab(), "About")
         out.addWidget(self.tabs)
 
         footer = QHBoxLayout()
@@ -1720,6 +1725,67 @@ class MainWindow(QMainWindow):
         return tab
 
     @staticmethod
+    def _build_about_tab(self) -> QWidget:
+        tab = QWidget()
+        root = QHBoxLayout(tab)
+        root.addStretch(1)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        layout.setSpacing(10)
+
+        logo = QLabel()
+        logo.setAlignment(Qt.AlignCenter)
+        if ICON_PATH.exists():
+            pixmap = QPixmap(str(ICON_PATH))
+            if not pixmap.isNull():
+                logo.setPixmap(
+                    pixmap.scaled(
+                        160,
+                        160,
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation,
+                    )
+                )
+        layout.addWidget(logo)
+
+        title = QLabel(f"<h2>{APP_NAME}</h2><div>Version {APP_VERSION}</div>")
+        title.setAlignment(Qt.AlignCenter)
+        title.setTextFormat(Qt.RichText)
+        layout.addWidget(title)
+
+        description = QLabel(
+            "Гитарный тренажёр ритма: ритмические рисунки, метроном, "
+            "режимы тренировки, подсказка штриха и дополнительный Game mode."
+        )
+        description.setWordWrap(True)
+        description.setMaximumWidth(520)
+        description.setAlignment(Qt.AlignCenter)
+        layout.addWidget(description)
+
+        author = QLabel(
+            f'Сделано <a href="{REPO_URL}">TheColdVoid1337</a>'
+        )
+        author.setTextFormat(Qt.RichText)
+        author.setOpenExternalLinks(True)
+        author.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        author.setAlignment(Qt.AlignCenter)
+        layout.addWidget(author)
+
+        repo = QLabel(
+            f'<a href="{REPO_URL}">{REPO_URL}</a>'
+        )
+        repo.setTextFormat(Qt.RichText)
+        repo.setOpenExternalLinks(True)
+        repo.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        repo.setAlignment(Qt.AlignCenter)
+        layout.addWidget(repo)
+
+        root.addWidget(content, 2)
+        root.addStretch(1)
+        return tab
+
     def _volume_slider(value: int) -> QSlider:
         slider = QSlider(Qt.Horizontal)
         slider.setRange(0, 200)
@@ -3732,6 +3798,8 @@ def main() -> int:
 
     app = QApplication(qt_argv)
     app.setApplicationName(APP_NAME)
+    if ICON_PATH.exists():
+        app.setWindowIcon(QIcon(str(ICON_PATH)))
     app.setStyle("Fusion")
     window = MainWindow(game_log_enabled=game_log_enabled)
     window.show()
