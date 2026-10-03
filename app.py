@@ -11,6 +11,7 @@ from PySide6.QtCore import QByteArray, QEvent, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCloseEvent, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
+    QButtonGroup,
     QCheckBox,
     QColorDialog,
     QComboBox,
@@ -1068,22 +1069,44 @@ class MainWindow(QMainWindow):
         self.bpm = QSpinBox()
         self.bpm.setRange(20, 320)
         self.bpm.setValue(60)
+        self.bpm.setFixedWidth(72)
+        self.bpm.setToolTip("↑/↓: ±1 BPM · Shift+↑/↓: ±5 BPM")
         transport.addWidget(self.bpm)
-
-        self.bpm_slider = QSlider(Qt.Horizontal)
-        self.bpm_slider.setRange(20, 320)
-        self.bpm_slider.setValue(60)
-        transport.addWidget(self.bpm_slider, 1)
-
-        for delta in (-5, -1, 1, 5):
-            button = QPushButton(f"{delta:+d}")
-            button.clicked.connect(lambda _=False, d=delta: self.bpm.setValue(self.bpm.value() + d))
-            transport.addWidget(button)
 
         self.tap = QPushButton("TAP [T]")
         self.tap.clicked.connect(self.tap_tempo)
         transport.addWidget(self.tap)
 
+        transport.addStretch(1)
+
+        transport.addWidget(QLabel("Режим"))
+        self.run_mode_group = QButtonGroup(self)
+        self.run_mode_group.setExclusive(True)
+
+        self.training_mode_button = QToolButton()
+        self.training_mode_button.setText("Тренировка")
+        self.training_mode_button.setCheckable(True)
+        self.training_mode_button.setChecked(True)
+        self.training_mode_button.setToolButtonStyle(Qt.ToolButtonTextOnly)
+
+        self.game_enabled = QToolButton()
+        self.game_enabled.setText("Игра")
+        self.game_enabled.setCheckable(True)
+        self.game_enabled.setToolButtonStyle(Qt.ToolButtonTextOnly)
+
+        mode_button_style = (
+            "QToolButton{padding:5px 12px;border:1px solid #555b66;border-radius:5px;}"
+            "QToolButton:checked{background:#3169c6;color:white;font-weight:700;border-color:#72a5ff;}"
+        )
+        self.training_mode_button.setStyleSheet(mode_button_style)
+        self.game_enabled.setStyleSheet(mode_button_style)
+        self.run_mode_group.addButton(self.training_mode_button)
+        self.run_mode_group.addButton(self.game_enabled)
+        self.game_enabled.toggled.connect(self._game_mode_toggled)
+        transport.addWidget(self.training_mode_button)
+        transport.addWidget(self.game_enabled)
+
+        transport.addSpacing(12)
         transport.addWidget(QLabel("Размер"))
         self.meter_num = QSpinBox()
         self.meter_num.setRange(1, 16)
@@ -1148,10 +1171,15 @@ class MainWindow(QMainWindow):
         self._rebuild_editors()
 
         self.bpm.valueChanged.connect(self._bpm_from_spin)
-        self.bpm_slider.valueChanged.connect(self._bpm_from_slider)
         self.meter_num.valueChanged.connect(self._meter_changed)
         self.meter_den.currentIndexChanged.connect(self._meter_changed)
         self.mode.currentIndexChanged.connect(self._mode_changed)
+        self.bars.valueChanged.connect(self._update_training_help)
+        self.gap_play_bars.valueChanged.connect(self._update_training_help)
+        self.gap_silent_bars.valueChanged.connect(self._update_training_help)
+        self.progressive_gap_max.valueChanged.connect(self._update_training_help)
+        self.sparse_click.currentIndexChanged.connect(self._update_training_help)
+        self.displaced_click.currentIndexChanged.connect(self._update_training_help)
         self.tempo_train.toggled.connect(self._refresh_dependent_controls)
         self.practice_timer.toggled.connect(self._refresh_dependent_controls)
         self.ramp_warning.toggled.connect(self._refresh_dependent_controls)
@@ -1199,7 +1227,7 @@ class MainWindow(QMainWindow):
         tab = QWidget()
         root = QHBoxLayout(tab)
 
-        main = QGroupBox("Режим")
+        main = QGroupBox("Режим тренировки")
         form = QFormLayout(main)
         self.training_form = form
         self.mode = QComboBox()
@@ -1211,11 +1239,6 @@ class MainWindow(QMainWindow):
         self.bars.setRange(1, 64)
         self.bars.setValue(8)
         form.addRow("Тактов/этап:", self.bars)
-
-        self.count = QSpinBox()
-        self.count.setRange(0, 8)
-        self.count.setValue(1)
-        form.addRow("Count-in:", self.count)
 
         self.inactive = QCheckBox("ТА-пульс на пустых долях разгона")
         self.inactive.setChecked(True)
@@ -1259,10 +1282,17 @@ class MainWindow(QMainWindow):
         form.addRow("", random_button)
         root.addWidget(main, 1)
 
-        trainer = QGroupBox("Разгон темпа")
-        form = QFormLayout(trainer)
+        options = QGroupBox("Опции")
+        form = QFormLayout(options)
+        self.training_options_form = form
+
+        self.count = QSpinBox()
+        self.count.setRange(0, 8)
+        self.count.setValue(1)
+        form.addRow("Count-in:", self.count)
+
         self.tempo_train = QCheckBox("Включить")
-        form.addRow("", self.tempo_train)
+        form.addRow("Разгон темпа:", self.tempo_train)
 
         self.tempo_step = QSpinBox()
         self.tempo_step.setRange(1, 20)
@@ -1278,12 +1308,9 @@ class MainWindow(QMainWindow):
         self.tempo_target.setRange(20, 320)
         self.tempo_target.setValue(140)
         form.addRow("Цель BPM:", self.tempo_target)
-        root.addWidget(trainer, 1)
 
-        timer_box = QGroupBox("Таймер")
-        form = QFormLayout(timer_box)
-        self.practice_timer = QCheckBox("Остановить по таймеру")
-        form.addRow("", self.practice_timer)
+        self.practice_timer = QCheckBox("Включить")
+        form.addRow("Таймер:", self.practice_timer)
 
         self.timer_minutes = QSpinBox()
         self.timer_minutes.setRange(0, 180)
@@ -1295,8 +1322,22 @@ class MainWindow(QMainWindow):
         self.timer_seconds.setRange(0, 59)
         self.timer_seconds.setSuffix(" сек")
         form.addRow("Секунды:", self.timer_seconds)
-        root.addWidget(timer_box, 1)
+        root.addWidget(options, 1)
+
+        help_box = QGroupBox("Как пользоваться")
+        help_layout = QVBoxLayout(help_box)
+        self.training_help = QLabel()
+        self.training_help.setWordWrap(True)
+        self.training_help.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.training_help.setTextFormat(Qt.RichText)
+        self.training_help.setStyleSheet("color:#c9ced7;padding:4px;")
+        self.training_help.setMinimumWidth(280)
+        help_layout.addWidget(self.training_help, 1)
+        root.addWidget(help_box, 1)
+
+        self._update_training_help()
         return tab
+
 
     def _build_sound_tab(self) -> QWidget:
         tab = QWidget()
@@ -1442,12 +1483,8 @@ class MainWindow(QMainWindow):
         tab = QWidget()
         root = QHBoxLayout(tab)
 
-        mode_box = QGroupBox("Режим")
+        mode_box = QGroupBox("Опции игры")
         form = QFormLayout(mode_box)
-        self.game_enabled = QCheckBox("Игровой режим")
-        self.game_enabled.setChecked(False)
-        self.game_enabled.toggled.connect(self._game_mode_toggled)
-        form.addRow("", self.game_enabled)
 
         self.game_hit_sound = QCheckBox("Звук HIT")
         self.game_hit_sound.setChecked(True)
@@ -1700,6 +1737,93 @@ class MainWindow(QMainWindow):
             first = min(2, numerator)
             self.mode.setItemText(index, f"Разгон с 2 долей · {first} → {numerator}")
 
+    def _update_training_help(self, *_args) -> None:
+        if not hasattr(self, "training_help"):
+            return
+
+        mode = self.mode.currentData()
+        title = self.mode.currentText()
+
+        if mode == "loop":
+            how = (
+                "Повторяет весь текущий ритмический рисунок без изменения его структуры."
+            )
+            tip = (
+                "Используй для разучивания и закрепления рисунка. Начни с темпа, "
+                "в котором можешь играть расслабленно; при необходимости включи "
+                "«Разгон темпа» в Опциях."
+            )
+        elif mode == "ramp_1_4":
+            how = (
+                f"Начинает с первой доли и каждые {self.bars.value()} такт. "
+                "добавляет следующую, пока не откроется весь такт. Затем цикл повторяется."
+            )
+            tip = (
+                "Удобно для длинного нового рисунка: сначала добейся ровности короткого "
+                "фрагмента и только потом добавляй следующую долю."
+            )
+        elif mode == "ramp_2_4":
+            how = (
+                f"Начинает с первых двух долей и через {self.bars.value()} такт. "
+                "переходит к полному такту; затем цикл повторяется."
+            )
+            tip = (
+                "Подходит, когда начало уже знакомо и нужно быстро связать его "
+                "с оставшейся частью риффа."
+            )
+        elif mode == "gap":
+            how = (
+                f"{self.gap_play_bars.value()} такт. упражнение звучит, затем "
+                f"{self.gap_silent_bars.value()} такт. полностью убираются подсказки "
+                "ТИ/ТА и метроном. Внутренний ритмический ход не останавливается."
+            )
+            tip = (
+                "Продолжай играть в тишине и не пытайся «догонять» возврат клика. "
+                "Цель — встретить его точно в своём внутреннем пульсе."
+            )
+        elif mode == "progressive_gap":
+            how = (
+                f"После каждых {self.gap_play_bars.value()} такт. со звуком тишина "
+                f"растёт от 1 до {self.progressive_gap_max.value()} такт., "
+                "после чего цикл начинается заново."
+            )
+            tip = (
+                "Начинай с комфортного BPM. Если на длинной тишине стабильно уплываешь, "
+                "уменьши максимальную тишину или темп."
+            )
+        elif mode == "sparse_click":
+            click = self.sparse_click.currentText()
+            how = (
+                f"Ритмический рисунок остаётся тем же, а метроном звучит реже: {click.lower()}."
+            )
+            tip = (
+                "Для более строгой проверки внутреннего пульса можно дополнительно "
+                "выключить звуки ТИ/ТА во вкладке «Звук» и оставить только редкий клик."
+            )
+        elif mode == "displaced_click":
+            position = self.displaced_click.currentText()
+            how = (
+                f"Метроном переносится с сильной доли на смещённую позицию: {position}. "
+                "Сам рисунок не меняется."
+            )
+            tip = (
+                "Начинай заметно медленнее обычного. Сначала научись слышать смещённый "
+                "клик как часть сетки, а не как новую сильную долю."
+            )
+        else:
+            how = "Использует выбранный режим тренировки для текущего рисунка."
+            tip = "Начинай медленно и повышай сложность только после стабильного исполнения."
+
+        self.training_help.setText(
+            f"<b>{title}</b><br><br>"
+            f"{how}<br><br>"
+            f"<b>Как лучше использовать:</b> {tip}<br><br>"
+            "<span style='color:#858d99'>"
+            "Переключатель «Тренировка / Игра» сверху меняет только способ выполнения: "
+            "в режиме «Игра» используется этот же режим тренировки и его параметры."
+            "</span>"
+        )
+
     def _mode_changed(self, *_args) -> None:
         ramp = self.mode.currentData() in RAMP_MODES
         for editor in self.editors:
@@ -1707,6 +1831,7 @@ class MainWindow(QMainWindow):
         if not self.engine.is_running:
             self._set_ramp_visual(self.meter_num.value())
         self._refresh_dependent_controls()
+        self._update_training_help()
         self._pattern_changed()
 
     def _refresh_dependent_controls(self, *_args) -> None:
@@ -1738,6 +1863,13 @@ class MainWindow(QMainWindow):
         timer_enabled = self.practice_timer.isChecked()
         self.timer_minutes.setEnabled(timer_enabled)
         self.timer_seconds.setEnabled(timer_enabled)
+
+        if hasattr(self, "training_options_form"):
+            self.training_options_form.setRowVisible(self.tempo_step, tempo_enabled)
+            self.training_options_form.setRowVisible(self.tempo_every, tempo_enabled)
+            self.training_options_form.setRowVisible(self.tempo_target, tempo_enabled)
+            self.training_options_form.setRowVisible(self.timer_minutes, timer_enabled)
+            self.training_options_form.setRowVisible(self.timer_seconds, timer_enabled)
 
         self.ti_sound.setEnabled(self.ti_on.isChecked())
         self.ti_vol.setEnabled(self.ti_on.isChecked())
@@ -1829,15 +1961,6 @@ class MainWindow(QMainWindow):
         self._update_picking_pattern()
 
     def _bpm_from_spin(self, value: int) -> None:
-        self.bpm_slider.blockSignals(True)
-        self.bpm_slider.setValue(value)
-        self.bpm_slider.blockSignals(False)
-        self.engine.set_config(bpm=value)
-
-    def _bpm_from_slider(self, value: int) -> None:
-        self.bpm.blockSignals(True)
-        self.bpm.setValue(value)
-        self.bpm.blockSignals(False)
         self.engine.set_config(bpm=value)
 
     def _timer_limit(self) -> int:
@@ -1927,6 +2050,9 @@ class MainWindow(QMainWindow):
         if enabled and hasattr(self, "picking_enabled") and self.picking_enabled.isChecked():
             self.picking_enabled.setChecked(False)
 
+        if enabled and self.engine.is_running and not self.game_active:
+            self._stop_playback("Готов")
+
         self.game_stats_visible = enabled
         self.game_start.setEnabled(enabled)
 
@@ -1941,10 +2067,22 @@ class MainWindow(QMainWindow):
         if not enabled:
             if self.game_active:
                 self.stop_game("Игра остановлена")
-            self.visual.set_game_stats(False, self.game_hits, self.game_misses, self.game_recent, self.game_score)
+            self.visual.set_game_stats(
+                False,
+                self.game_hits,
+                self.game_misses,
+                self.game_recent,
+                self.game_score,
+            )
             self.visual.clear_game_feedback()
         else:
-            self.visual.set_game_stats(True, self.game_hits, self.game_misses, self.game_recent, self.game_score)
+            self.visual.set_game_stats(
+                True,
+                self.game_hits,
+                self.game_misses,
+                self.game_recent,
+                self.game_score,
+            )
 
     def toggle_game(self) -> None:
         if not self.game_enabled.isChecked():
@@ -2457,7 +2595,7 @@ class MainWindow(QMainWindow):
 
     def _picking_settings_changed(self, *_args) -> None:
         if self.picking_enabled.isChecked() and self.game_enabled.isChecked():
-            self.game_enabled.setChecked(False)
+            self.training_mode_button.setChecked(True)
 
         self._refresh_picking_controls()
         self.visual.configure_picking(
@@ -3253,7 +3391,10 @@ class MainWindow(QMainWindow):
                 "score": int(saved_last.get("score", 0)),
             }
         self._refresh_last_game_stats()
-        self.game_enabled.setChecked(bool(game.get("enabled", False)))
+        if bool(game.get("enabled", False)):
+            self.game_enabled.setChecked(True)
+        else:
+            self.training_mode_button.setChecked(True)
         self._game_mode_toggled(self.game_enabled.isChecked())
 
         picking = data.get("picking", {})
@@ -3343,7 +3484,7 @@ class MainWindow(QMainWindow):
         self.metro_lamps.setChecked(True)
         self._refresh_color_samples()
 
-        self.game_enabled.setChecked(False)
+        self.training_mode_button.setChecked(True)
         self.game_ti_key.set_binding("key:F")
         self.game_ta_key.set_binding("key:J")
         self.game_hit_sound.setChecked(True)
