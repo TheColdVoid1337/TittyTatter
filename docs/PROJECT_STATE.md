@@ -146,9 +146,9 @@ The canonical next design is:
 
 - [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md)
 
-Picking Logic v2 is currently at **P3 implemented, local validation pending**.
+Picking Logic v2 is currently at **P4 whole-beat motif constraints implemented; local validation pending**.
 
-P1 provides normalized events and stable real/placeholder identity. P2 provides deterministic attack-alternate decisions. P3 adds event-based practical Economy transitions, real sweep classification, start-polarity search, parity, explicit reset semantics, cyclic loop-boundary scoring, sweep-group ids, and decision explanations.
+P1 provides normalized events and stable real/placeholder identity. P2 provides deterministic attack-alternate decisions. P3 provides event-based practical Economy transitions and was locally validated green on `4949c74`. P4 now moves repeated whole-beat motif consistency into the Economy optimization itself through shared motif-relative stroke variables.
 
 The current UI/runtime arrow generator still uses the transitional path; v2 visual cutover remains deferred until the integration phase.
 
@@ -283,9 +283,9 @@ Documentation is updated in place.
 2. Do not add another pattern-specific heuristic unless needed as a regression-preserving emergency fix.
 3. **P1 complete:** normalized Picking events plus persistent real-attack / stage-local placeholder identities.
 4. **P2 complete and locally validated:** deterministic attack-alternate engine on normalized events.
-5. **P3 implemented; local check pending:** Economy transition/scoring semantics with explicit transition types, start-polarity search, parity, loop-boundary scoring, linked sweeps, and explanations.
-6. **Next after P3 validation: P4:** move motif consistency into optimizer constraints.
-7. Implement joint Ramp-stage solving.
+5. **P3 complete and locally validated:** Economy transition/scoring semantics with explicit transition types, start-polarity search, parity, loop-boundary scoring, linked sweeps, and explanations.
+6. **P4 whole-beat stage implemented; local check pending:** motif consistency is enforced inside the optimizer rather than post-hoc.
+7. **Next after P4 validation: P5:** implement joint Ramp-stage solving using persistent real-attack identities and stage-local placeholders.
 8. Run the full automated Picking regression matrix.
 9. Perform local GUI/manual acceptance before replacing the transitional runtime path.
 
