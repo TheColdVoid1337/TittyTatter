@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QGraphicsOpacityEffect,
     QGridLayout,
     QGroupBox,
@@ -1188,12 +1189,12 @@ class MainWindow(QMainWindow):
         self.tap.clicked.connect(self.tap_tempo)
         transport.addWidget(self.tap)
 
-        self.tabs_toggle = QPushButton("Скрыть вкладки")
+        self.tabs_toggle = QPushButton("Фокус режим [F]")
         self.tabs_toggle.setCheckable(True)
         self.tabs_toggle.setToolTip(
-            "Скрыть нижний блок настроек и отдать место долям и метроному"
+            "Скрыть настройки долей и вкладки, оставив максимум места метроному"
         )
-        self.tabs_toggle.toggled.connect(self._set_tabs_hidden)
+        self.tabs_toggle.toggled.connect(self._set_focus_mode)
         transport.addWidget(self.tabs_toggle)
 
         transport.addStretch(1)
@@ -1249,22 +1250,24 @@ class MainWindow(QMainWindow):
         self.status.setStyleSheet("font-size:16px;font-weight:700;padding:5px")
         out.addWidget(self.status)
 
-        self.beats_group = QGroupBox()
-        self.beats_group.setSizePolicy(
-            QSizePolicy.Expanding,
-            QSizePolicy.Maximum,
-        )
-        beats_outer = QVBoxLayout(self.beats_group)
         self.beat_scroll = QScrollArea()
         self.beat_scroll.setWidgetResizable(True)
         self.beat_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.beat_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.beat_scroll.setFrameShape(QFrame.NoFrame)
+        self.beat_scroll.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Maximum,
+        )
+        self.beat_scroll.setStyleSheet(
+            "QScrollArea{border:0;background:transparent;}"
+            "QScrollArea > QWidget > QWidget{background:transparent;}"
+        )
         self.beats_container = QWidget()
         self.beats_layout = QHBoxLayout(self.beats_container)
         self.beats_layout.setContentsMargins(2, 2, 2, 2)
         self.beat_scroll.setWidget(self.beats_container)
-        beats_outer.addWidget(self.beat_scroll)
-        out.addWidget(self.beats_group, 0)
+        out.addWidget(self.beat_scroll, 0)
 
         self.tabs = QTabWidget()
         self.tabs.setSizePolicy(
@@ -1355,46 +1358,39 @@ class MainWindow(QMainWindow):
             if signal:
                 signal.connect(self._config_changed)
 
-    def _set_tabs_hidden(self, hidden: bool) -> None:
-        hidden = bool(hidden)
+    def _set_focus_mode(self, enabled: bool) -> None:
+        enabled = bool(enabled)
         if not hasattr(self, "tabs"):
             return
 
-        # Keep the button state and label coherent when this method is called
-        # from settings restore/reset rather than directly by the user.
-        if self.tabs_toggle.isChecked() != hidden:
+        if self.tabs_toggle.isChecked() != enabled:
             self.tabs_toggle.blockSignals(True)
-            self.tabs_toggle.setChecked(hidden)
+            self.tabs_toggle.setChecked(enabled)
             self.tabs_toggle.blockSignals(False)
 
-        self.tabs_toggle.setText("Показать вкладки" if hidden else "Скрыть вкладки")
-        self.tabs.setVisible(not hidden)
-        self.visual.set_expand_to_fill(hidden)
+        # Focus mode is intentionally minimal: hide both configuration areas
+        # and use the released height for the metronome.
+        self.tabs.setVisible(not enabled)
+        self.beat_scroll.setVisible(not enabled)
+        self.visual.set_expand_to_fill(enabled)
 
-        if hidden:
-            # Focus view: let the beat editor grow, but reserve most of the
-            # remaining vertical area for a large metronome.
-            self.beats_group.setSizePolicy(
-                QSizePolicy.Expanding,
-                QSizePolicy.Expanding,
-            )
-            self.main_layout.setStretchFactor(self.visual, 5)
-            self.main_layout.setStretchFactor(self.beats_group, 2)
+        if enabled:
+            self.main_layout.setStretchFactor(self.visual, 1)
+            self.main_layout.setStretchFactor(self.beat_scroll, 0)
             self.main_layout.setStretchFactor(self.tabs, 0)
         else:
-            # Normal view: beats stay at their natural height and the tab area
-            # owns the spare vertical space.
-            self.beats_group.setSizePolicy(
+            self.beat_scroll.setSizePolicy(
                 QSizePolicy.Expanding,
                 QSizePolicy.Maximum,
             )
             self.main_layout.setStretchFactor(self.visual, 0)
-            self.main_layout.setStretchFactor(self.beats_group, 0)
+            self.main_layout.setStretchFactor(self.beat_scroll, 0)
             self.main_layout.setStretchFactor(self.tabs, 1)
 
-        self.beats_group.updateGeometry()
+        self.beat_scroll.updateGeometry()
         self.tabs.updateGeometry()
         self.centralWidget().updateGeometry()
+
 
     def _build_practice_tab(self) -> QWidget:
         tab = QWidget()
@@ -1987,7 +1983,6 @@ class MainWindow(QMainWindow):
             self.editors.append(editor)
         self.beats_layout.addStretch()
 
-        self.beats_group.setTitle(f"Такт {numerator}/{denominator}")
         self._update_mode_labels()
         self._mode_changed()
         self._pattern_changed()
@@ -2884,11 +2879,32 @@ class MainWindow(QMainWindow):
         )
 
     def eventFilter(self, watched, event) -> bool:
+        binding = ""
+        if event.type() == QEvent.KeyPress and not event.isAutoRepeat():
+            binding = binding_identity(_key_event_binding(event))
+
+            # Physical F (Windows Set-1 scan 33) toggles Focus mode regardless
+            # of active keyboard layout. While capturing a game binding, let
+            # GameBindEdit receive F normally. During an active game, a lane
+            # explicitly bound to F also takes priority over the Focus shortcut.
+            capturing_bind = (
+                isinstance(watched, GameBindEdit)
+                and getattr(watched, "_capturing", False)
+            )
+            game_uses_f = (
+                self.game_active
+                and binding in (
+                    self._configured_game_binding(self.game_ti_key),
+                    self._configured_game_binding(self.game_ta_key),
+                )
+            )
+            if binding == "scan:33" and not capturing_bind and not game_uses_f:
+                self.tabs_toggle.toggle()
+                event.accept()
+                return True
+
         if self.game_active:
-            binding = ""
-            if event.type() == QEvent.KeyPress and not event.isAutoRepeat():
-                binding = binding_identity(_key_event_binding(event))
-            elif event.type() == QEvent.MouseButtonPress:
+            if event.type() == QEvent.MouseButtonPress:
                 binding = binding_identity(_mouse_button_binding(event.button()))
 
             if binding:
@@ -3574,7 +3590,7 @@ class MainWindow(QMainWindow):
         return {
             "geometry": geometry,
             "last_tab": self.tabs.currentIndex(),
-            "tabs_hidden": self.tabs_toggle.isChecked(),
+            "focus_mode": self.tabs_toggle.isChecked(),
             "bpm": self.bpm.value(),
             "meter": {
                 "numerator": self.meter_num.value(),
@@ -3786,7 +3802,9 @@ class MainWindow(QMainWindow):
 
         last_tab = int(data.get("last_tab", 0))
         self.tabs.setCurrentIndex(max(0, min(self.tabs.count() - 1, last_tab)))
-        self._set_tabs_hidden(bool(data.get("tabs_hidden", False)))
+        self._set_focus_mode(
+            bool(data.get("focus_mode", data.get("tabs_hidden", False)))
+        )
         self._mode_changed()
 
     def reset_app_settings(self) -> None:
@@ -3900,7 +3918,7 @@ class MainWindow(QMainWindow):
         self._select_engine_audio_device_in_combo()
 
         self.tabs.setCurrentIndex(0)
-        self._set_tabs_hidden(False)
+        self._set_focus_mode(False)
         self._sync()
 
     def reset_session(self) -> None:
