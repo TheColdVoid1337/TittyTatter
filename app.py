@@ -1789,7 +1789,7 @@ class MainWindow(QMainWindow):
 
         logo = QLabel()
         logo.setAlignment(Qt.AlignCenter)
-        pixmap = _app_icon_pixmap(180)
+        pixmap = _app_icon_pixmap(144)
         if not pixmap.isNull():
             logo.setPixmap(pixmap)
         layout.addWidget(logo)
