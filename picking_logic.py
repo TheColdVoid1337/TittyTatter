@@ -302,6 +302,81 @@ def _economy_pick_beat_block(
     ]
 
 
+def _stabilise_repeated_beat_runs(
+    beats: list[list[str]],
+    directions: list[list[str | None]],
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+    *,
+    cyclic: bool,
+) -> list[list[str | None]]:
+    """Keep consecutive identical beats as one repeatable motor pattern.
+
+    Economy picking should not flip an otherwise identical beat merely to save
+    a small transition cost at the edge of a repeated run. A repeated beat is
+    therefore optimized as its own cycle and the same picking is copied to
+    every repetition. In cyclic mode the end/start bar boundary also counts as
+    adjacent.
+    """
+    result = [list(row) for row in directions]
+    count = len(beats)
+    if count < 2:
+        return result
+
+    def has_attack(states: list[str]) -> bool:
+        return any(state in (ti_state, ta_state) for state in states)
+
+    def stabilise(indices: list[int]) -> None:
+        if len(indices) < 2:
+            return
+        states = beats[indices[0]]
+        if not has_attack(states):
+            return
+        stable = economy_pick_pattern(
+            states,
+            ti_state,
+            ta_state,
+            off_state,
+            cyclic=True,
+        )
+        for index in indices:
+            result[index] = list(stable)
+
+    if not cyclic:
+        start = 0
+        while start < count:
+            end = start + 1
+            while end < count and beats[end] == beats[start]:
+                end += 1
+            stabilise(list(range(start, end)))
+            start = end
+        return result
+
+    if all(beats[index] == beats[0] for index in range(1, count)):
+        stabilise(list(range(count)))
+        return result
+
+    # Start immediately after a beat-pattern boundary. This linearises the
+    # circular bar while still allowing an identical run to cross end/start.
+    start = next(
+        index
+        for index in range(count)
+        if beats[index] != beats[index - 1]
+    )
+    group = [start]
+    for offset in range(1, count):
+        index = (start + offset) % count
+        previous = (start + offset - 1) % count
+        if beats[index] == beats[previous]:
+            group.append(index)
+        else:
+            stabilise(group)
+            group = [index]
+    stabilise(group)
+    return result
+
+
 def economy_pick_beats(
     beats: list[list[str]],
     ti_state: str,
@@ -321,12 +396,20 @@ def economy_pick_beats(
         return []
 
     if not loop:
-        return _economy_pick_beat_block(
+        result = _economy_pick_beat_block(
             beats,
             ti_state,
             ta_state,
             off_state,
             period=len(beats),
+            cyclic=False,
+        )
+        return _stabilise_repeated_beat_runs(
+            beats,
+            result,
+            ti_state,
+            ta_state,
+            off_state,
             cyclic=False,
         )
 
@@ -337,12 +420,20 @@ def economy_pick_beats(
     ]
     if not silent_beats:
         period = _minimal_beat_period(beats)
-        return _economy_pick_beat_block(
+        result = _economy_pick_beat_block(
             beats,
             ti_state,
             ta_state,
             off_state,
             period=period,
+            cyclic=True,
+        )
+        return _stabilise_repeated_beat_runs(
+            beats,
+            result,
+            ti_state,
+            ta_state,
+            off_state,
             cyclic=True,
         )
 
@@ -388,4 +479,11 @@ def economy_pick_beats(
     for rotated_index, directions in enumerate(rotated_result):
         original_index = (cut + rotated_index) % len(beats)
         result[original_index] = directions
-    return result
+    return _stabilise_repeated_beat_runs(
+        beats,
+        result,
+        ti_state,
+        ta_state,
+        off_state,
+        cyclic=True,
+    )

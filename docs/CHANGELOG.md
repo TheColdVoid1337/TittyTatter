@@ -10,6 +10,7 @@ Numeric headings are added when a release version is chosen. Future development 
 ### Fixed
 
 - Picking Guide now preserves the same whole-beat picking pattern for repeated active motifs separated by fully silent beats, including motifs that cross the bar boundary.
+- Economy picking keeps consecutive identical beats as one stable motor pattern instead of flipping a later repetition for a small boundary-transition advantage; looping runs also stay consistent across the bar boundary.
 
 ## 0.0.4 — 2026-10-04
 

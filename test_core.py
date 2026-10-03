@@ -230,6 +230,41 @@ wrapped_rest_loop = economy_pick_beats(
 )
 assert wrapped_rest_loop[0] == wrapped_rest_loop[2]
 
+# Repeating one identical beat several times is a motor pattern, not an excuse
+# to flip the last repetition for a tiny boundary-transition saving.
+repeated_with_different_tail = economy_pick_beats(
+    [
+        [TA, TI, TI, TI],
+        [TA, TI, TI, TI],
+        [TA, TI, TI, TI],
+        [TI, TA, TI, TA],
+    ],
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+assert (
+    repeated_with_different_tail[0]
+    == repeated_with_different_tail[1]
+    == repeated_with_different_tail[2]
+)
+
+# The same consistency rule applies when the repeated run crosses the visual
+# bar boundary in a looping exercise.
+wrapped_repeated_run = economy_pick_beats(
+    [
+        [TA, TI, TI, TI],
+        [TI, TA, TI, TA],
+        [TA, TI, TI, TI],
+    ],
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+assert wrapped_repeated_run[0] == wrapped_repeated_run[2]
+
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
 assert len(CORE_PRACTICE_PRESETS) == 24
