@@ -183,7 +183,11 @@ The current post-0.0.4 implementation is **transitional**. It contains linear/cy
 
 The target design is canonical in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
-**P1 is now implemented:** `PickingEvent`, real-pattern vs Ramp-placeholder source identity, stable real-attack ids across stages, explicit covered slots, exact rhythmic phase, and explicit reset-boundary input are available as pure deterministic normalization helpers. This P1 layer is not yet wired to the visual arrow generator.
+**P1 is implemented:** `PickingEvent`, real-pattern vs Ramp-placeholder source identity, stable real-attack ids across stages, explicit covered slots, exact rhythmic phase, and explicit reset-boundary input are available as pure deterministic normalization helpers.
+
+**P2 is implemented:** Alternate v2 consumes the normalized event stream and advances only on attacks. OFF/COVERED slots do not consume parity, string changes do not interrupt alternation, and Ramp placeholders count as attacks. Compatibility helpers can project event decisions back to the existing beat/subdivision UI shape.
+
+Neither P1 nor P2 is yet wired to the visual arrow generator; runtime cutover remains a later integration step.
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 

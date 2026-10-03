@@ -1,6 +1,6 @@
 # Picking Logic v2
 
-Status: **P1 implemented — normalized event/identity layer**  
+Status: **P2 implemented — Alternate v2 on normalized events**  
 Target: post-0.0.4 development on `work`  
 Runtime cutover: **not yet — current arrow generation remains transitional**
 
@@ -843,11 +843,29 @@ P1 intentionally leaves `motif_id=None`; motif detection/constraints belong to P
 
 The old UI/runtime path remains working and is not cut over by P1.
 
-## Phase P2 — Alternate v2
+## Phase P2 — Alternate v2 — IMPLEMENTED
 
-Implement the simple deterministic attack-alternate engine first.
+Implemented as a pure deterministic engine over normalized `PickingEvent` objects.
 
-Lock its semantics with tests before touching Economy.
+Current P2 primitives:
+
+- `alternate_pick_events(...)` — one-to-one event-aligned decisions;
+- `picking_directions_by_beat(...)` — compatibility projection back to the current UI beat/subdivision shape;
+- `alternate_pick_beats_v2(...)` — normalization + Alternate v2 adapter for later integration.
+
+Locked semantics:
+
+- every attack flips direction;
+- string changes do not interrupt alternation;
+- OFF does not consume a direction;
+- COVERED does not consume a direction;
+- Ramp placeholder attacks do consume a direction;
+- explicit phrase/reset boundaries do not restart public Alternate;
+- explicit UP start is supported;
+- invalid start input deterministically falls back to DOWN;
+- identical inputs produce identical outputs.
+
+The existing visual/runtime Alternate path is intentionally not cut over yet. P6 remains the integration checkpoint after Economy/motif/Ramp v2 behavior is ready.
 
 ## Phase P3 — Economy transition engine
 

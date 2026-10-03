@@ -53,6 +53,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Game grading | PERFECT/GREAT/GOOD/HIT boundaries |
 | Picking | representative economy/alternate/cyclic behavior |
 | Picking v2 P1 | normalized real/OFF/covered slots, exact rhythmic phase, stable real-attack identity across Ramp stages, stage-local placeholder identity, explicit reset boundaries |
+| Picking v2 P2 | attack-alternate on normalized events; OFF/COVERED do not consume parity; string changes preserve alternation; Ramp placeholders consume attacks; reset markers do not restart Alternate; deterministic start-polarity handling |
 | Syntax | application modules compile |
 
 ## Automated export coverage
