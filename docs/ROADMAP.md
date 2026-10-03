@@ -8,19 +8,22 @@ The strongest product direction is:
 
 Game remains an optional input/scoring layer over the same training timeline. Picking Guide remains an optional informational layer for guitar practice.
 
-## Immediate release checkpoint
+## Immediate post-0.0.4 focus — Picking Logic v2
 
-Before beginning the next feature cycle:
+The 0.0.4 release is complete. The immediate technical focus is to replace the current patch-heavy Picking Guide heuristics with the architecture defined in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
-- finish release documentation/assets;
-- select the next numeric version explicitly;
-- run the final local release gate;
-- fast-forward accepted `work` into `main`;
-- create and verify the annotated release tag;
-- synchronize `work` to the release commit;
-- remove obsolete branches only after proving they contain no unique commits.
+Implementation order:
 
-Do not start the future Training Mode backlog merely because it is documented here.
+1. normalize Picking events and persistent/placeholder identities;
+2. implement and lock deterministic attack-alternate semantics;
+3. implement practical directional Economy transitions, start-polarity search, parity, loop-boundary scoring, and explainable transition types;
+4. move repeated motifs from post-hoc rewriting into optimizer constraints;
+5. solve Ramp stages jointly so real attacks keep one learned direction while stage-local placeholders remain optimizable;
+6. cut the UI over only after the v2 regression matrix is green and local GUI acceptance passes.
+
+Do not add more screenshot-specific picking heuristics when the failure belongs to the v2 model. Convert new failures into regression cases first.
+
+The future Training Mode backlog remains valid, but Picking Logic v2 is the current practice-quality priority unless explicitly reprioritized.
 
 ## Priority post-release Training Modes
 

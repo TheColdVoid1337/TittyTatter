@@ -188,3 +188,34 @@ Repository writes still follow semantic commits, reporting, and local-validation
 ## D-034 — Application version and settings schema are independent
 
 **Decision:** root `VERSION` changes only at explicit release/tag checkpoints. Session/settings schema versions may change independently for persistence compatibility.
+
+## D-035 — Alternate means attack-alternate
+
+**Decision:** the normal user-facing **Переменный / Alternate** strategy alternates consecutive attacks, not rhythmic grid slots.
+
+OFF and covered long-note positions do not consume a pick direction. Training-generated Ramp placeholder attacks do consume a direction.
+
+**Reason:** this matches the intended exercise semantics and avoids silently turning sparse attacks into a ghost-stroke/continuous-strumming interpretation.
+
+## D-036 — Economy is practical and practice-oriented
+
+**Decision:** the normal user-facing **Экономный / Economy** strategy is practical directional economy, not maximum-sweep optimization.
+
+It should prefer same-string alternation, use valid directional sweeps when useful, and preserve stable repeated motor motifs. Motif/stage stability outranks a tiny local transition saving.
+
+**Reason:** TittyTatter is a trainer. A player should not have to relearn an otherwise identical repeated figure only because a later boundary admits a marginally cheaper transition.
+
+## D-037 — Ramp picking is one constrained exercise
+
+**Decision:** Picking Logic v2 must treat all Ramp stages as one constrained optimization problem.
+
+Real stored-pattern attacks keep persistent identities and therefore one stroke direction across every stage in which they exist. Temporary Ramp placeholder attacks are stage-local and may be optimized separately.
+
+**Reason:** independently optimizing each stage teaches conflicting motor patterns; choosing one arbitrary stage as the global truth can also destroy useful Economy transitions.
+
+## D-038 — Do not infer a player's escape mechanics
+
+**Decision:** Picking Logic v2 reserves an internal escape-profile hook for AUTO / USX / DSX / DBX, but the default product must not pretend to know the player's actual picking mechanics.
+
+**Reason:** stroke direction alone does not determine escape behavior. Personalized mechanics may become an advanced preference later, but they require an explicit user choice rather than inference.
+

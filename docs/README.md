@@ -6,8 +6,9 @@ The root `README.md` is the public user-facing project entry point. Detailed imp
 
 ## Canonical documents
 
-- [PROJECT_STATE.md](PROJECT_STATE.md) — current implementation and release-preparation state.
+- [PROJECT_STATE.md](PROJECT_STATE.md) — current implementation, release baseline, and active development state.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — module boundaries, rhythm/training model, realtime timing, Game timing, Picking Guide, Focus view, export, and settings.
+- [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md) — canonical design for the next Picking Guide engine: event/state model, Alternate/Economy semantics, Ramp constraints, scoring priorities, migration phases, and regression matrix.
 - [WORKFLOW.md](WORKFLOW.md) — canonical vFLOW development, GitHub write, validation, reporting, release, and handoff procedure.
 - [USER_GUIDE.md](USER_GUIDE.md) — current application workflow and controls.
 - [ROADMAP.md](ROADMAP.md) — post-release guitar-training direction and later work.

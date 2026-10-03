@@ -174,30 +174,39 @@ This is also used by the Focus-key priority logic.
 
 Owns Picking Guide direction selection.
 
-Current capabilities include:
-
-- linear run optimization;
-- cyclic optimization;
-- minimal whole-beat period detection;
-- economy-picking generation;
-- strict-alternate generation.
-
 Reference mapping:
 
 - TI → string 5;
 - TA → string 6.
 
-Rests split continuity.
+The current post-0.0.4 implementation is **transitional**. It contains linear/cyclic optimization plus repeated-pattern and Ramp-specific stabilization added from real practice feedback. Those fixes are useful regression evidence, but they are not the final architecture.
 
-Repeated whole-beat patterns preserve their minimal period:
+The target design is canonical in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
+
+Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 
 ```text
-A A A A -> period 1
-A B A B -> period 2
-A B C D -> period 4
+effective training state
+  -> normalized PickingEvent stream
+  -> continuity / persistent identity / motif constraints
+  -> stage + cyclic transition graph
+  -> deterministic constrained optimizer
+  -> PickDecision stream
 ```
 
-This matters because Loop and current Ramp stages repeat cyclically. Picking suggestions must therefore respect the repeating effective bar rather than merely flattening one stored bar linearly.
+Target behavior includes:
+
+- **Alternate** = deterministic attack-alternate; rests do not consume a stroke;
+- **Economy** = practical directional economy, not maximum sweeping;
+- explicit same-string, alternate-crossing, sweep, reset, and future escape-aware transition types;
+- start DOWN/UP evaluated as real candidates;
+- parity and loop-boundary awareness;
+- repeated motor motifs constrained during optimization rather than rewritten afterward;
+- Ramp stages solved jointly, with persistent real attacks and stage-local placeholder attacks;
+- future AUTO/USX/DSX/DBX scoring hook without inferring the player's mechanics;
+- machine-readable decision reasons for regression/debug work.
+
+The UI may continue to show only arrows initially. Internal sweep links and transition reasons are model data, not a requirement for a new user-facing control.
 
 ### `game_logger.py`
 
