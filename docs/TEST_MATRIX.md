@@ -55,6 +55,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Picking v2 P1 | normalized real/OFF/covered slots, exact rhythmic phase, stable real-attack identity across Ramp stages, stage-local placeholder identity, explicit reset boundaries |
 | Picking v2 P2 | attack-alternate on normalized events; OFF/COVERED do not consume parity; string changes preserve alternation; Ramp placeholders consume attacks; reset markers do not restart Alternate; deterministic start-polarity handling |
 | Picking v2 P3 | same-string alternation, 6->5 and 5->6 directional sweeps, wrong-direction crossing classification, DOWN/UP start search, attack parity, OFF continuity, explicit reset behavior, cyclic last->first scoring, linked sweep groups, deterministic decision reasons |
+| Picking v2 P4 | repeated whole-beat motif annotation and in-optimizer equality constraints for A/A/A/B, A/B/A/B, cyclic end/start repetition, OFF-containing motifs, sweep-preserving stable motifs, deterministic constrained output |
 | Syntax | application modules compile |
 
 ## Automated export coverage
