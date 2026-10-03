@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLayout,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -1147,6 +1148,11 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         root = QWidget()
         out = QVBoxLayout(root)
+        # Tab pages have very different size hints. Do not let visiting a
+        # taller page permanently increase the top-level window minimum size.
+        # The current window geometry stays authoritative while layouts adapt
+        # inside the available space.
+        out.setSizeConstraint(QLayout.SetNoConstraint)
 
         transport = QHBoxLayout()
         self.play = QPushButton("▶ Старт")
