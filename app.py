@@ -612,8 +612,15 @@ class MetronomeVisual(QWidget):
         w = self.width()
         h = self.height()
         cx = w / 2
+        scale = max(0.60, min(2.00, self.scale_percent / 100.0))
         pivot_y = h - (25 if self.show_beat_lamps else 14)
-        length = min(0.66 * h, h - 36.0)
+        if self.expand_to_fill:
+            # In Focus mode the widget itself fills the window, so scale the
+            # metronome geometry rather than only the widget's size hint.
+            max_length = max(70.0, pivot_y - 58.0)
+            length = min(max_length, max(48.0, 0.46 * h * scale))
+        else:
+            length = min(0.66 * h, h - 36.0)
         painter.fillRect(self.rect(), QColor(28, 31, 36))
 
         beat_flash = 0.0
@@ -649,7 +656,8 @@ class MetronomeVisual(QWidget):
         tip_y = pivot_y - math.cos(angle) * length
 
         if self.flash_enabled:
-            radius = max(18, int(26 * self.scale_percent / 100))
+            flash_base = 38 if self.expand_to_fill else 26
+            radius = max(18, int(flash_base * scale))
             flash_color = QColor(self.flash_color)
             flash_color.setAlpha(max(12, min(240, int(24 + 150 * beat_flash))))
             painter.setPen(Qt.NoPen)
@@ -660,7 +668,13 @@ class MetronomeVisual(QWidget):
         painter.drawLine(int(cx), int(pivot_y), int(tip_x), int(tip_y))
         painter.setBrush(self.needle_color)
         painter.setPen(Qt.NoPen)
-        painter.drawEllipse(int(cx - 6), int(pivot_y - 6), 12, 12)
+        pivot_radius = max(5, min(13, int((7 if self.expand_to_fill else 6) * scale)))
+        painter.drawEllipse(
+            int(cx - pivot_radius),
+            int(pivot_y - pivot_radius),
+            pivot_radius * 2,
+            pivot_radius * 2,
+        )
 
         if self.show_beat_lamps:
             count = max(1, self.numerator)
@@ -668,7 +682,12 @@ class MetronomeVisual(QWidget):
             gap = 0.0 if count == 1 else min(34.0, usable / (count - 1))
             start_x = cx - gap * (count - 1) / 2
             lamp_y = h - 12
-            radius = 5 if count > 8 else 6
+            base_radius = 5 if count > 8 else 6
+            radius = (
+                max(4, min(11, int(base_radius * scale)))
+                if self.expand_to_fill
+                else base_radius
+            )
             for i in range(count):
                 x = start_x + i * gap
                 if not self.count_in and i >= self.active_beats:
@@ -825,9 +844,16 @@ class MetronomeVisual(QWidget):
 
         panel_w = min(250, max(175, self.width() // 4))
         left = self.width() - panel_w - 12
-        bottom = self.height() - 28
         graph_top = top + 10
-        graph_h = max(22, bottom - graph_top)
+        if self.expand_to_fill:
+            # Game history is a compact diagnostic panel, not a full-height
+            # equalizer. Keep it readable when Focus mode makes the metronome
+            # several times taller.
+            graph_h = max(54, min(180, int(self.height() * 0.22)))
+            bottom = graph_top + graph_h
+        else:
+            bottom = self.height() - 28
+            graph_h = max(22, bottom - graph_top)
 
         painter.setPen(QColor(185, 191, 200))
         total = self.game_hits + self.game_misses
