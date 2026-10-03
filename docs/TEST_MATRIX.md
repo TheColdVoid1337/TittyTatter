@@ -57,6 +57,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Picking v2 P3 | same-string alternation, 6->5 and 5->6 directional sweeps, wrong-direction crossing classification, DOWN/UP start search, attack parity, OFF continuity, explicit reset behavior, cyclic last->first scoring, linked sweep groups, deterministic decision reasons |
 | Picking v2 P4 | repeated whole-beat motif annotation and in-optimizer equality constraints for A/A/A/B, A/B/A/B, cyclic end/start repetition, OFF-containing motifs, sweep-preserving stable motifs, deterministic constrained output |
 | Picking v2 P5 | joint Ramp 1->full and 2->full solving; persistent real-stroke equality across stages; P4 motif preservation; stage-local alternating TA placeholders; useful sweep retention; covered-beat handling; deterministic joint output |
+| Picking v2 P6 | live app imports/routes only v2 Alternate/Economy/Ramp solvers; compile gate plus manual Loop/Ramp visual acceptance required before removing transitional functions |
 | Syntax | application modules compile |
 
 ## Automated export coverage
@@ -240,6 +241,16 @@ With Gap or Progressive Gap plus Game:
 - the yellow visual guidance remains hidden until audible guidance returns.
 
 ### Picking Guide
+
+#### Picking Logic v2 P6 cutover
+
+- live UI uses the v2 Alternate path;
+- live non-Ramp Economy uses event-based v2 Economy;
+- live Ramp Economy uses the joint P5 solver;
+- already-open Ramp attacks keep identical directions as later beats appear;
+- repeated motifs remain stable without losing valid sweeps;
+- inactive Ramp TA placeholders alternate instead of restarting every beat with DOWN;
+- compare the previously reported Ramp screenshots/cases against expected behavior before deleting transitional code.
 
 #### Economy
 
