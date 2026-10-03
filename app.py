@@ -632,7 +632,14 @@ class MetronomeVisual(QWidget):
         cx = w / 2
         scale = max(0.60, min(2.00, self.scale_percent / 100.0))
         focus_strip_h = self._focus_pattern_strip_height()
-        pivot_y = h - focus_strip_h - (25 if self.show_beat_lamps else 14)
+        if self.expand_to_fill:
+            # Keep a dedicated gap between the needle pivot and the beat-lamp
+            # row. At large Focus sizes both elements scale up, so the normal
+            # compact spacing is not enough.
+            pivot_gap = 48 if self.show_beat_lamps else 18
+            pivot_y = h - focus_strip_h - pivot_gap
+        else:
+            pivot_y = h - (25 if self.show_beat_lamps else 14)
         if self.expand_to_fill:
             # In Focus mode the widget itself fills the window, so scale the
             # metronome geometry rather than only the widget's size hint.
@@ -900,21 +907,45 @@ class MetronomeVisual(QWidget):
                 cell = QRectF(cell_left, cell_top, cell_w, cell_h)
 
                 if state == TI:
-                    fill = QColor(45, 112, 220)
+                    fill = QColor(49, 105, 198)
+                    border = QColor(114, 165, 255)
                     text_color = QColor(245, 248, 255)
                     label = "ТИ"
+                    # Match the editable TI button: a compact round/pill shape
+                    # rather than stretching blue across the full subdivision.
+                    ti_width = min(cell.width(), cell.height() * 1.18)
+                    draw_cell = QRectF(
+                        cell.center().x() - ti_width / 2.0,
+                        cell.top(),
+                        ti_width,
+                        cell.height(),
+                    )
+                    corner_radius = min(
+                        draw_cell.height() / 2.0,
+                        draw_cell.width() / 2.0,
+                    )
                 elif state == TA:
                     fill = QColor(57, 62, 71)
+                    border = QColor(102, 107, 117)
                     text_color = QColor(245, 248, 255)
                     label = "ТА"
+                    draw_cell = cell
+                    corner_radius = 6.0
                 else:
                     fill = QColor(38, 42, 48)
+                    border = QColor(52, 57, 65)
                     text_color = QColor(130, 137, 148)
                     label = "·"
+                    draw_cell = cell
+                    corner_radius = 6.0
 
                 painter.setBrush(fill)
-                painter.setPen(QPen(QColor(91, 98, 109), 1))
-                painter.drawRoundedRect(cell, 6, 6)
+                painter.setPen(QPen(border, 2 if state == TI else 1))
+                painter.drawRoundedRect(
+                    draw_cell,
+                    corner_radius,
+                    corner_radius,
+                )
 
                 current = (
                     self.focus_playhead_visible
@@ -928,13 +959,21 @@ class MetronomeVisual(QWidget):
                     # without covering the state colour underneath.
                     painter.setBrush(Qt.NoBrush)
                     painter.setPen(QPen(QColor(255, 198, 20, 105), 7))
-                    painter.drawRoundedRect(cell.adjusted(-1, -1, 1, 1), 7, 7)
+                    painter.drawRoundedRect(
+                        draw_cell.adjusted(-1, -1, 1, 1),
+                        corner_radius + 1,
+                        corner_radius + 1,
+                    )
                     painter.setPen(QPen(QColor(255, 224, 70), 3))
-                    painter.drawRoundedRect(cell.adjusted(-1, -1, 1, 1), 7, 7)
+                    painter.drawRoundedRect(
+                        draw_cell.adjusted(-1, -1, 1, 1),
+                        corner_radius + 1,
+                        corner_radius + 1,
+                    )
 
                 painter.setFont(label_font)
                 painter.setPen(text_color)
-                painter.drawText(cell, Qt.AlignCenter, label)
+                painter.drawText(draw_cell, Qt.AlignCenter, label)
 
         painter.restore()
 
