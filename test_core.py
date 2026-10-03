@@ -467,7 +467,7 @@ assert all(
 
 # Picking Logic v2 P4: repeated whole-beat motifs are constraints inside the
 # optimizer, not a post-processing rewrite.
-p4_a = [TA, TI, TA, TA]
+p4_a = [TA, TI, TI, TA]
 p4_b = [TI, TA, TI, TA]
 p4_aaab_events = normalize_picking_events(
     [p4_a, p4_a, p4_a, p4_b],
