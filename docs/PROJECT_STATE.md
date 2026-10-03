@@ -146,9 +146,9 @@ The canonical next design is:
 
 - [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md)
 
-Picking Logic v2 is currently at **P5 joint Ramp solver implemented; local validation pending**.
+Picking Logic v2 is currently at **P6 runtime cutover implemented; automated and manual acceptance pending**.
 
-P1 provides normalized events and stable real/placeholder identity. P2 provides deterministic attack-alternate decisions. P3 provides event-based practical Economy transitions. P4 whole-beat motif constraints were locally validated green on `86fb7ab`. P5 now solves all configured Ramp stages together with persistent real-attack stroke identity, stage-local placeholders, motif constraints, and per-stage cyclic boundaries.
+P1-P4 are locally validated. P5 joint Ramp solving was locally validated green on `eed6ddb`. The live Picking Guide now calls the v2 Alternate, Economy, and joint Ramp solvers. The old transitional functions remain only as regression/reference code until P6 acceptance is complete.
 
 The current UI/runtime arrow generator still uses the transitional path; v2 visual cutover remains deferred until the integration phase.
 
@@ -285,9 +285,9 @@ Documentation is updated in place.
 4. **P2 complete and locally validated:** deterministic attack-alternate engine on normalized events.
 5. **P3 complete and locally validated:** Economy transition/scoring semantics with explicit transition types, start-polarity search, parity, loop-boundary scoring, linked sweeps, and explanations.
 6. **P4 complete and locally validated:** motif consistency is enforced inside the optimizer rather than post-hoc.
-7. **P5 implemented; local check pending:** all Ramp stages are solved jointly with persistent real attacks, stage-local placeholders, motif constraints, and cyclic stage boundaries.
-8. **Next after P5 validation: P6:** cut the v2 engines into the Picking Guide runtime and run the full automated/manual acceptance matrix.
-9. Perform local GUI/manual acceptance before deleting the transitional picking path.
+7. **P5 complete and locally validated:** all Ramp stages are solved jointly with persistent real attacks, stage-local placeholders, motif constraints, and cyclic stage boundaries.
+8. **P6 cutover implemented; acceptance pending:** run `./tt check`, then `./tt run` and manually verify Loop/Alternate/Economy plus both Ramp modes and the known sweep/placeholder cases.
+9. Delete or quarantine the transitional picking path only after that manual acceptance.
 
 ## Durable repository rules
 
