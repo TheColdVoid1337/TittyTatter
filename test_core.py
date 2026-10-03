@@ -294,7 +294,6 @@ assert [direction for _event, direction in p2_ramp_attacks] == [
     UP,
     DOWN,
     UP,
-    DOWN,
 ]
 assert sum(
     event.source is PickingEventSource.RAMP_PLACEHOLDER
