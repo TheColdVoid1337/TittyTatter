@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import threading
 from collections import deque
 from dataclasses import dataclass, replace
@@ -11,6 +12,14 @@ import sounddevice as sd
 
 from model import BarPattern
 from presets import OFF, TA, TI
+from training_modes import (
+    GAP_MODES,
+    RAMP_MODES,
+    displaced_click_spec,
+    gap_phase,
+    ramp_stages,
+    sparse_click_matches,
+)
 
 SOUND_NAMES = (
     "Wood",
@@ -49,6 +58,11 @@ class EngineConfig:
     tempo_step: int = 2
     tempo_every_bars: int = 4
     tempo_target: int = 140
+    gap_play_bars: int = 4
+    gap_silent_bars: int = 2
+    progressive_gap_max_silent_bars: int = 4
+    sparse_click_pattern: str = "beat_1"
+    displaced_click: str = "eighth_and"
 
 
 class AudioEngine:
@@ -351,10 +365,26 @@ class AudioEngine:
 
     def status(self) -> dict[str, Any]:
         cfg = self._config
-        stages = self._stages(cfg.practice_mode, self._pattern.numerator)
+        mode = cfg.practice_mode
+        stages = ramp_stages(mode, self._pattern.numerator)
         stage_index = self._stage_index % len(stages)
-        active_beats = stages[stage_index]
-        next_active_beats = stages[(stage_index + 1) % len(stages)] if len(stages) > 1 else active_beats
+        active_beats = stages[stage_index] if mode in RAMP_MODES else self._pattern.numerator
+        next_active_beats = (
+            stages[(stage_index + 1) % len(stages)]
+            if mode in RAMP_MODES and len(stages) > 1
+            else active_beats
+        )
+
+        gap = None
+        if mode in GAP_MODES:
+            gap = gap_phase(
+                mode,
+                self._bar_number,
+                play_bars=cfg.gap_play_bars,
+                silent_bars=cfg.gap_silent_bars,
+                progressive_max_silent_bars=cfg.progressive_gap_max_silent_bars,
+            )
+
         beat_samples = max(1.0, self._visual_beat_samples)
         phase = (self._sample_cursor - self._visual_beat_start) / beat_samples
         phase = float(max(0.0, min(0.999, phase)))
@@ -362,7 +392,10 @@ class AudioEngine:
         if self._practice_started_sample is None:
             practice_elapsed = 0.0
         else:
-            practice_elapsed = max(0.0, (self._sample_cursor - self._practice_started_sample) / self.sample_rate)
+            practice_elapsed = max(
+                0.0,
+                (self._sample_cursor - self._practice_started_sample) / self.sample_rate,
+            )
 
         return {
             "running": self._running,
@@ -371,12 +404,23 @@ class AudioEngine:
             "sub": self._visual_sub,
             "beat_phase": phase,
             "bar": self._bar_number + 1,
+            "training_mode": mode,
             "stage_index": stage_index,
-            "stage_count": len(stages),
+            "stage_count": len(stages) if mode in RAMP_MODES else 1,
             "stage_bar": self._stage_bar + 1,
             "bars_per_stage": max(1, int(cfg.bars_per_stage)),
             "active_beats": active_beats,
             "next_active_beats": next_active_beats,
+            "training_silent": bool(gap.silent) if gap is not None else False,
+            "gap_segment_bar": gap.segment_bar if gap is not None else 0,
+            "gap_segment_bars": gap.segment_bars if gap is not None else 0,
+            "gap_cycle_bar": gap.cycle_bar if gap is not None else 0,
+            "gap_cycle_bars": gap.cycle_bars if gap is not None else 0,
+            "gap_silent_bars": gap.silent_bars if gap is not None else 0,
+            "gap_stage_index": gap.stage_index if gap is not None else 0,
+            "gap_stage_count": gap.stage_count if gap is not None else 1,
+            "sparse_click_pattern": cfg.sparse_click_pattern,
+            "displaced_click": cfg.displaced_click,
             "count_in": self._count_in_beats_left > 0,
             "count_in_beat": self._count_in_total_beats - self._count_in_beats_left,
             "numerator": self._pattern.numerator,
@@ -485,61 +529,134 @@ class AudioEngine:
         if self._practice_started_sample is None:
             self._practice_started_sample = event_sample
 
-        stages = self._stages(cfg.practice_mode, pattern.numerator)
-        active_beats = stages[self._stage_index % len(stages)]
+        mode = cfg.practice_mode
+        stages = ramp_stages(mode, pattern.numerator)
+        active_beats = (
+            stages[self._stage_index % len(stages)]
+            if mode in RAMP_MODES
+            else pattern.numerator
+        )
+
+        gap = None
+        if mode in GAP_MODES:
+            gap = gap_phase(
+                mode,
+                self._bar_number,
+                play_bars=cfg.gap_play_bars,
+                silent_bars=cfg.gap_silent_bars,
+                progressive_max_silent_bars=cfg.progressive_gap_max_silent_bars,
+            )
+        training_silent = bool(gap.silent) if gap is not None else False
+
         owner = self._coverage[self._beat_index]
         owner_index = self._beat_index if owner is None else owner
         owner_def = pattern.beats[owner_index]
         beat_muted = bool(owner_def.muted)
 
-        covered_by_active_note = owner is not None and owner != self._beat_index and owner < active_beats
+        covered_by_active_note = (
+            owner is not None
+            and owner != self._beat_index
+            and owner < active_beats
+        )
         beat_active = self._beat_index < active_beats
         beat_def = pattern.beats[self._beat_index]
 
         if covered_by_active_note:
-            n_sub = 1
-            state = OFF
-            logical_state = OFF
+            pattern_subdivision = 1
+            base_state = OFF
+            base_logical_state = OFF
         elif beat_active:
-            n_sub = beat_def.subdivision
-            state = beat_def.steps[self._sub_index]
-            logical_state = state
+            pattern_subdivision = max(1, beat_def.subdivision)
+            base_state = None
+            base_logical_state = None
         else:
-            # In ramp mode an inactive beat is conceptually TA + rests.
-            # Audio can still be disabled with inactive_pulse, but game input
-            # and visual practice semantics continue to expect TA on the beat.
-            n_sub = 1
-            logical_state = TA
-            state = TA if cfg.inactive_pulse else OFF
+            # Ramp inactive beats remain logical TA targets even if the audible
+            # pulse is disabled. This keeps Game semantics identical to guitar
+            # training semantics.
+            pattern_subdivision = 1
+            base_logical_state = TA
+            base_state = TA if cfg.inactive_pulse else OFF
 
-        if self._sub_index == 0:
+        metro_division = 1
+        displaced_slot = 0
+        if mode == "displaced_click":
+            metro_division, displaced_slot = displaced_click_spec(cfg.displaced_click)
+
+        ticks_per_beat = math.lcm(pattern_subdivision, metro_division)
+        tick_index = self._sub_index
+        pattern_stride = ticks_per_beat // pattern_subdivision
+        pattern_event = tick_index % pattern_stride == 0
+        pattern_sub_index = tick_index // pattern_stride if pattern_event else None
+
+        state = OFF
+        logical_state = OFF
+        if pattern_event:
+            if base_state is None:
+                state = beat_def.steps[int(pattern_sub_index)]
+                logical_state = state
+            else:
+                state = base_state
+                logical_state = base_logical_state
+
+        if tick_index == 0:
             self._visual_beat_start = event_sample
             self._visual_beat_samples = beat_samples
 
-        self._set_visual_event(self._beat_index, self._sub_index, self._visual_beat_start, beat_samples)
+        if pattern_event:
+            self._set_visual_event(
+                self._beat_index,
+                int(pattern_sub_index),
+                self._visual_beat_start,
+                beat_samples,
+            )
 
-        if self._sub_index == 0 and cfg.metronome_enabled and not beat_muted:
-            key = "metro_accent" if self._beat_index == 0 and cfg.accent_first_beat else "metro"
+        metronome_hit = False
+        if cfg.metronome_enabled and not beat_muted and not training_silent:
+            if mode == "displaced_click":
+                metro_stride = ticks_per_beat // metro_division
+                metronome_hit = tick_index == displaced_slot * metro_stride
+            elif mode == "sparse_click":
+                metronome_hit = (
+                    tick_index == 0
+                    and sparse_click_matches(
+                        cfg.sparse_click_pattern,
+                        self._bar_number,
+                        self._beat_index,
+                    )
+                )
+            else:
+                metronome_hit = tick_index == 0
+
+        if metronome_hit:
+            key = (
+                "metro_accent"
+                if self._beat_index == 0 and cfg.accent_first_beat
+                else "metro"
+            )
             sounds.append((self._sounds[key], float(cfg.metronome_volume)))
 
-        if not beat_muted:
+        if not beat_muted and not training_silent and pattern_event:
             if state == TI and cfg.ti_enabled:
-                sounds.append((self._sounds[self._sound_key(cfg.ti_sound)], float(cfg.ti_volume)))
+                sounds.append(
+                    (self._sounds[self._sound_key(cfg.ti_sound)], float(cfg.ti_volume))
+                )
             elif state == TA and cfg.ta_enabled:
-                sounds.append((self._sounds[self._sound_key(cfg.ta_sound)], float(cfg.ta_volume)))
+                sounds.append(
+                    (self._sounds[self._sound_key(cfg.ta_sound)], float(cfg.ta_volume))
+                )
 
         game_target = None
-        if not beat_muted and logical_state in (TI, TA):
+        if not beat_muted and pattern_event and logical_state in (TI, TA):
             game_target = (
                 logical_state,
                 self._bar_number,
                 self._beat_index,
-                self._sub_index,
+                int(pattern_sub_index),
             )
 
-        interval = beat_samples / n_sub
+        interval = beat_samples / ticks_per_beat
         self._sub_index += 1
-        if self._sub_index >= n_sub:
+        if self._sub_index >= ticks_per_beat:
             self._sub_index = 0
             self._beat_index += 1
             if self._beat_index >= pattern.numerator:
@@ -572,20 +689,19 @@ class AudioEngine:
                     self._config = replace(self._config, bpm=new_bpm)
                     cfg = self._config
 
-        stages = self._stages(cfg.practice_mode, self._pattern.numerator)
-        if cfg.practice_mode != "loop" and self._stage_bar >= max(1, cfg.bars_per_stage):
+        if cfg.practice_mode in RAMP_MODES:
+            stages = ramp_stages(cfg.practice_mode, self._pattern.numerator)
+            if self._stage_bar >= max(1, cfg.bars_per_stage):
+                self._stage_bar = 0
+                self._stage_index = (self._stage_index + 1) % len(stages)
+        else:
+            # Stage counters are reserved for the legacy beat-ramp modes.
             self._stage_bar = 0
-            self._stage_index = (self._stage_index + 1) % len(stages)
+            self._stage_index = 0
 
     @staticmethod
     def _stages(mode: str, numerator: int) -> tuple[int, ...]:
-        numerator = max(1, int(numerator))
-        if mode == "ramp_1_4":
-            return tuple(range(1, numerator + 1))
-        if mode == "ramp_2_4":
-            first = min(2, numerator)
-            return (first,) if first == numerator else (first, numerator)
-        return (numerator,)
+        return ramp_stages(mode, numerator)
 
     def _mix_sound(self, block: np.ndarray, offset: int, wave: np.ndarray, gain: float) -> None:
         if offset >= len(block):

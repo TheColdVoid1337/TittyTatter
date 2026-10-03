@@ -102,7 +102,7 @@ case "$cmd" in
     echo "== core tests =="
     "$PY" "$(winpath "$TEST")"
     echo "== compile =="
-    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/game_logger.py")" "$(winpath "$ROOT/input_binding.py")"
+    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/game_logger.py")" "$(winpath "$ROOT/input_binding.py")" "$(winpath "$ROOT/training_modes.py")"
     echo "== export tests =="
     "$PY" "$(winpath "$ROOT/test_exports.py")"
     echo "== game log tests =="

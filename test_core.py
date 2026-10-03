@@ -11,6 +11,15 @@ from game_logic import (
 from input_binding import binding_display, binding_identity, normalize_binding, scan_binding
 from model import BarPattern, BeatPattern
 from picking_logic import DOWN, UP, economy_pick_beats, economy_pick_pattern
+from training_modes import (
+    GAP_MODES,
+    RAMP_MODES,
+    TRAINING_MODES,
+    displaced_click_spec,
+    gap_phase,
+    ramp_stages,
+    sparse_click_matches,
+)
 from presets import (
     CORE_PRACTICE_PRESETS,
     EIGHTH_PRESETS,
@@ -27,6 +36,61 @@ from presets import (
 assert TI_MARK == "(ТИ)"
 assert EngineConfig().ti_enabled is True
 assert EngineConfig().ta_enabled is True
+
+
+# Training modes remain additive: the original repeat and beat-ramp modes are
+# preserved while the new guitar-practice modes share the same engine timeline.
+assert [key for key, _label in TRAINING_MODES][:3] == ["loop", "ramp_1_4", "ramp_2_4"]
+assert {"ramp_1_4", "ramp_2_4"} == set(RAMP_MODES)
+assert {"gap", "progressive_gap"} == set(GAP_MODES)
+assert ramp_stages("ramp_1_4", 4) == (1, 2, 3, 4)
+assert ramp_stages("ramp_2_4", 4) == (2, 4)
+assert ramp_stages("ramp_2_4", 1) == (1,)
+assert ramp_stages("loop", 7) == (7,)
+
+# Fixed gaps: four audible bars followed by two silent bars, then repeat.
+fixed_gap = [
+    gap_phase(
+        "gap",
+        bar,
+        play_bars=4,
+        silent_bars=2,
+        progressive_max_silent_bars=4,
+    ).silent
+    for bar in range(8)
+]
+assert fixed_gap == [False, False, False, False, True, True, False, False]
+
+# Progressive gaps keep the audible block fixed while silence grows 1 -> 2 -> 3.
+progressive = [
+    gap_phase(
+        "progressive_gap",
+        bar,
+        play_bars=2,
+        silent_bars=99,
+        progressive_max_silent_bars=3,
+    )
+    for bar in range(12)
+]
+assert [(p.silent_bars, p.silent) for p in progressive[:3]] == [
+    (1, False),
+    (1, False),
+    (1, True),
+]
+assert progressive[3].silent_bars == 2 and progressive[3].silent is False
+assert progressive[5].silent_bars == 2 and progressive[5].silent is True
+assert progressive[7].silent_bars == 3 and progressive[7].silent is False
+assert progressive[9].silent_bars == 3 and progressive[9].silent is True
+
+assert sparse_click_matches("2_4", 0, 1) is True
+assert sparse_click_matches("2_4", 0, 0) is False
+assert sparse_click_matches("beat_1", 3, 0) is True
+assert sparse_click_matches("bar_2", 0, 0) is True
+assert sparse_click_matches("bar_2", 1, 0) is False
+assert displaced_click_spec("eighth_and") == (2, 1)
+assert displaced_click_spec("sixteenth_e") == (4, 1)
+assert displaced_click_spec("sixteenth_and") == (4, 2)
+assert displaced_click_spec("sixteenth_a") == (4, 3)
 
 
 # Keyboard game bindings are stored by physical Windows scan code so active

@@ -65,6 +65,15 @@ from presets import (
     presets_for_grid,
 )
 from settings_store import SETTINGS_PATH, delete_settings, load_settings, save_settings
+from training_modes import (
+    DISPLACED_CLICK_OPTIONS,
+    GAP_MODES,
+    RAMP_MODES,
+    SPARSE_CLICK_OPTIONS,
+    TRAINING_MODES,
+    displaced_click_label,
+    sparse_click_label,
+)
 
 APP_NAME = "TittyTatter"
 VERSION_FILE = Path(__file__).with_name("VERSION")
@@ -1158,6 +1167,11 @@ class MainWindow(QMainWindow):
             self.bars,
             self.count,
             self.inactive,
+            self.gap_play_bars,
+            self.gap_silent_bars,
+            self.progressive_gap_max,
+            self.sparse_click,
+            self.displaced_click,
             self.tempo_train,
             self.tempo_step,
             self.tempo_every,
@@ -1187,10 +1201,10 @@ class MainWindow(QMainWindow):
 
         main = QGroupBox("Режим")
         form = QFormLayout(main)
+        self.training_form = form
         self.mode = QComboBox()
-        self.mode.addItem("Петля", "loop")
-        self.mode.addItem("Разгон по долям", "ramp_1_4")
-        self.mode.addItem("Разгон 2 → полный такт", "ramp_2_4")
+        for key, label in TRAINING_MODES:
+            self.mode.addItem(label, key)
         form.addRow("Режим:", self.mode)
 
         self.bars = QSpinBox()
@@ -1210,6 +1224,35 @@ class MainWindow(QMainWindow):
         self.ramp_warning = QCheckBox("Предупреждать перед следующим уровнем")
         self.ramp_warning.setChecked(True)
         form.addRow("", self.ramp_warning)
+
+        self.gap_play_bars = QSpinBox()
+        self.gap_play_bars.setRange(1, 32)
+        self.gap_play_bars.setValue(4)
+        self.gap_play_bars.setSuffix(" такт.")
+        form.addRow("Со звуком:", self.gap_play_bars)
+
+        self.gap_silent_bars = QSpinBox()
+        self.gap_silent_bars.setRange(1, 32)
+        self.gap_silent_bars.setValue(2)
+        self.gap_silent_bars.setSuffix(" такт.")
+        form.addRow("Без звука:", self.gap_silent_bars)
+
+        self.progressive_gap_max = QSpinBox()
+        self.progressive_gap_max.setRange(1, 16)
+        self.progressive_gap_max.setValue(4)
+        self.progressive_gap_max.setSuffix(" такт.")
+        form.addRow("Макс. тишина:", self.progressive_gap_max)
+
+        self.sparse_click = QComboBox()
+        for key, label in SPARSE_CLICK_OPTIONS:
+            self.sparse_click.addItem(label, key)
+        self.sparse_click.setCurrentIndex(max(0, self.sparse_click.findData("beat_1")))
+        form.addRow("Клик:", self.sparse_click)
+
+        self.displaced_click = QComboBox()
+        for key, label in DISPLACED_CLICK_OPTIONS:
+            self.displaced_click.addItem(label, key)
+        form.addRow("Позиция клика:", self.displaced_click)
 
         random_button = QPushButton("🎲 Случайный такт")
         random_button.clicked.connect(self.randomize_beats)
@@ -1643,12 +1686,22 @@ class MainWindow(QMainWindow):
 
     def _update_mode_labels(self) -> None:
         numerator, denominator = self._meter()
-        self.mode.setItemText(0, f"Петля {numerator}/{denominator}")
-        self.mode.setItemText(1, f"Разгон 1 → 2 → … → {numerator}")
-        self.mode.setItemText(2, f"Разгон 2 → {numerator}")
+
+        index = self.mode.findData("loop")
+        if index >= 0:
+            self.mode.setItemText(index, f"Повтор {numerator}/{denominator}")
+
+        index = self.mode.findData("ramp_1_4")
+        if index >= 0:
+            self.mode.setItemText(index, f"Разгон с 1 доли · 1 → 2 → … → {numerator}")
+
+        index = self.mode.findData("ramp_2_4")
+        if index >= 0:
+            first = min(2, numerator)
+            self.mode.setItemText(index, f"Разгон с 2 долей · {first} → {numerator}")
 
     def _mode_changed(self, *_args) -> None:
-        ramp = self.mode.currentData() != "loop"
+        ramp = self.mode.currentData() in RAMP_MODES
         for editor in self.editors:
             editor.set_mute_allowed(not ramp)
         if not self.engine.is_running:
@@ -1657,11 +1710,26 @@ class MainWindow(QMainWindow):
         self._pattern_changed()
 
     def _refresh_dependent_controls(self, *_args) -> None:
-        ramp = self.mode.currentData() != "loop"
+        mode = self.mode.currentData()
+        ramp = mode in RAMP_MODES
+        gap = mode == "gap"
+        progressive_gap = mode == "progressive_gap"
+        sparse = mode == "sparse_click"
+        displaced = mode == "displaced_click"
 
         self.bars.setEnabled(ramp)
         self.inactive.setEnabled(ramp)
         self.ramp_warning.setEnabled(ramp)
+
+        if hasattr(self, "training_form"):
+            self.training_form.setRowVisible(self.bars, ramp)
+            self.training_form.setRowVisible(self.inactive, ramp)
+            self.training_form.setRowVisible(self.ramp_warning, ramp)
+            self.training_form.setRowVisible(self.gap_play_bars, gap or progressive_gap)
+            self.training_form.setRowVisible(self.gap_silent_bars, gap)
+            self.training_form.setRowVisible(self.progressive_gap_max, progressive_gap)
+            self.training_form.setRowVisible(self.sparse_click, sparse)
+            self.training_form.setRowVisible(self.displaced_click, displaced)
 
         tempo_enabled = self.tempo_train.isChecked()
         for widget in (self.tempo_step, self.tempo_every, self.tempo_target):
@@ -1736,6 +1804,11 @@ class MainWindow(QMainWindow):
             tempo_step=self.tempo_step.value(),
             tempo_every_bars=self.tempo_every.value(),
             tempo_target=self.tempo_target.value(),
+            gap_play_bars=self.gap_play_bars.value(),
+            gap_silent_bars=self.gap_silent_bars.value(),
+            progressive_gap_max_silent_bars=self.progressive_gap_max.value(),
+            sparse_click_pattern=self.sparse_click.currentData(),
+            displaced_click=self.displaced_click.currentData(),
             ti_enabled=self.ti_on.isChecked(),
             ti_sound=self.ti_sound.currentText(),
             ti_volume=self.ti_vol.value() / 100.0,
@@ -2416,7 +2489,7 @@ class MainWindow(QMainWindow):
         for beat_index, beat in enumerate(pattern.beats):
             if coverage[beat_index] != beat_index:
                 states: list[str] = []
-            elif self.mode.currentData() != "loop" and beat_index >= active:
+            elif self.mode.currentData() in RAMP_MODES and beat_index >= active:
                 # The next not-yet-opened ramp beat is shown exactly as it is
                 # practised: TA on the beat, then silence for the remaining
                 # subdivisions. The scheme is rebuilt as each new beat opens.
@@ -2466,7 +2539,7 @@ class MainWindow(QMainWindow):
         self.visual.set_picking_pattern(True, row5, row6)
 
     def _maybe_warn_ramp(self, st: dict) -> None:
-        if self.mode.currentData() == "loop" or not self.ramp_warning.isChecked():
+        if self.mode.currentData() not in RAMP_MODES or not self.ramp_warning.isChecked():
             return
         if st["count_in"]:
             return
@@ -2648,13 +2721,14 @@ class MainWindow(QMainWindow):
         self._update_picking_pattern(active_beats)
         self._maybe_warn_ramp(st)
 
-        if self.mode.currentData() != "loop":
+        mode = self.mode.currentData()
+        if mode in RAMP_MODES:
             stage_bar = int(st["stage_bar"])
             bars_per_stage = int(st["bars_per_stage"])
             remaining_bars = max(0, bars_per_stage - stage_bar)
             stage_progress = progress_bar(stage_bar, bars_per_stage)
             status_text = (
-                f"Уровень: {active_beats} доли · [{stage_progress}] "
+                f"Разгон · {active_beats} доли · [{stage_progress}] "
                 f"{stage_bar}/{bars_per_stage} · осталось {remaining_bars} · "
                 f"доля {beat + 1} · {bpm} BPM"
             )
@@ -2667,8 +2741,34 @@ class MainWindow(QMainWindow):
                 arrow = "↑" if next_active > active_beats else "↓"
                 unit = "доля" if next_active == 1 else "доли"
                 status_text += f" · {arrow} далее {next_active} {unit}"
+        elif mode in GAP_MODES:
+            silent = bool(st["training_silent"])
+            phase_name = "ТИШИНА" if silent else "ЗВУК"
+            phase_bar = int(st["gap_segment_bar"])
+            phase_bars = int(st["gap_segment_bars"])
+            if mode == "progressive_gap":
+                status_text = (
+                    f"Нарастающие пропуски · тишина {int(st['gap_silent_bars'])} такт. · "
+                    f"{phase_name} {phase_bar}/{phase_bars} · "
+                    f"доля {beat + 1} · {bpm} BPM"
+                )
+            else:
+                status_text = (
+                    f"Пропуски · {phase_name} {phase_bar}/{phase_bars} · "
+                    f"доля {beat + 1} · {bpm} BPM"
+                )
+        elif mode == "sparse_click":
+            status_text = (
+                f"Редкий метроном · {sparse_click_label(str(st['sparse_click_pattern']))} · "
+                f"доля {beat + 1} · {bpm} BPM"
+            )
+        elif mode == "displaced_click":
+            status_text = (
+                f"Смещённый метроном · {displaced_click_label(str(st['displaced_click']))} · "
+                f"доля {beat + 1} · {bpm} BPM"
+            )
         else:
-            status_text = f"Доля {beat + 1} · {bpm} BPM"
+            status_text = f"Повтор · доля {beat + 1} · {bpm} BPM"
 
         if timer_text:
             status_text += f" · {timer_text}"
@@ -2679,7 +2779,7 @@ class MainWindow(QMainWindow):
         self.highlight(beat, int(st["sub"]))
 
     def _set_ramp_visual(self, active_beats: int) -> None:
-        ramp = self.mode.currentData() != "loop" and self.engine.is_running
+        ramp = self.mode.currentData() in RAMP_MODES and self.engine.is_running
         pattern = self.current_pattern()
         owners = pattern.coverage()
         for i, editor in enumerate(self.editors):
@@ -2840,7 +2940,7 @@ class MainWindow(QMainWindow):
 
     def session(self) -> dict:
         return {
-            "version": 4,
+            "version": 5,
             "bpm": self.bpm.value(),
             "pattern": self.current_pattern().to_dict(),
             "practice": {
@@ -2849,6 +2949,11 @@ class MainWindow(QMainWindow):
                 "count": self.count.value(),
                 "inactive": self.inactive.isChecked(),
                 "ramp_warning": self.ramp_warning.isChecked(),
+                "gap_play_bars": self.gap_play_bars.value(),
+                "gap_silent_bars": self.gap_silent_bars.value(),
+                "progressive_gap_max": self.progressive_gap_max.value(),
+                "sparse_click": self.sparse_click.currentData(),
+                "displaced_click": self.displaced_click.currentData(),
                 "trainer": self.tempo_train.isChecked(),
                 "step": self.tempo_step.value(),
                 "every": self.tempo_every.value(),
@@ -2914,6 +3019,11 @@ class MainWindow(QMainWindow):
         self.count.setValue(int(practice.get("count", 1)))
         self.inactive.setChecked(bool(practice.get("inactive", True)))
         self.ramp_warning.setChecked(bool(practice.get("ramp_warning", True)))
+        self.gap_play_bars.setValue(int(practice.get("gap_play_bars", 4)))
+        self.gap_silent_bars.setValue(int(practice.get("gap_silent_bars", 2)))
+        self.progressive_gap_max.setValue(int(practice.get("progressive_gap_max", 4)))
+        self._combo_data(self.sparse_click, practice.get("sparse_click", "beat_1"))
+        self._combo_data(self.displaced_click, practice.get("displaced_click", "eighth_and"))
         self.tempo_train.setChecked(bool(practice.get("trainer", False)))
         self.tempo_step.setValue(int(practice.get("step", 2)))
         self.tempo_every.setValue(int(practice.get("every", 4)))
@@ -2985,6 +3095,11 @@ class MainWindow(QMainWindow):
                 "count": self.count.value(),
                 "inactive": self.inactive.isChecked(),
                 "ramp_warning": self.ramp_warning.isChecked(),
+                "gap_play_bars": self.gap_play_bars.value(),
+                "gap_silent_bars": self.gap_silent_bars.value(),
+                "progressive_gap_max": self.progressive_gap_max.value(),
+                "sparse_click": self.sparse_click.currentData(),
+                "displaced_click": self.displaced_click.currentData(),
                 "tempo_train": self.tempo_train.isChecked(),
                 "tempo_step": self.tempo_step.value(),
                 "tempo_every": self.tempo_every.value(),
@@ -3079,6 +3194,11 @@ class MainWindow(QMainWindow):
         self.count.setValue(int(practice.get("count", 1)))
         self.inactive.setChecked(bool(practice.get("inactive", True)))
         self.ramp_warning.setChecked(bool(practice.get("ramp_warning", True)))
+        self.gap_play_bars.setValue(int(practice.get("gap_play_bars", 4)))
+        self.gap_silent_bars.setValue(int(practice.get("gap_silent_bars", 2)))
+        self.progressive_gap_max.setValue(int(practice.get("progressive_gap_max", 4)))
+        self._combo_data(self.sparse_click, practice.get("sparse_click", "beat_1"))
+        self._combo_data(self.displaced_click, practice.get("displaced_click", "eighth_and"))
         self.tempo_train.setChecked(bool(practice.get("tempo_train", False)))
         self.tempo_step.setValue(int(practice.get("tempo_step", 2)))
         self.tempo_every.setValue(int(practice.get("tempo_every", 4)))
@@ -3188,6 +3308,11 @@ class MainWindow(QMainWindow):
         self.count.setValue(1)
         self.inactive.setChecked(True)
         self.ramp_warning.setChecked(True)
+        self.gap_play_bars.setValue(4)
+        self.gap_silent_bars.setValue(2)
+        self.progressive_gap_max.setValue(4)
+        self._combo_data(self.sparse_click, "beat_1")
+        self._combo_data(self.displaced_click, "eighth_and")
         self.tempo_train.setChecked(False)
         self.tempo_step.setValue(2)
         self.tempo_every.setValue(4)
