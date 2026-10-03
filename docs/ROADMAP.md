@@ -18,8 +18,8 @@ Implementation order:
 2. **DONE — P2:** deterministic attack-alternate engine on the normalized event stream;
 3. **DONE — P3:** practical directional Economy transitions, start-polarity search, parity, loop-boundary scoring, linked sweep groups, and explainable transition types;
 4. **DONE — P4:** repeated whole-beat motifs are shared constraints inside Economy optimization; subdivision-level cross-beat motifs remain evidence-driven future work;
-5. **IMPLEMENTED / CHECK PENDING — P5:** all Ramp stages are solved jointly so real attacks keep one learned direction while stage-local placeholders remain independently optimizable;
-6. **NEXT — P6:** cut the tested v2 engines into the Picking Guide runtime, then run automated and manual Loop/Ramp acceptance before deleting transitional heuristics.
+5. **DONE — P5:** all Ramp stages are solved jointly so real attacks keep one learned direction while stage-local placeholders remain independently optimizable;
+6. **CUTOVER IMPLEMENTED / ACCEPTANCE PENDING — P6:** the live Picking Guide now uses v2; run the automated gate and manual Loop/Ramp acceptance before removing transitional heuristics.
 
 Do not add more screenshot-specific picking heuristics when the failure belongs to the v2 model. Convert new failures into regression cases first.
 
