@@ -998,7 +998,11 @@ def _best_placeholder_bridge(
         )
 
     directions = (DOWN, UP)
-    states: dict[str, tuple[float, tuple[str, ...]]] = {}
+    # Secondary score keeps the temporary TA stream itself alternating when
+    # several bridge paths have the same mechanical cost. If one repeat is
+    # unavoidable in an odd cyclic phrase, prefer placing it at the boundary
+    # back into the real pattern rather than between two placeholder beats.
+    states: dict[str, tuple[float, int, tuple[str, ...]]] = {}
     for stroke in directions:
         states[stroke] = (
             _economy_transition_cost_v2(
@@ -1007,14 +1011,15 @@ def _best_placeholder_bridge(
                 6,
                 stroke,
             ),
+            0,
             (stroke,),
         )
 
     for _position in range(1, count):
-        next_states: dict[str, tuple[float, tuple[str, ...]]] = {}
+        next_states: dict[str, tuple[float, int, tuple[str, ...]]] = {}
         for stroke in directions:
-            best: tuple[float, tuple[str, ...]] | None = None
-            for previous_placeholder, (cost, path) in states.items():
+            best: tuple[float, int, tuple[str, ...]] | None = None
+            for previous_placeholder, (cost, repeats, path) in states.items():
                 candidate = (
                     cost
                     + _economy_transition_cost_v2(
@@ -1023,6 +1028,7 @@ def _best_placeholder_bridge(
                         6,
                         stroke,
                     ),
+                    repeats + int(previous_placeholder == stroke),
                     path + (stroke,),
                 )
                 if best is None or candidate < best:
@@ -1031,8 +1037,8 @@ def _best_placeholder_bridge(
             next_states[stroke] = best
         states = next_states
 
-    best_total: tuple[float, tuple[str, ...]] | None = None
-    for last_placeholder, (cost, path) in states.items():
+    best_total: tuple[float, int, tuple[str, ...]] | None = None
+    for last_placeholder, (cost, repeats, path) in states.items():
         candidate = (
             cost
             + _economy_transition_cost_v2(
@@ -1041,13 +1047,15 @@ def _best_placeholder_bridge(
                 first_string,
                 first_stroke,
             ),
+            repeats,
             path,
         )
         if best_total is None or candidate < best_total:
             best_total = candidate
 
     assert best_total is not None
-    return best_total
+    cost, _repeats, path = best_total
+    return cost, path
 
 
 def _joint_ramp_real_strokes(
