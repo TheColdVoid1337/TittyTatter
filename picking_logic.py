@@ -376,12 +376,22 @@ def _stabilise_repeated_beat_runs(
         states = beats[indices[0]]
         if not has_attack(states):
             return
-        stable = economy_pick_pattern(
-            states,
-            ti_state,
-            ta_state,
-            off_state,
-            cyclic=True,
+        def economy_score(row: list[str | None]) -> tuple[int, int]:
+            same_direction_crossings = 0
+            for index in range(1, len(states)):
+                left = states[index - 1]
+                right = states[index]
+                if left not in (ti_state, ta_state) or right not in (ti_state, ta_state):
+                    continue
+                if left == right:
+                    continue
+                if row[index - 1] is not None and row[index - 1] == row[index]:
+                    same_direction_crossings += 1
+            return same_direction_crossings, int(bool(row and row[0] == DOWN))
+
+        stable = max(
+            (directions[index] for index in indices),
+            key=economy_score,
         )
         for index in indices:
             result[index] = list(stable)
