@@ -338,6 +338,47 @@ ramp2_full = economy_pick_ramp_beats(
 )
 assert ramp2_full[:2] == ramp2_anchor[:2]
 
+# Repeated active beats should stay identical without losing the sweep that
+# the phrase-level optimizer found in context.
+sweep_beat = [TA, TI, TA, TA]
+sweep_anchor = economy_pick_beats(
+    [
+        list(sweep_beat),
+        list(sweep_beat),
+        list(sweep_beat),
+        [TA, OFF, OFF, OFF],
+    ],
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+assert sweep_anchor[0] == sweep_anchor[1] == sweep_anchor[2]
+assert sweep_anchor[0][0] == DOWN and sweep_anchor[0][1] == DOWN
+
+sweep_full = [
+    list(sweep_beat),
+    list(sweep_beat),
+    list(sweep_beat),
+    [TI, TA, TI, TA],
+]
+sweep_stage2 = economy_pick_ramp_beats(
+    sweep_full,
+    [
+        list(sweep_beat),
+        list(sweep_beat),
+        [TA, OFF, OFF, OFF],
+        [TA, OFF, OFF, OFF],
+    ],
+    2,
+    (1, 2, 3, 4),
+    TI,
+    TA,
+    OFF,
+)
+assert sweep_stage2[0] == sweep_stage2[1]
+assert sweep_stage2[0][0] == DOWN and sweep_stage2[0][1] == DOWN
+
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
 assert len(CORE_PRACTICE_PRESETS) == 24
