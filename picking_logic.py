@@ -536,37 +536,87 @@ def economy_pick_ramp_beats(
     full_beats: list[list[str]],
     effective_beats: list[list[str]],
     active_beats: int,
+    stage_active_counts: tuple[int, ...] | list[int],
     ti_state: str,
     ta_state: str,
     off_state: str,
 ) -> list[list[str | None]]:
-    """Keep ramp-stage picking aligned with the final full-bar motor pattern.
+    """Keep one practical economy-picking scheme across ramp stages.
 
-    The complete target bar defines the canonical economy-picking directions.
-    Every already-open ramp beat is locked to that canonical solution from the
-    first stage where it appears. Inactive ramp beats remain free for economy
-    optimization, so their temporary TA pulses can still form useful sweeps.
+    Ramp training should not teach one motor pattern and then flip it later.
+    At the same time, choosing the fully-open final bar as the only canonical
+    source can erase useful sweeps that exist while later beats are still the
+    temporary TA pulse used by the ramp.
+
+    Use the latest *incomplete* ramp stage as the anchor instead. It contains
+    the most real musical context available before the bar is fully opened,
+    while still preserving the useful transition into the final temporary TA
+    pulse. Earlier stages inherit the already-open prefix from that anchor;
+    later/full stages keep that learned prefix and optimize only newly opened
+    beats.
     """
     if len(full_beats) != len(effective_beats):
         raise ValueError("full and effective ramp beat counts must match")
     if not effective_beats:
         return []
 
-    active = max(0, min(len(effective_beats), int(active_beats)))
-    canonical = economy_pick_beats(
-        full_beats,
+    beat_count = len(effective_beats)
+    active = max(0, min(beat_count, int(active_beats)))
+    stages = sorted(
+        {
+            max(0, min(beat_count, int(value)))
+            for value in stage_active_counts
+        }
+    )
+    if not stages:
+        stages = [beat_count]
+
+    incomplete = [value for value in stages if value < beat_count]
+    anchor_active = max(incomplete) if incomplete else beat_count
+
+    def effective_for(open_beats: int) -> list[list[str]]:
+        result: list[list[str]] = []
+        for beat_index, states in enumerate(full_beats):
+            if beat_index >= open_beats and states:
+                result.append([ta_state] + [off_state] * max(0, len(states) - 1))
+            else:
+                result.append(list(states))
+        return result
+
+    anchor_beats = effective_for(anchor_active)
+    anchor_directions = economy_pick_beats(
+        anchor_beats,
         ti_state,
         ta_state,
         off_state,
         loop=True,
     )
 
+    if active == anchor_active and effective_beats == anchor_beats:
+        return [list(row) for row in anchor_directions]
+
     fixed_by_beat: list[list[str | None]] = []
+    learned_prefix = min(active, anchor_active)
     for beat_index, states in enumerate(effective_beats):
+        if beat_index < learned_prefix:
+            if len(anchor_directions[beat_index]) != len(states):
+                raise ValueError("anchor ramp beat shape must match current stage")
+            fixed_by_beat.append(list(anchor_directions[beat_index]))
+            continue
+
+        # If a newly opened beat repeats a beat that is already part of the
+        # learned prefix, preserve that same motor pattern instead of allowing
+        # the optimizer to invent a different copy.
+        repeated_from: int | None = None
         if beat_index < active:
-            if len(canonical[beat_index]) != len(states):
-                raise ValueError("active ramp beat shape must match full pattern")
-            fixed_by_beat.append(list(canonical[beat_index]))
+            for previous in range(learned_prefix):
+                if full_beats[previous] == full_beats[beat_index]:
+                    repeated_from = previous
+                    break
+        if repeated_from is not None:
+            if len(anchor_directions[repeated_from]) != len(states):
+                raise ValueError("repeated ramp beat shape must match anchor beat")
+            fixed_by_beat.append(list(anchor_directions[repeated_from]))
         else:
             fixed_by_beat.append([None] * len(states))
 

@@ -87,6 +87,7 @@ from training_modes import (
     SPARSE_CLICK_OPTIONS,
     TRAINING_MODES,
     displaced_click_label,
+    ramp_stages,
     sparse_click_label,
 )
 
@@ -3222,6 +3223,7 @@ class MainWindow(QMainWindow):
                 full_beat_states,
                 beat_states,
                 active,
+                ramp_stages(mode, pattern.numerator),
                 TI,
                 TA,
                 OFF,

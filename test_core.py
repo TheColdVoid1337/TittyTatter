@@ -266,36 +266,77 @@ wrapped_repeated_run = economy_pick_beats(
 )
 assert wrapped_repeated_run[0] == wrapped_repeated_run[2]
 
-# Ramp stages must teach one picking solution from the beginning. The complete
-# final bar defines the canonical economy pattern; every opened beat keeps that
-# direction scheme while temporary inactive TA pulses remain optimizable.
+# Ramp stages should teach one practical picking solution from the beginning,
+# but the anchor is the latest incomplete stage rather than the fully-open bar.
+# This preserves useful sweeps into the final temporary TA pulse.
 ramp_full_beats = [
-    [TA, TI, TI, TI],
-    [TA, TI, TI, TI],
-    [TA, TI, TI, TI],
+    [TA, TI, TA, TA],
     [TI, TA, TI, TA],
+    [TA, TI, TI, TA],
+    [TI, TI, TA, TA],
 ]
-ramp_canonical = economy_pick_beats(
-    ramp_full_beats,
+ramp_stages_1_4 = (1, 2, 3, 4)
+ramp_anchor_beats = [
+    list(states) if index < 3 else [TA, OFF, OFF, OFF]
+    for index, states in enumerate(ramp_full_beats)
+]
+ramp_anchor = economy_pick_beats(
+    ramp_anchor_beats,
     TI,
     TA,
     OFF,
     loop=True,
 )
-for active in (1, 2, 3):
+
+ramp_results: dict[int, list[list[str | None]]] = {}
+for active in ramp_stages_1_4:
     ramp_effective = [
         list(states) if index < active else [TA, OFF, OFF, OFF]
         for index, states in enumerate(ramp_full_beats)
     ]
-    ramp_stage = economy_pick_ramp_beats(
+    ramp_results[active] = economy_pick_ramp_beats(
         ramp_full_beats,
         ramp_effective,
         active,
+        ramp_stages_1_4,
         TI,
         TA,
         OFF,
     )
-    assert ramp_stage[:active] == ramp_canonical[:active]
+
+# The anchor stage is preserved exactly, including its economy/sweep choices.
+assert ramp_results[3] == ramp_anchor
+
+# Every beat that has already been learned keeps the same directions as more
+# beats are revealed. Stage 1 therefore starts with the final learned stroke
+# for beat 1 instead of later flipping it.
+assert ramp_results[1][0] == ramp_anchor[0]
+assert ramp_results[2][:2] == ramp_anchor[:2]
+assert ramp_results[4][:3] == ramp_anchor[:3]
+
+# Ramp 2->full uses the two-beat incomplete stage as its anchor.
+ramp_stages_2_4 = (2, 4)
+ramp2_anchor_beats = [
+    list(states) if index < 2 else [TA, OFF, OFF, OFF]
+    for index, states in enumerate(ramp_full_beats)
+]
+ramp2_anchor = economy_pick_beats(
+    ramp2_anchor_beats,
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+ramp2_full = economy_pick_ramp_beats(
+    ramp_full_beats,
+    [list(states) for states in ramp_full_beats],
+    4,
+    ramp_stages_2_4,
+    TI,
+    TA,
+    OFF,
+)
+assert ramp2_full[:2] == ramp2_anchor[:2]
 
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8
