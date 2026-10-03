@@ -4,6 +4,53 @@ All notable TittyTatter changes are recorded here.
 
 Numeric headings are added when a release version is chosen. Future development remains under **Unreleased** until its release checkpoint.
 
+
+## Unreleased
+
+### Added
+
+- Seven first-class Training Modes driven by the same pattern/timeline: Повтор, Разгон с 1 доли, Разгон с 2 долей, Пропуски, Нарастающие пропуски, Редкий метроном, and Смещённый метроном.
+- Top-level mutually exclusive **Тренировка / Игра** execution selector while keeping Training Mode as the source of truth.
+- Training help panel that explains mode behavior, practical use, and the guitar skill being trained.
+- Keyboard-layout-independent physical Game bindings where native scan information is available.
+- Mouse-button Game bindings.
+- Expanded Штрих / Picking Guide controls, including economy and strict-alternate strategies plus configurable upcoming-stroke cues.
+- Configurable Game HIT/MISS feedback with separate TI/TA HIT selections and guitar-style TI E3 / muted E2 feedback.
+- About tab with TittyTatter branding, version, author, and repository link.
+- TittyTatter application icon.
+- Focus mode with a large distraction-free practice display.
+- Focus read-only rhythm strip reflecting the current effective training pattern.
+- Focus-aware metronome geometry scaling and compact Game history graph.
+- Dedicated transparent README logo asset for GitHub rendering.
+- Canonical `docs/WORKFLOW.md` describing vFLOW development, reporting, validation, release, and handoff procedure.
+
+### Changed
+
+- Game is now presented explicitly as a secondary execution layer over the selected Training Mode instead of an independent training progression.
+- Start/Space route through Game execution when the top-level selector is Игра.
+- Training options are reorganized so Count-in, Tempo Trainer, and Timer remain modifiers rather than separate Training Modes.
+- Tempo UI is intentionally compact: numeric BPM control, keyboard stepping, and TAP remain; the old slider and +/- button cluster are removed.
+- Tempo Trainer and Timer subordinate controls remain visible but disabled when their parent option is off.
+- Gap and Progressive Gap suppress rhythmic guidance while keeping the exercise timeline and Game targets running.
+- Yellow current-position guidance disappears during silent Gap phases and returns with audible guidance.
+- Picking suggestions now preserve cyclic repeated-beat periods and remain cyclic across Ramp stages.
+- Normal beat-editor framing was simplified by removing the redundant outer bar group.
+- Focus TI cells use compact rounded/pill styling while TA/rest cells retain rectangular styling.
+- Focus beat lamps are separated from the needle pivot/base.
+- Root README is now written as a universal end-user entry point rather than a description of one development machine/workflow.
+
+### Fixed
+
+- Repeated identical/periodic beats no longer receive inconsistent Picking Guide arrows from linear full-bar flattening.
+- Ramp-stage Picking Guide boundaries no longer lose cyclic continuity.
+- Alternate MISS synthesis no longer mixes incompatible layer lengths directly.
+- `_volume_slider()` static helper decoration was restored after a GUI structural regression.
+- About-tab instance method decoration was corrected after a startup regression.
+- Corrupted application-icon data was repaired and runtime transparency/safe-area handling was added.
+- Tab switching no longer redistributes window height unexpectedly.
+- Focus scaling now affects actual metronome geometry rather than only widget size.
+- Focus Game graph no longer expands into an oversized full-height panel.
+
 ## 0.0.3 — 2026-10-03
 
 ### Added
