@@ -215,6 +215,17 @@ Confirmed:
 
 ### Post-0.0.4 work
 
+P6 partial manual acceptance on `e611ec2`:
+
+- `./tt check` green;
+- Ramp 1->2->3->4 Economy checked in the live GUI with the sweep-compatible control motif `TA TI TI TA` repeated for beats 1-3 and `TI TA TI TA` on beat 4;
+- the repeated A motif stayed `DOWN DOWN UP UP` on every opened stage;
+- the 6->5 DOWN/DOWN and 5->6 UP/UP directional sweeps were preserved;
+- already-open real attacks did not change as later beats opened;
+- inactive TA placeholders alternated cleanly, including the active->placeholder boundary after the `e611ec2` tie-break fix.
+
+P6 is not fully accepted yet: Ramp 2->full, public Alternate with OFF slots, and a non-Ramp Economy repetition case still need manual GUI confirmation.
+
 Recent Picking changes on `work` were investigated through manual screenshots and direct practice feedback.
 
 The last runtime Picking commit before the v2 design-document commits is:
