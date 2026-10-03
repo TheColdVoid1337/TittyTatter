@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 from audio_engine import (
     EngineConfig,
     GAME_HIT_SOUNDS,
@@ -19,10 +21,14 @@ from input_binding import binding_display, binding_identity, normalize_binding, 
 from model import BarPattern, BeatPattern
 from picking_logic import (
     DOWN,
+    PICKING_COVERED,
     UP,
+    PickingEventSource,
     economy_pick_beats,
     economy_pick_pattern,
     economy_pick_ramp_beats,
+    normalize_picking_events,
+    normalize_ramp_stage_events,
     strict_alternate_pick_beats,
 )
 from training_modes import (
@@ -58,6 +64,142 @@ assert GAME_TI_HIT_SOUNDS[0][1] == "game_hit"
 assert GAME_TA_HIT_FOR_TI["game_hit"] == "game_ta_hit"
 assert GAME_TA_HIT_FOR_TI["game_hit_guitar_ti"] == "game_hit_guitar_ta"
 assert GAME_MISS_SOUNDS[-1][1] == "game_miss_string"
+
+
+# Picking Logic v2 P1: normalize slots without changing runtime stroke output.
+p1_full = [
+    [TA, OFF, TI, TA],
+    [TI, TA],
+    [],
+]
+p1_events = normalize_picking_events(
+    p1_full,
+    [list(states) for states in p1_full],
+    TI,
+    TA,
+    OFF,
+    stage_id="loop:test",
+)
+assert p1_events[0].slot_id == "loop:test:b0:s0"
+assert p1_events[0].source is PickingEventSource.REAL_PATTERN
+assert p1_events[0].attack is True
+assert p1_events[0].string == 6
+assert p1_events[0].persistent_attack_id == "beat:0:sub:0"
+assert p1_events[0].phrase_boundary_before is True
+assert p1_events[0].rhythmic_phase == Fraction(0, 1)
+
+# OFF remains a real rhythmic slot but does not consume an attack identity or
+# implicitly reset phrase continuity.
+assert p1_events[1].state == OFF
+assert p1_events[1].attack is False
+assert p1_events[1].string is None
+assert p1_events[1].persistent_attack_id is None
+assert p1_events[1].phrase_boundary_before is False
+assert p1_events[1].rhythmic_phase == Fraction(1, 4)
+
+# Real attacks receive stable coordinate-based identity independent of stage.
+assert p1_events[2].state == TI
+assert p1_events[2].persistent_attack_id == "beat:0:sub:2"
+assert p1_events[2].string == 5
+
+# Covered metric beats are explicit normalized events rather than disappearing.
+assert p1_events[-1].state == PICKING_COVERED
+assert p1_events[-1].subdivision_index is None
+assert p1_events[-1].attack is False
+assert p1_events[-1].persistent_attack_id is None
+
+# Reset boundaries are explicit inputs; silence alone does not create them.
+p1_reset = normalize_picking_events(
+    p1_full,
+    [list(states) for states in p1_full],
+    TI,
+    TA,
+    OFF,
+    reset_before_beats={1},
+    stage_id="loop:reset",
+)
+beat1_first = next(
+    event
+    for event in p1_reset
+    if event.beat_index == 1 and event.subdivision_index == 0
+)
+assert beat1_first.phrase_boundary_before is True
+
+# Ramp real attacks preserve identity across stages while temporary TA pulses
+# are stage-local placeholders with no persistent attack id.
+p1_ramp_full = [
+    [TA, TI, OFF, TA],
+    [TI, TA, TI, TA],
+    [TA, TI, TA, TI],
+    [],
+]
+p1_ramp_stage1 = normalize_ramp_stage_events(
+    p1_ramp_full,
+    1,
+    TI,
+    TA,
+    OFF,
+)
+p1_ramp_stage2 = normalize_ramp_stage_events(
+    p1_ramp_full,
+    2,
+    TI,
+    TA,
+    OFF,
+)
+
+stage1_real = next(
+    event
+    for event in p1_ramp_stage1
+    if event.beat_index == 0 and event.subdivision_index == 1
+)
+stage2_same_real = next(
+    event
+    for event in p1_ramp_stage2
+    if event.beat_index == 0 and event.subdivision_index == 1
+)
+assert stage1_real.source is PickingEventSource.REAL_PATTERN
+assert stage2_same_real.source is PickingEventSource.REAL_PATTERN
+assert (
+    stage1_real.persistent_attack_id
+    == stage2_same_real.persistent_attack_id
+    == "beat:0:sub:1"
+)
+
+stage1_placeholder = next(
+    event
+    for event in p1_ramp_stage1
+    if event.beat_index == 1 and event.subdivision_index == 0
+)
+stage2_opened = next(
+    event
+    for event in p1_ramp_stage2
+    if event.beat_index == 1 and event.subdivision_index == 0
+)
+assert stage1_placeholder.source is PickingEventSource.RAMP_PLACEHOLDER
+assert stage1_placeholder.attack is True
+assert stage1_placeholder.string == 6
+assert stage1_placeholder.persistent_attack_id is None
+assert stage2_opened.source is PickingEventSource.REAL_PATTERN
+assert stage2_opened.persistent_attack_id == "beat:1:sub:0"
+assert stage1_placeholder.slot_id != stage2_opened.slot_id
+
+placeholder_tail = next(
+    event
+    for event in p1_ramp_stage1
+    if event.beat_index == 1 and event.subdivision_index == 1
+)
+assert placeholder_tail.source is PickingEventSource.RAMP_PLACEHOLDER
+assert placeholder_tail.state == OFF
+assert placeholder_tail.attack is False
+
+covered_stage1 = next(
+    event
+    for event in p1_ramp_stage1
+    if event.beat_index == 3
+)
+assert covered_stage1.state == PICKING_COVERED
+assert covered_stage1.source is PickingEventSource.REAL_PATTERN
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are

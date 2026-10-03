@@ -1,7 +1,221 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import Enum
+from fractions import Fraction
+
+
 DOWN = "↓"
 UP = "↑"
+PICKING_COVERED = "COVERED"
+
+
+class PickingEventSource(str, Enum):
+    """Origin of a normalized picking slot."""
+
+    REAL_PATTERN = "real_pattern"
+    RAMP_PLACEHOLDER = "ramp_placeholder"
+
+
+@dataclass(frozen=True)
+class PickingEvent:
+    """Normalized Picking Logic v2 slot.
+
+    P1 intentionally models identity and continuity without changing the
+    current runtime optimizer. Real attacks receive a persistent id derived
+    from their stored-pattern coordinates; generated Ramp placeholders never
+    receive that id and remain stage-local.
+    """
+
+    slot_id: str
+    beat_index: int
+    subdivision_index: int | None
+    source: PickingEventSource
+    state: str
+    attack: bool
+    string: int | None
+    phrase_boundary_before: bool
+    motif_id: str | None
+    persistent_attack_id: str | None
+    rhythmic_phase: Fraction
+
+
+def _picking_string_for_state(
+    state: str,
+    ti_state: str,
+    ta_state: str,
+) -> int | None:
+    if state == ti_state:
+        return 5
+    if state == ta_state:
+        return 6
+    return None
+
+
+def normalize_picking_events(
+    full_beats: list[list[str]],
+    effective_beats: list[list[str]],
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+    *,
+    placeholder_beats: set[int] | frozenset[int] | tuple[int, ...] = (),
+    reset_before_beats: set[int] | frozenset[int] | tuple[int, ...] = (),
+    stage_id: str = "stage",
+) -> list[PickingEvent]:
+    """Normalize one effective exercise stage into Picking Logic v2 events.
+
+    This is the P1 identity layer only. It deliberately does not decide pick
+    directions yet.
+
+    Rules:
+    - real attacks keep stable coordinate-based persistent ids;
+    - Ramp placeholder attacks are stage-local and have no persistent id;
+    - OFF is a slot, not an automatic phrase reset;
+    - covered metric beats become explicit COVERED events;
+    - reset boundaries are explicit inputs rather than side effects of rests.
+    """
+    if len(full_beats) != len(effective_beats):
+        raise ValueError("full and effective beat counts must match")
+
+    placeholder_set = {int(index) for index in placeholder_beats}
+    reset_set = {int(index) for index in reset_before_beats}
+    beat_count = len(full_beats)
+
+    if any(index < 0 or index >= beat_count for index in placeholder_set):
+        raise ValueError("placeholder beat index out of range")
+    if any(index < 0 or index >= beat_count for index in reset_set):
+        raise ValueError("reset beat index out of range")
+
+    allowed_states = {ti_state, ta_state, off_state}
+    events: list[PickingEvent] = []
+
+    for beat_index, (full_states, states) in enumerate(
+        zip(full_beats, effective_beats)
+    ):
+        is_placeholder = beat_index in placeholder_set
+
+        if not states:
+            if is_placeholder:
+                raise ValueError("covered beat cannot be a Ramp placeholder")
+            events.append(
+                PickingEvent(
+                    slot_id=f"{stage_id}:b{beat_index}:covered",
+                    beat_index=beat_index,
+                    subdivision_index=None,
+                    source=PickingEventSource.REAL_PATTERN,
+                    state=PICKING_COVERED,
+                    attack=False,
+                    string=None,
+                    phrase_boundary_before=(
+                        not events or beat_index in reset_set
+                    ),
+                    motif_id=None,
+                    persistent_attack_id=None,
+                    rhythmic_phase=Fraction(0, 1),
+                )
+            )
+            continue
+
+        if not full_states:
+            raise ValueError("effective slots cannot replace a covered beat")
+        if len(full_states) != len(states):
+            raise ValueError(
+                "full and effective subdivision counts must match per beat"
+            )
+        if not is_placeholder and states != full_states:
+            raise ValueError(
+                "non-placeholder effective beat must match the full beat"
+            )
+
+        source = (
+            PickingEventSource.RAMP_PLACEHOLDER
+            if is_placeholder
+            else PickingEventSource.REAL_PATTERN
+        )
+
+        for subdivision_index, state in enumerate(states):
+            if state not in allowed_states:
+                raise ValueError(f"unsupported picking state: {state!r}")
+
+            string = _picking_string_for_state(state, ti_state, ta_state)
+            attack = string is not None
+            persistent_attack_id = None
+            if source is PickingEventSource.REAL_PATTERN and attack:
+                persistent_attack_id = (
+                    f"beat:{beat_index}:sub:{subdivision_index}"
+                )
+
+            events.append(
+                PickingEvent(
+                    slot_id=(
+                        f"{stage_id}:b{beat_index}:s{subdivision_index}"
+                    ),
+                    beat_index=beat_index,
+                    subdivision_index=subdivision_index,
+                    source=source,
+                    state=state,
+                    attack=attack,
+                    string=string,
+                    phrase_boundary_before=(
+                        not events
+                        or (
+                            subdivision_index == 0
+                            and beat_index in reset_set
+                        )
+                    ),
+                    motif_id=None,
+                    persistent_attack_id=persistent_attack_id,
+                    rhythmic_phase=Fraction(
+                        subdivision_index,
+                        len(states),
+                    ),
+                )
+            )
+
+    return events
+
+
+def normalize_ramp_stage_events(
+    full_beats: list[list[str]],
+    active_beats: int,
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+    *,
+    stage_id: str | None = None,
+    reset_before_beats: set[int] | frozenset[int] | tuple[int, ...] = (),
+) -> list[PickingEvent]:
+    """Build a normalized Ramp stage with explicit placeholder identity.
+
+    Inactive non-covered beats use the current Ramp training representation:
+    TA on the beat followed by OFF for the remaining subdivisions.
+    """
+    beat_count = len(full_beats)
+    active = max(0, min(beat_count, int(active_beats)))
+
+    effective_beats: list[list[str]] = []
+    placeholder_beats: set[int] = set()
+
+    for beat_index, states in enumerate(full_beats):
+        if beat_index >= active and states:
+            effective_beats.append(
+                [ta_state] + [off_state] * max(0, len(states) - 1)
+            )
+            placeholder_beats.add(beat_index)
+        else:
+            effective_beats.append(list(states))
+
+    return normalize_picking_events(
+        full_beats,
+        effective_beats,
+        ti_state,
+        ta_state,
+        off_state,
+        placeholder_beats=placeholder_beats,
+        reset_before_beats=reset_before_beats,
+        stage_id=stage_id or f"ramp:{active}",
+    )
 
 
 def _transition_cost(previous_string: int, previous_direction: str, string: int, direction: str) -> float:

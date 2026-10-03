@@ -7,6 +7,10 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ## Unreleased
 
+### Added
+
+- Picking Logic v2 P1 normalized event model with explicit real-pattern vs Ramp-placeholder sources, persistent real-attack identities across stages, explicit covered slots, exact rhythmic phase, and caller-controlled phrase-reset boundaries. Runtime Picking output is not cut over to v2 yet.
+
 ### Fixed
 
 - Picking Guide now preserves the same whole-beat picking pattern for repeated active motifs separated by fully silent beats, including motifs that cross the bar boundary.
