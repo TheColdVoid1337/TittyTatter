@@ -311,13 +311,28 @@ class MetronomeVisual(QWidget):
         self.picking_next_count = 1
         self.picking_highlight_current = True
         self.picking_cue_size = 52
+        self.expand_to_fill = False
 
         self._apply_height()
 
     def _apply_height(self) -> None:
         height = max(84, int(125 * self.scale_percent / 100))
         self.setMinimumHeight(height)
-        self.setMaximumHeight(height)
+        if self.expand_to_fill:
+            self.setMaximumHeight(16777215)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        else:
+            self.setMaximumHeight(height)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def set_expand_to_fill(self, enabled: bool) -> None:
+        enabled = bool(enabled)
+        if self.expand_to_fill == enabled:
+            return
+        self.expand_to_fill = enabled
+        self._apply_height()
+        self.updateGeometry()
+        self.update()
 
     def configure(
         self,
@@ -1149,6 +1164,7 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         root = QWidget()
         out = QVBoxLayout(root)
+        self.main_layout = out
         # Tab pages have very different size hints. Do not let visiting a
         # taller page permanently increase the top-level window minimum size.
         # The current window geometry stays authoritative while layouts adapt
@@ -1171,6 +1187,14 @@ class MainWindow(QMainWindow):
         self.tap = QPushButton("TAP [T]")
         self.tap.clicked.connect(self.tap_tempo)
         transport.addWidget(self.tap)
+
+        self.tabs_toggle = QPushButton("Скрыть вкладки")
+        self.tabs_toggle.setCheckable(True)
+        self.tabs_toggle.setToolTip(
+            "Скрыть нижний блок настроек и отдать место долям и метроному"
+        )
+        self.tabs_toggle.toggled.connect(self._set_tabs_hidden)
+        transport.addWidget(self.tabs_toggle)
 
         transport.addStretch(1)
 
@@ -1218,7 +1242,7 @@ class MainWindow(QMainWindow):
         out.addLayout(transport)
 
         self.visual = MetronomeVisual()
-        out.addWidget(self.visual)
+        out.addWidget(self.visual, 0)
 
         self.status = QLabel("Готов")
         self.status.setAlignment(Qt.AlignCenter)
@@ -1240,7 +1264,7 @@ class MainWindow(QMainWindow):
         self.beats_layout.setContentsMargins(2, 2, 2, 2)
         self.beat_scroll.setWidget(self.beats_container)
         beats_outer.addWidget(self.beat_scroll)
-        out.addWidget(self.beats_group)
+        out.addWidget(self.beats_group, 0)
 
         self.tabs = QTabWidget()
         self.tabs.setSizePolicy(
@@ -1330,6 +1354,47 @@ class MainWindow(QMainWindow):
             )
             if signal:
                 signal.connect(self._config_changed)
+
+    def _set_tabs_hidden(self, hidden: bool) -> None:
+        hidden = bool(hidden)
+        if not hasattr(self, "tabs"):
+            return
+
+        # Keep the button state and label coherent when this method is called
+        # from settings restore/reset rather than directly by the user.
+        if self.tabs_toggle.isChecked() != hidden:
+            self.tabs_toggle.blockSignals(True)
+            self.tabs_toggle.setChecked(hidden)
+            self.tabs_toggle.blockSignals(False)
+
+        self.tabs_toggle.setText("Показать вкладки" if hidden else "Скрыть вкладки")
+        self.tabs.setVisible(not hidden)
+        self.visual.set_expand_to_fill(hidden)
+
+        if hidden:
+            # Focus view: let the beat editor grow, but reserve most of the
+            # remaining vertical area for a large metronome.
+            self.beats_group.setSizePolicy(
+                QSizePolicy.Expanding,
+                QSizePolicy.Expanding,
+            )
+            self.main_layout.setStretchFactor(self.visual, 5)
+            self.main_layout.setStretchFactor(self.beats_group, 2)
+            self.main_layout.setStretchFactor(self.tabs, 0)
+        else:
+            # Normal view: beats stay at their natural height and the tab area
+            # owns the spare vertical space.
+            self.beats_group.setSizePolicy(
+                QSizePolicy.Expanding,
+                QSizePolicy.Maximum,
+            )
+            self.main_layout.setStretchFactor(self.visual, 0)
+            self.main_layout.setStretchFactor(self.beats_group, 0)
+            self.main_layout.setStretchFactor(self.tabs, 1)
+
+        self.beats_group.updateGeometry()
+        self.tabs.updateGeometry()
+        self.centralWidget().updateGeometry()
 
     def _build_practice_tab(self) -> QWidget:
         tab = QWidget()
@@ -3509,6 +3574,7 @@ class MainWindow(QMainWindow):
         return {
             "geometry": geometry,
             "last_tab": self.tabs.currentIndex(),
+            "tabs_hidden": self.tabs_toggle.isChecked(),
             "bpm": self.bpm.value(),
             "meter": {
                 "numerator": self.meter_num.value(),
@@ -3720,6 +3786,7 @@ class MainWindow(QMainWindow):
 
         last_tab = int(data.get("last_tab", 0))
         self.tabs.setCurrentIndex(max(0, min(self.tabs.count() - 1, last_tab)))
+        self._set_tabs_hidden(bool(data.get("tabs_hidden", False)))
         self._mode_changed()
 
     def reset_app_settings(self) -> None:
@@ -3833,6 +3900,7 @@ class MainWindow(QMainWindow):
         self._select_engine_audio_device_in_combo()
 
         self.tabs.setCurrentIndex(0)
+        self._set_tabs_hidden(False)
         self._sync()
 
     def reset_session(self) -> None:
