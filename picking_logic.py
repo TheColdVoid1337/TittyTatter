@@ -28,34 +28,41 @@ def _transition_cost(previous_string: int, previous_direction: str, string: int,
     return 0.0 if previous_direction != direction else 2.0
 
 
-def _optimise_run(strings: list[int]) -> list[str]:
+def _optimise_run(
+    strings: list[int],
+    fixed: list[str | None] | None = None,
+) -> list[str]:
     if not strings:
         return []
 
     directions = (DOWN, UP)
+    if fixed is None:
+        fixed = [None] * len(strings)
+    if len(fixed) != len(strings):
+        raise ValueError("fixed picking length must match attack count")
+
+    first_choices = (fixed[0],) if fixed[0] in directions else directions
     # Tiny downstroke preference only breaks exact ties. The dynamic program is
     # still free to choose an upstroke start when it enables a cheaper sweep.
     costs: list[dict[str, tuple[float, str | None]]] = [
         {
-            DOWN: (0.0, None),
-            UP: (0.02, None),
+            direction: (0.0 if direction == DOWN else 0.02, None)
+            for direction in first_choices
         }
     ]
 
     for index in range(1, len(strings)):
         layer: dict[str, tuple[float, str | None]] = {}
-        for direction in directions:
+        choices = (fixed[index],) if fixed[index] in directions else directions
+        for direction in choices:
             best_cost = float("inf")
             best_previous: str | None = None
-            for previous_direction in directions:
-                candidate = (
-                    costs[index - 1][previous_direction][0]
-                    + _transition_cost(
-                        strings[index - 1],
-                        previous_direction,
-                        strings[index],
-                        direction,
-                    )
+            for previous_direction, (previous_cost, _previous) in costs[index - 1].items():
+                candidate = previous_cost + _transition_cost(
+                    strings[index - 1],
+                    previous_direction,
+                    strings[index],
+                    direction,
                 )
                 if candidate < best_cost:
                     best_cost = candidate
@@ -63,7 +70,7 @@ def _optimise_run(strings: list[int]) -> list[str]:
             layer[direction] = (best_cost, best_previous)
         costs.append(layer)
 
-    final_direction = min(directions, key=lambda direction: costs[-1][direction][0])
+    final_direction = min(costs[-1], key=lambda direction: costs[-1][direction][0])
     result = [final_direction]
     for index in range(len(strings) - 1, 0, -1):
         previous = costs[index][result[-1]][1]
@@ -73,23 +80,33 @@ def _optimise_run(strings: list[int]) -> list[str]:
     return result
 
 
-def _optimise_cycle(strings: list[int]) -> list[str]:
+def _optimise_cycle(
+    strings: list[int],
+    fixed: list[str | None] | None = None,
+) -> list[str]:
     """Optimize a phrase whose last attack leads back into its first attack."""
     if not strings:
         return []
 
     directions = (DOWN, UP)
+    if fixed is None:
+        fixed = [None] * len(strings)
+    if len(fixed) != len(strings):
+        raise ValueError("fixed picking length must match attack count")
+
     best_total = float("inf")
     best_result: list[str] | None = None
+    first_choices = (fixed[0],) if fixed[0] in directions else directions
 
-    for first_direction in directions:
+    for first_direction in first_choices:
         layers: list[dict[str, tuple[float, str | None]]] = [
             {first_direction: (0.0, None)}
         ]
 
         for index in range(1, len(strings)):
             layer: dict[str, tuple[float, str | None]] = {}
-            for direction in directions:
+            choices = (fixed[index],) if fixed[index] in directions else directions
+            for direction in choices:
                 best_cost = float("inf")
                 best_previous: str | None = None
                 for previous_direction, (previous_cost, _previous) in layers[-1].items():
@@ -140,6 +157,7 @@ def economy_pick_pattern(
     off_state: str,
     *,
     cyclic: bool = False,
+    fixed_directions: list[str | None] | None = None,
 ) -> list[str | None]:
     """Choose an efficient pick direction for each rhythmic slot.
 
@@ -149,6 +167,9 @@ def economy_pick_pattern(
     phrase. In cyclic mode the end of the phrase is also optimized against its
     beginning, which is required for a continuously repeating loop.
     """
+    if fixed_directions is not None and len(fixed_directions) != len(states):
+        raise ValueError("fixed picking length must match rhythmic slot count")
+
     if cyclic and states:
         separators = [
             index
@@ -157,19 +178,23 @@ def economy_pick_pattern(
         ]
         if not separators:
             strings = [5 if state == ti_state else 6 for state in states]
-            return list(_optimise_cycle(strings))
+            return list(_optimise_cycle(strings, fixed_directions))
 
         # Rotate the loop so a rest/invalid slot is the boundary. That boundary
         # already breaks picking continuity, so ordinary linear optimization is
         # correct for the rotated phrase.
         cut = separators[0]
         rotated = states[cut:] + states[:cut]
+        rotated_fixed = None
+        if fixed_directions is not None:
+            rotated_fixed = fixed_directions[cut:] + fixed_directions[:cut]
         rotated_result = economy_pick_pattern(
             rotated,
             ti_state,
             ta_state,
             off_state,
             cyclic=False,
+            fixed_directions=rotated_fixed,
         )
         result: list[str | None] = [None] * len(states)
         for rotated_index, direction in enumerate(rotated_result):
@@ -180,15 +205,17 @@ def economy_pick_pattern(
     result: list[str | None] = [None] * len(states)
     run_slots: list[int] = []
     run_strings: list[int] = []
+    run_fixed: list[str | None] = []
 
     def flush() -> None:
         if not run_slots:
             return
-        directions = _optimise_run(run_strings)
+        directions = _optimise_run(run_strings, run_fixed)
         for slot, direction in zip(run_slots, directions):
             result[slot] = direction
         run_slots.clear()
         run_strings.clear()
+        run_fixed.clear()
 
     for slot, state in enumerate(states):
         if state == off_state:
@@ -203,6 +230,9 @@ def economy_pick_pattern(
             continue
         run_slots.append(slot)
         run_strings.append(string)
+        run_fixed.append(
+            fixed_directions[slot] if fixed_directions is not None else None
+        )
 
     flush()
     return result
@@ -264,21 +294,33 @@ def _economy_pick_beat_block(
     *,
     period: int,
     cyclic: bool,
+    fixed_by_beat: list[list[str | None]] | None = None,
 ) -> list[list[str | None]]:
     """Optimize one beat block and repeat its requested whole-beat period."""
     base_beats = beats[:period]
+    if fixed_by_beat is not None and len(fixed_by_beat) != len(beats):
+        raise ValueError("fixed beat picking length must match beat count")
 
     flat: list[str] = []
+    flat_fixed: list[str | None] = []
     spans: list[tuple[int, int, bool]] = []
-    for states in base_beats:
+    for beat_index, states in enumerate(base_beats):
         start = len(flat)
         if states:
             flat.extend(states)
+            if fixed_by_beat is None:
+                flat_fixed.extend([None] * len(states))
+            else:
+                fixed_states = fixed_by_beat[beat_index]
+                if len(fixed_states) != len(states):
+                    raise ValueError("fixed beat picking must match subdivision count")
+                flat_fixed.extend(fixed_states)
             spans.append((start, len(states), True))
         else:
             # Covered metric beats need a separator so picking does not bridge
             # through an event that belongs to a spanning previous beat.
             flat.append(off_state)
+            flat_fixed.append(None)
             spans.append((start, 1, False))
 
     flat_directions = economy_pick_pattern(
@@ -287,6 +329,7 @@ def _economy_pick_beat_block(
         ta_state,
         off_state,
         cyclic=cyclic,
+        fixed_directions=flat_fixed,
     )
 
     base_directions: list[list[str | None]] = []
@@ -486,4 +529,53 @@ def economy_pick_beats(
         ta_state,
         off_state,
         cyclic=True,
+    )
+
+
+def economy_pick_ramp_beats(
+    full_beats: list[list[str]],
+    effective_beats: list[list[str]],
+    active_beats: int,
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+) -> list[list[str | None]]:
+    """Keep ramp-stage picking aligned with the final full-bar motor pattern.
+
+    The complete target bar defines the canonical economy-picking directions.
+    Every already-open ramp beat is locked to that canonical solution from the
+    first stage where it appears. Inactive ramp beats remain free for economy
+    optimization, so their temporary TA pulses can still form useful sweeps.
+    """
+    if len(full_beats) != len(effective_beats):
+        raise ValueError("full and effective ramp beat counts must match")
+    if not effective_beats:
+        return []
+
+    active = max(0, min(len(effective_beats), int(active_beats)))
+    canonical = economy_pick_beats(
+        full_beats,
+        ti_state,
+        ta_state,
+        off_state,
+        loop=True,
+    )
+
+    fixed_by_beat: list[list[str | None]] = []
+    for beat_index, states in enumerate(effective_beats):
+        if beat_index < active:
+            if len(canonical[beat_index]) != len(states):
+                raise ValueError("active ramp beat shape must match full pattern")
+            fixed_by_beat.append(list(canonical[beat_index]))
+        else:
+            fixed_by_beat.append([None] * len(states))
+
+    return _economy_pick_beat_block(
+        effective_beats,
+        ti_state,
+        ta_state,
+        off_state,
+        period=len(effective_beats),
+        cyclic=True,
+        fixed_by_beat=fixed_by_beat,
     )

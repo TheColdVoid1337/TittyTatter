@@ -22,6 +22,7 @@ from picking_logic import (
     UP,
     economy_pick_beats,
     economy_pick_pattern,
+    economy_pick_ramp_beats,
     strict_alternate_pick_beats,
 )
 from training_modes import (
@@ -264,6 +265,37 @@ wrapped_repeated_run = economy_pick_beats(
     loop=True,
 )
 assert wrapped_repeated_run[0] == wrapped_repeated_run[2]
+
+# Ramp stages must teach one picking solution from the beginning. The complete
+# final bar defines the canonical economy pattern; every opened beat keeps that
+# direction scheme while temporary inactive TA pulses remain optimizable.
+ramp_full_beats = [
+    [TA, TI, TI, TI],
+    [TA, TI, TI, TI],
+    [TA, TI, TI, TI],
+    [TI, TA, TI, TA],
+]
+ramp_canonical = economy_pick_beats(
+    ramp_full_beats,
+    TI,
+    TA,
+    OFF,
+    loop=True,
+)
+for active in (1, 2, 3):
+    ramp_effective = [
+        list(states) if index < active else [TA, OFF, OFF, OFF]
+        for index, states in enumerate(ramp_full_beats)
+    ]
+    ramp_stage = economy_pick_ramp_beats(
+        ramp_full_beats,
+        ramp_effective,
+        active,
+        TI,
+        TA,
+        OFF,
+    )
+    assert ramp_stage[:active] == ramp_canonical[:active]
 
 assert len(SIXTEENTH_PRESETS) == 16
 assert len(TRIPLET_PRESETS) == 8

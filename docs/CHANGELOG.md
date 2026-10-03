@@ -11,6 +11,7 @@ Numeric headings are added when a release version is chosen. Future development 
 
 - Picking Guide now preserves the same whole-beat picking pattern for repeated active motifs separated by fully silent beats, including motifs that cross the bar boundary.
 - Economy picking keeps consecutive identical beats as one stable motor pattern instead of flipping a later repetition for a small boundary-transition advantage; looping runs also stay consistent across the bar boundary.
+- Ramp modes now choose the economy-picking scheme from the complete target bar and use it from the first stage, so already-open beats do not change stroke directions as later beats are revealed; temporary inactive TA pulses remain free for useful sweep transitions.
 
 ## 0.0.4 — 2026-10-04
 

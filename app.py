@@ -61,7 +61,11 @@ from game_logic import (
     progress_bar,
 )
 from model import BarPattern, BeatPattern
-from picking_logic import economy_pick_beats, strict_alternate_pick_beats
+from picking_logic import (
+    economy_pick_beats,
+    economy_pick_ramp_beats,
+    strict_alternate_pick_beats,
+)
 from presets import (
     CORE_PRACTICE_PRESETS,
     OFF,
@@ -3183,29 +3187,41 @@ class MainWindow(QMainWindow):
             active = max(0, min(pattern.numerator, int(active_beats)))
 
         coverage = pattern.coverage()
+        mode = self.mode.currentData()
+        full_beat_states: list[list[str]] = []
         beat_states: list[list[str]] = []
 
         for beat_index, beat in enumerate(pattern.beats):
             if coverage[beat_index] != beat_index:
-                states: list[str] = []
-            elif self.mode.currentData() in RAMP_MODES and beat_index >= active:
-                # The next not-yet-opened ramp beat is shown exactly as it is
-                # practised: TA on the beat, then silence for the remaining
-                # subdivisions. The scheme is rebuilt as each new beat opens.
-                states = [TA] + [OFF] * max(0, beat.subdivision - 1)
+                full_states: list[str] = []
             elif beat.muted:
-                states = [OFF] * beat.subdivision
+                full_states = [OFF] * beat.subdivision
             else:
-                states = list(beat.steps)
+                full_states = list(beat.steps)
 
+            if mode in RAMP_MODES and beat_index >= active and full_states:
+                # A not-yet-opened ramp beat is practised as TA on the beat,
+                # then silence. Its temporary stroke may still be optimized,
+                # but opened beats keep the canonical full-pattern picking.
+                states = [TA] + [OFF] * max(0, beat.subdivision - 1)
+            else:
+                states = list(full_states)
+
+            full_beat_states.append(full_states)
             beat_states.append(states)
 
-        # Every practice stage repeats its current effective bar. Treat the
-        # picking problem as cyclic in loop and ramp modes alike; ramp simply
-        # rebuilds beat_states whenever the active-beat level changes.
         if self.picking_strategy.currentData() == "alternate":
             directions_by_beat = strict_alternate_pick_beats(
                 beat_states,
+                TI,
+                TA,
+                OFF,
+            )
+        elif mode in RAMP_MODES:
+            directions_by_beat = economy_pick_ramp_beats(
+                full_beat_states,
+                beat_states,
+                active,
                 TI,
                 TA,
                 OFF,
