@@ -871,8 +871,10 @@ class AudioEngine:
         miss2_t = np.arange(miss2_n, dtype=np.float32) / sr
         miss2_noise = rng.normal(0.0, 1.0, miss2_n).astype(np.float32)
         game_miss_2 = normalize(
-            miss2_noise * np.exp(-miss2_t / 0.020)
-            + tone(105, 0.100, 0.038, 0.70),
+            mix_layers(
+                miss2_noise * np.exp(-miss2_t / 0.020),
+                tone(105, 0.100, 0.038, 0.70),
+            ),
             0.42,
         )
         game_miss_3 = normalize(mix_layers(
