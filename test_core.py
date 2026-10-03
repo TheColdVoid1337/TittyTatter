@@ -1,4 +1,11 @@
-from audio_engine import EngineConfig, GAME_HIT_SOUNDS, GAME_MISS_SOUNDS
+from audio_engine import (
+    EngineConfig,
+    GAME_HIT_SOUNDS,
+    GAME_MISS_SOUNDS,
+    GAME_TA_HIT_FOR_TI,
+    GAME_TA_HIT_SOUNDS,
+    GAME_TI_HIT_SOUNDS,
+)
 from game_logic import (
     EARLY_HIT_WINDOW_MS,
     HIT_WINDOW_MS,
@@ -42,10 +49,14 @@ from presets import (
 assert TI_MARK == "(ТИ)"
 assert EngineConfig().ti_enabled is True
 assert EngineConfig().ta_enabled is True
-assert len(GAME_HIT_SOUNDS) == 3
-assert len(GAME_MISS_SOUNDS) == 3
-assert GAME_HIT_SOUNDS[0][1] == "game_hit"
-assert GAME_MISS_SOUNDS[0][1] == "game_miss"
+assert len(GAME_TI_HIT_SOUNDS) == 4
+assert len(GAME_TA_HIT_SOUNDS) == 4
+assert len(GAME_HIT_SOUNDS) == 4
+assert len(GAME_MISS_SOUNDS) == 4
+assert GAME_TI_HIT_SOUNDS[0][1] == "game_hit"
+assert GAME_TA_HIT_FOR_TI["game_hit"] == "game_ta_hit"
+assert GAME_TA_HIT_FOR_TI["game_hit_guitar_ti"] == "game_hit_guitar_ta"
+assert GAME_MISS_SOUNDS[-1][1] == "game_miss_string"
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are

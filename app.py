@@ -37,7 +37,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from audio_engine import AudioEngine, GAME_HIT_SOUNDS, GAME_MISS_SOUNDS, SOUND_NAMES
+from audio_engine import (
+    AudioEngine,
+    GAME_MISS_SOUNDS,
+    GAME_TA_HIT_FOR_TI,
+    GAME_TA_HIT_SOUNDS,
+    GAME_TI_HIT_SOUNDS,
+    SOUND_NAMES,
+)
 from exports import export_gp5, export_midi, export_wav
 from game_logger import GameLogSession
 from input_binding import binding_display, binding_identity, normalize_binding, scan_binding
@@ -1515,17 +1522,25 @@ class MainWindow(QMainWindow):
         hit_layout.setContentsMargins(0, 0, 0, 0)
         self.game_hit_sound = QCheckBox("HIT")
         self.game_hit_sound.setChecked(True)
-        self.game_hit_choice = QComboBox()
-        for label, key in GAME_HIT_SOUNDS:
-            self.game_hit_choice.addItem(label, key)
-        self.game_hit_choice.setFixedWidth(92)
+        self.game_split_hit_sound = QCheckBox("разные ТИ/ТА")
+        self.game_split_hit_sound.setChecked(True)
         self.game_hit_volume = self._volume_slider(70)
         self.game_hit_volume.setMaximumWidth(120)
         hit_layout.addWidget(self.game_hit_sound)
-        hit_layout.addWidget(self.game_hit_choice)
+        hit_layout.addWidget(self.game_split_hit_sound)
         hit_layout.addWidget(QLabel("Громк."))
         hit_layout.addWidget(self.game_hit_volume, 1)
         form.addRow("HIT:", hit_row)
+
+        self.game_hit_choice = QComboBox()
+        for label, key in GAME_TI_HIT_SOUNDS:
+            self.game_hit_choice.addItem(label, key)
+        form.addRow("ТИ HIT:", self.game_hit_choice)
+
+        self.game_hit_ta_choice = QComboBox()
+        for label, key in GAME_TA_HIT_SOUNDS:
+            self.game_hit_ta_choice.addItem(label, key)
+        form.addRow("ТА HIT:", self.game_hit_ta_choice)
 
         miss_row = QWidget()
         miss_layout = QHBoxLayout(miss_row)
@@ -1545,6 +1560,7 @@ class MainWindow(QMainWindow):
         form.addRow("MISS:", miss_row)
 
         self.game_hit_sound.toggled.connect(self._refresh_game_sound_controls)
+        self.game_split_hit_sound.toggled.connect(self._refresh_game_sound_controls)
         self.game_miss_sound.toggled.connect(self._refresh_game_sound_controls)
 
         self.game_start = QPushButton("▶ Запустить игру")
@@ -2139,8 +2155,10 @@ class MainWindow(QMainWindow):
             self.game_ti_key,
             self.game_ta_key,
             self.game_hit_sound,
+            self.game_split_hit_sound,
             self.game_miss_sound,
             self.game_hit_choice,
+            self.game_hit_ta_choice,
             self.game_miss_choice,
             self.game_hit_volume,
             self.game_miss_volume,
@@ -2173,8 +2191,11 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "game_hit_choice"):
             return
         editable = self.game_enabled.isChecked() and not self.game_active
-        self.game_hit_choice.setEnabled(editable and self.game_hit_sound.isChecked())
-        self.game_hit_volume.setEnabled(editable and self.game_hit_sound.isChecked())
+        hit_enabled = editable and self.game_hit_sound.isChecked()
+        self.game_split_hit_sound.setEnabled(hit_enabled)
+        self.game_hit_choice.setEnabled(hit_enabled)
+        self.game_hit_ta_choice.setEnabled(hit_enabled and self.game_split_hit_sound.isChecked())
+        self.game_hit_volume.setEnabled(hit_enabled)
         self.game_miss_choice.setEnabled(editable and self.game_miss_sound.isChecked())
         self.game_miss_volume.setEnabled(editable and self.game_miss_sound.isChecked())
 
@@ -2386,6 +2407,7 @@ class MainWindow(QMainWindow):
         self._record_game_result(
             grade.accepted,
             grade.quality,
+            hit_state=state,
             offset_ms=raw_offset_ms,
             grade_label=grade.label,
             points=grade.points,
@@ -2479,6 +2501,7 @@ class MainWindow(QMainWindow):
         hit: bool,
         quality: float,
         *,
+        hit_state: str | None = None,
         offset_ms: float | None = None,
         detail: str = "",
         grade_label: str = "HIT",
@@ -2495,8 +2518,14 @@ class MainWindow(QMainWindow):
                 timing = self._timing_description(float(offset_ms or 0.0))
                 self.visual.set_game_feedback("hit", grade_label, f"{timing} · +{int(points)}")
             if self.game_hit_sound.isChecked():
+                hit_key = str(self.game_hit_choice.currentData())
+                if (
+                    self.game_split_hit_sound.isChecked()
+                    and hit_state == TA
+                ):
+                    hit_key = str(self.game_hit_ta_choice.currentData())
                 self.engine.queue_notification(
-                    str(self.game_hit_choice.currentData()),
+                    hit_key,
                     self.game_hit_volume.value() / 100.0,
                 )
         else:
@@ -2519,6 +2548,7 @@ class MainWindow(QMainWindow):
             points=int(points) if hit else 0,
             offset_ms=offset_ms,
             detail=detail,
+            hit_state=hit_state,
             score=self.game_score,
             hits=self.game_hits,
             misses=self.game_misses,
@@ -2839,7 +2869,9 @@ class MainWindow(QMainWindow):
                 "auto_timing_bias": False,
                 "lane_only_matching": True,
                 "hit_sound": self.game_hit_sound.isChecked(),
-                "hit_sound_key": self.game_hit_choice.currentData(),
+                "split_hit_sound": self.game_split_hit_sound.isChecked(),
+                "hit_ti_key": self.game_hit_choice.currentData(),
+                "hit_ta_key": self.game_hit_ta_choice.currentData(),
                 "hit_volume": self.game_hit_volume.value(),
                 "miss_sound": self.game_miss_sound.isChecked(),
                 "miss_sound_key": self.game_miss_choice.currentData(),
@@ -3399,7 +3431,9 @@ class MainWindow(QMainWindow):
                 "ti_key": self.game_ti_key.binding(),
                 "ta_key": self.game_ta_key.binding(),
                 "hit_sound": self.game_hit_sound.isChecked(),
-                "hit_sound_key": self.game_hit_choice.currentData(),
+                "split_hit_sound": self.game_split_hit_sound.isChecked(),
+                "hit_ti_key": self.game_hit_choice.currentData(),
+                "hit_ta_key": self.game_hit_ta_choice.currentData(),
                 "hit_volume": self.game_hit_volume.value(),
                 "miss_sound": self.game_miss_sound.isChecked(),
                 "miss_sound_key": self.game_miss_choice.currentData(),
@@ -3509,7 +3543,17 @@ class MainWindow(QMainWindow):
         self.game_ti_key.set_binding(str(game.get("ti_key", "F")))
         self.game_ta_key.set_binding(str(game.get("ta_key", "J")))
         self.game_hit_sound.setChecked(bool(game.get("hit_sound", True)))
-        self._combo_data(self.game_hit_choice, game.get("hit_sound_key", "game_hit"))
+        old_hit_key = str(game.get("hit_sound_key", "game_hit"))
+        ti_hit_key = str(game.get("hit_ti_key", old_hit_key))
+        ta_hit_key = str(
+            game.get(
+                "hit_ta_key",
+                GAME_TA_HIT_FOR_TI.get(ti_hit_key, "game_ta_hit"),
+            )
+        )
+        self.game_split_hit_sound.setChecked(bool(game.get("split_hit_sound", True)))
+        self._combo_data(self.game_hit_choice, ti_hit_key)
+        self._combo_data(self.game_hit_ta_choice, ta_hit_key)
         self.game_hit_volume.setValue(int(game.get("hit_volume", 70)))
         self.game_miss_sound.setChecked(bool(game.get("miss_sound", True)))
         self._combo_data(self.game_miss_choice, game.get("miss_sound_key", "game_miss"))
@@ -3625,7 +3669,9 @@ class MainWindow(QMainWindow):
         self.game_ti_key.set_binding("key:F")
         self.game_ta_key.set_binding("key:J")
         self.game_hit_sound.setChecked(True)
+        self.game_split_hit_sound.setChecked(True)
         self._combo_data(self.game_hit_choice, "game_hit")
+        self._combo_data(self.game_hit_ta_choice, "game_ta_hit")
         self.game_hit_volume.setValue(70)
         self.game_miss_sound.setChecked(True)
         self._combo_data(self.game_miss_choice, "game_miss")

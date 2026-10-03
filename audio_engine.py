@@ -21,15 +21,31 @@ from training_modes import (
     sparse_click_matches,
 )
 
-GAME_HIT_SOUNDS = (
+GAME_TI_HIT_SOUNDS = (
     ("Hit 1", "game_hit"),
     ("Hit 2", "game_hit_2"),
     ("Hit 3", "game_hit_3"),
+    ("Гитара E3", "game_hit_guitar_ti"),
 )
+GAME_TA_HIT_SOUNDS = (
+    ("Hit 1 ↓", "game_ta_hit"),
+    ("Hit 2 ↓", "game_ta_hit_2"),
+    ("Hit 3 ↓", "game_ta_hit_3"),
+    ("Глушёная E2", "game_hit_guitar_ta"),
+)
+GAME_TA_HIT_FOR_TI = {
+    "game_hit": "game_ta_hit",
+    "game_hit_2": "game_ta_hit_2",
+    "game_hit_3": "game_ta_hit_3",
+    "game_hit_guitar_ti": "game_hit_guitar_ta",
+}
+# Backward-compatible alias used by older code/tests.
+GAME_HIT_SOUNDS = GAME_TI_HIT_SOUNDS
 GAME_MISS_SOUNDS = (
     ("Miss 1", "game_miss"),
     ("Miss 2", "game_miss_2"),
     ("Miss 3", "game_miss_3"),
+    ("Мимо струны", "game_miss_string"),
 )
 
 SOUND_NAMES = (
@@ -867,6 +883,41 @@ class AudioEngine:
             tone(2080, 0.045, 0.012, 0.28),
         ), 0.42)
 
+        # TA variants are the same three HIT timbres shifted down one octave.
+        # Musically this mirrors E3 (5th string, 7th fret) -> low E2.
+        game_ta_hit = normalize(mix_layers(
+            tone(440, 0.065, 0.022, 0.85),
+            tone(660, 0.075, 0.028, 0.55),
+        ), 0.42)
+        game_ta_hit_2 = normalize(mix_layers(
+            tone(360, 0.055, 0.016, 0.90),
+            tone(540, 0.060, 0.020, 0.58),
+            tone(900, 0.038, 0.010, 0.24),
+        ), 0.42)
+        game_ta_hit_3 = normalize(mix_layers(
+            tone(520, 0.050, 0.014, 0.80),
+            tone(780, 0.070, 0.026, 0.60),
+            tone(1040, 0.045, 0.012, 0.28),
+        ), 0.42)
+
+        def guitar_pluck(freq: float, *, muted: bool) -> np.ndarray:
+            dur = 0.105 if muted else 0.220
+            n = max(1, int(sr * dur))
+            t = np.arange(n, dtype=np.float32) / sr
+            decay = 0.028 if muted else 0.095
+            body = np.zeros(n, dtype=np.float32)
+            for harmonic, gain in ((1, 1.0), (2, 0.48), (3, 0.26), (4, 0.14), (5, 0.08)):
+                body += gain * np.sin(2 * np.pi * freq * harmonic * t)
+            pick_noise = rng.normal(0.0, 1.0, n).astype(np.float32) * np.exp(-t / 0.004)
+            wave = body * np.exp(-t / decay) + (0.14 if muted else 0.08) * pick_noise
+            if muted:
+                wave += 0.12 * np.sin(2 * np.pi * 1650 * t) * np.exp(-t / 0.010)
+            return normalize(wave, 0.44)
+
+        # Guitar feedback set: E3 = 7th fret on the A string; TA is muted low E2.
+        game_hit_guitar_ti = guitar_pluck(164.8138, muted=False)
+        game_hit_guitar_ta = guitar_pluck(82.4069, muted=True)
+
         miss2_n = int(sr * 0.080)
         miss2_t = np.arange(miss2_n, dtype=np.float32) / sr
         miss2_noise = rng.normal(0.0, 1.0, miss2_n).astype(np.float32)
@@ -882,6 +933,20 @@ class AudioEngine:
             tone(140, 0.120, 0.050, 0.72),
             tone(82, 0.145, 0.060, 0.38),
         ), 0.42)
+
+        miss_string_n = max(1, int(sr * 0.120))
+        miss_string_t = np.arange(miss_string_n, dtype=np.float32) / sr
+        scrape = rng.normal(0.0, 1.0, miss_string_n).astype(np.float32)
+        scrape -= np.convolve(scrape, np.ones(17, dtype=np.float32) / 17.0, mode="same")
+        dirty_body = (
+            0.42 * np.sin(2 * np.pi * 78 * miss_string_t)
+            + 0.28 * np.sin(2 * np.pi * 121 * miss_string_t)
+        )
+        game_miss_string = normalize(
+            scrape * np.exp(-miss_string_t / 0.018)
+            + dirty_body * np.exp(-miss_string_t / 0.042),
+            0.44,
+        )
 
         ramp_warn = normalize(mix_layers(
             tone(660, 0.105, 0.040, 0.70),
@@ -927,9 +992,15 @@ class AudioEngine:
             "game_hit": game_hit,
             "game_hit_2": game_hit_2,
             "game_hit_3": game_hit_3,
+            "game_ta_hit": game_ta_hit,
+            "game_ta_hit_2": game_ta_hit_2,
+            "game_ta_hit_3": game_ta_hit_3,
+            "game_hit_guitar_ti": game_hit_guitar_ti,
+            "game_hit_guitar_ta": game_hit_guitar_ta,
             "game_miss": game_miss,
             "game_miss_2": game_miss_2,
             "game_miss_3": game_miss_3,
+            "game_miss_string": game_miss_string,
             "ramp_warn": ramp_warn,
             "finish_horn": finish_horn,
         }
