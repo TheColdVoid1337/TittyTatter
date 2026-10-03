@@ -27,6 +27,7 @@ from picking_logic import (
     PickingEventSource,
     PickingTransition,
     alternate_pick_beats_v2,
+    annotate_whole_beat_motifs,
     alternate_pick_events,
     classify_pick_transition,
     economy_pick_beats,
@@ -462,6 +463,102 @@ assert all(
     for event, decision in zip(p3_off_events, p3_off)
     if event.attack
 )
+
+
+# Picking Logic v2 P4: repeated whole-beat motifs are constraints inside the
+# optimizer, not a post-processing rewrite.
+p4_a = [TA, TI, TA, TA]
+p4_b = [TI, TA, TI, TA]
+p4_aaab_events = normalize_picking_events(
+    [p4_a, p4_a, p4_a, p4_b],
+    [p4_a, p4_a, p4_a, p4_b],
+    TI,
+    TA,
+    OFF,
+    stage_id="motif:aaab",
+)
+p4_aaab_annotated = annotate_whole_beat_motifs(p4_aaab_events)
+p4_a_ids = {
+    event.motif_id
+    for event in p4_aaab_annotated
+    if event.beat_index in (0, 1, 2)
+}
+assert len(p4_a_ids) == 1
+assert None not in p4_a_ids
+assert all(
+    event.motif_id is None
+    for event in p4_aaab_annotated
+    if event.beat_index == 3
+)
+
+p4_aaab = economy_pick_events(p4_aaab_events, cyclic=True)
+p4_aaab_rows = picking_directions_by_beat(
+    p4_aaab_events,
+    [decision.stroke for decision in p4_aaab],
+    4,
+)
+assert p4_aaab_rows[0] == p4_aaab_rows[1] == p4_aaab_rows[2]
+
+# Motif equality must not erase useful Economy. A starts 6->5, so the shared
+# motor pattern should retain the directional DOWN/DOWN sweep.
+assert p4_aaab_rows[0][0:2] == [DOWN, DOWN]
+
+# A/B/A/B constrains both motif identities independently.
+p4_abab_events = normalize_picking_events(
+    [p4_a, p4_b, p4_a, p4_b],
+    [p4_a, p4_b, p4_a, p4_b],
+    TI,
+    TA,
+    OFF,
+    stage_id="motif:abab",
+)
+p4_abab = economy_pick_events(p4_abab_events, cyclic=True)
+p4_abab_rows = picking_directions_by_beat(
+    p4_abab_events,
+    [decision.stroke for decision in p4_abab],
+    4,
+)
+assert p4_abab_rows[0] == p4_abab_rows[2]
+assert p4_abab_rows[1] == p4_abab_rows[3]
+
+# A motif repeated across the visual end/start region keeps one identity.
+p4_aba_events = normalize_picking_events(
+    [p4_a, p4_b, p4_a],
+    [p4_a, p4_b, p4_a],
+    TI,
+    TA,
+    OFF,
+    stage_id="motif:aba",
+)
+p4_aba = economy_pick_events(p4_aba_events, cyclic=True)
+p4_aba_rows = picking_directions_by_beat(
+    p4_aba_events,
+    [decision.stroke for decision in p4_aba],
+    3,
+)
+assert p4_aba_rows[0] == p4_aba_rows[2]
+
+# OFF slots participate in motif shape but not attack parity.
+p4_rest_a = [TA, OFF, TI, TA]
+p4_rest_events = normalize_picking_events(
+    [p4_rest_a, p4_rest_a, p4_b],
+    [p4_rest_a, p4_rest_a, p4_b],
+    TI,
+    TA,
+    OFF,
+    stage_id="motif:rests",
+)
+p4_rest = economy_pick_events(p4_rest_events, cyclic=True)
+p4_rest_rows = picking_directions_by_beat(
+    p4_rest_events,
+    [decision.stroke for decision in p4_rest],
+    3,
+)
+assert p4_rest_rows[0] == p4_rest_rows[1]
+assert p4_rest_rows[0][1] is None
+
+# Motif-constrained Economy remains deterministic.
+assert economy_pick_events(p4_abab_events, cyclic=True) == p4_abab
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are

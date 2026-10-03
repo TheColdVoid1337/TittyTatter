@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from fractions import Fraction
 
@@ -321,6 +321,266 @@ def alternate_pick_beats_v2(
     )
 
 
+def annotate_whole_beat_motifs(
+    events: list[PickingEvent],
+) -> list[PickingEvent]:
+    """Assign deterministic motif ids to repeated whole-beat event shapes.
+
+    P4 starts with whole-beat motifs. A beat signature includes source, state,
+    attack/string identity, rhythmic phase, and covered-slot shape. Only
+    signatures that occur at least twice become constrained motifs.
+
+    The function returns new immutable PickingEvent objects and preserves any
+    explicit motif_id that a future caller may already have supplied.
+    """
+    if not events:
+        return []
+
+    beat_events: dict[int, list[PickingEvent]] = {}
+    beat_order: list[int] = []
+    for event in events:
+        if event.beat_index not in beat_events:
+            beat_events[event.beat_index] = []
+            beat_order.append(event.beat_index)
+        beat_events[event.beat_index].append(event)
+
+    def signature(beat: list[PickingEvent]) -> tuple[tuple[object, ...], ...]:
+        return tuple(
+            (
+                event.source.value,
+                event.state,
+                event.attack,
+                event.string,
+                event.subdivision_index,
+                event.rhythmic_phase,
+            )
+            for event in beat
+        )
+
+    signatures = {
+        beat_index: signature(beat_events[beat_index])
+        for beat_index in beat_order
+    }
+    counts: dict[tuple[tuple[object, ...], ...], int] = {}
+    for beat_index in beat_order:
+        value = signatures[beat_index]
+        counts[value] = counts.get(value, 0) + 1
+
+    motif_for_signature: dict[tuple[tuple[object, ...], ...], str] = {}
+    next_motif = 0
+    result: list[PickingEvent] = []
+
+    for beat_index in beat_order:
+        beat = beat_events[beat_index]
+        value = signatures[beat_index]
+        motif_id: str | None = None
+        if counts[value] >= 2:
+            motif_id = motif_for_signature.get(value)
+            if motif_id is None:
+                motif_id = f"beat-motif:{next_motif}"
+                motif_for_signature[value] = motif_id
+                next_motif += 1
+
+        for event in beat:
+            if event.motif_id is not None or motif_id is None:
+                result.append(event)
+            else:
+                result.append(replace(event, motif_id=motif_id))
+
+    return result
+
+
+def _motif_variable_keys(
+    events: list[PickingEvent],
+    attack_indices: list[int],
+) -> dict[int, str]:
+    """Map repeated-motif attacks to shared equality-variable keys."""
+    attack_ordinal_by_beat: dict[int, int] = {}
+    keys: dict[int, str] = {}
+
+    for event_index in attack_indices:
+        event = events[event_index]
+        ordinal = attack_ordinal_by_beat.get(event.beat_index, 0)
+        attack_ordinal_by_beat[event.beat_index] = ordinal + 1
+        if event.motif_id is not None:
+            keys[event_index] = f"{event.motif_id}:attack:{ordinal}"
+
+    return keys
+
+
+def _solve_economy_constrained(
+    events: list[PickingEvent],
+    attack_indices: list[int],
+    *,
+    cyclic: bool,
+) -> list[str]:
+    """Exact DP for Economy with shared motif-direction variables.
+
+    Repeated motif attacks share a variable key, so equality is enforced while
+    the full phrase/cycle is optimized. This replaces post-hoc rewriting: the
+    optimizer never generates an inconsistent motif solution in the first
+    place.
+
+    Only motif variables that will reappear are retained in DP state, keeping
+    unique one-off attacks cheap.
+    """
+    if not attack_indices:
+        return []
+
+    motif_keys = _motif_variable_keys(events, attack_indices)
+    positions_by_key: dict[str, list[int]] = {}
+    for position, event_index in enumerate(attack_indices):
+        key = motif_keys.get(event_index)
+        if key is not None:
+            positions_by_key.setdefault(key, []).append(position)
+
+    # A motif variable matters only if it is actually shared by two or more
+    # attacks. Single-occurrence ids are equivalent to unconstrained attacks.
+    shared_keys = {
+        key
+        for key, positions in positions_by_key.items()
+        if len(positions) >= 2
+    }
+    last_position = {
+        key: positions_by_key[key][-1]
+        for key in shared_keys
+    }
+
+    directions = (DOWN, UP)
+    # state -> (cost, path). State stores previous stroke, first stroke for the
+    # cyclic closing edge, and currently-live shared motif assignments.
+    states: dict[
+        tuple[str | None, str | None, tuple[tuple[str, str], ...]],
+        tuple[float, tuple[str, ...]],
+    ] = {
+        (None, None, ()): (0.0, ())
+    }
+
+    for position, event_index in enumerate(attack_indices):
+        event = events[event_index]
+        if event.string not in (5, 6):
+            raise ValueError("attack event must map to string 5 or 6")
+
+        key = motif_keys.get(event_index)
+        if key not in shared_keys:
+            key = None
+
+        next_states: dict[
+            tuple[str | None, str | None, tuple[tuple[str, str], ...]],
+            tuple[float, tuple[str, ...]],
+        ] = {}
+
+        for (previous_stroke, first_stroke, assignments_tuple), (
+            cost,
+            path,
+        ) in states.items():
+            assignments = dict(assignments_tuple)
+            if key is not None and key in assignments:
+                choices = (assignments[key],)
+            else:
+                choices = directions
+
+            reset = event.reset_before
+            effective_previous = None if reset else previous_stroke
+
+            previous_string: int | None = None
+            if effective_previous is not None and position > 0:
+                # Find the previous attack that belongs to the same phrase.
+                previous_position = position - 1
+                previous_event = events[attack_indices[previous_position]]
+                if not event.reset_before:
+                    previous_string = previous_event.string
+
+            for stroke in choices:
+                candidate_cost = cost
+                if effective_previous is None:
+                    candidate_cost += 0.0 if stroke == DOWN else 0.01
+                else:
+                    assert previous_string in (5, 6)
+                    candidate_cost += _economy_transition_cost_v2(
+                        previous_string,
+                        effective_previous,
+                        event.string,
+                        stroke,
+                    )
+
+                next_assignments = dict(assignments)
+                if key is not None and key not in next_assignments:
+                    next_assignments[key] = stroke
+
+                # Once the final occurrence has been processed, equality no
+                # longer needs to occupy DP state.
+                expired = [
+                    live_key
+                    for live_key in next_assignments
+                    if last_position[live_key] == position
+                ]
+                for live_key in expired:
+                    del next_assignments[live_key]
+
+                candidate_first = first_stroke
+                if candidate_first is None:
+                    candidate_first = stroke
+
+                state_key = (
+                    stroke,
+                    candidate_first,
+                    tuple(sorted(next_assignments.items())),
+                )
+                candidate_path = path + (stroke,)
+                existing = next_states.get(state_key)
+                if existing is None or candidate_cost < existing[0]:
+                    next_states[state_key] = (
+                        candidate_cost,
+                        candidate_path,
+                    )
+                elif (
+                    existing is not None
+                    and candidate_cost == existing[0]
+                    and candidate_path < existing[1]
+                ):
+                    next_states[state_key] = (
+                        candidate_cost,
+                        candidate_path,
+                    )
+
+        states = next_states
+
+    best_cost = float("inf")
+    best_path: tuple[str, ...] | None = None
+    first_event = events[attack_indices[0]]
+    last_event = events[attack_indices[-1]]
+
+    has_reset = any(
+        events[event_index].reset_before
+        for event_index in attack_indices
+    )
+    close_cycle = cyclic and not has_reset
+
+    for (last_stroke, first_stroke, _assignments), (cost, path) in states.items():
+        total = cost
+        if close_cycle:
+            assert last_stroke in directions
+            assert first_stroke in directions
+            assert first_event.string in (5, 6)
+            assert last_event.string in (5, 6)
+            total += _economy_transition_cost_v2(
+                last_event.string,
+                last_stroke,
+                first_event.string,
+                first_stroke,
+            )
+
+        if best_path is None or total < best_cost:
+            best_cost = total
+            best_path = path
+        elif total == best_cost and path < best_path:
+            best_path = path
+
+    assert best_path is not None
+    return list(best_path)
+
+
 class PickingTransition(str, Enum):
     """Mechanical relation from the previous attack to the current attack."""
 
@@ -518,7 +778,11 @@ def economy_pick_events(
     OFF/COVERED slots do not break continuity. Only explicit `reset_before`
     boundaries split phrases. If there is no explicit reset, `cyclic=True`
     scores the real last->first loop transition.
+
+    P4 whole-beat motif equality is applied before optimization, so repeated
+    motif attacks share stroke variables instead of being rewritten afterward.
     """
+    events = annotate_whole_beat_motifs(events)
     decisions = [
         PickDecision(
             stroke=None,
@@ -566,14 +830,16 @@ def economy_pick_events(
     strokes_by_event: dict[int, str] = {}
     parity_by_event: dict[int, int] = {}
 
+    constrained_strokes = _solve_economy_constrained(
+        events,
+        attack_indices,
+        cyclic=cyclic,
+    )
+    for event_index, stroke in zip(attack_indices, constrained_strokes):
+        strokes_by_event[event_index] = stroke
+
     for segment in segments:
-        attacks = [events[index] for index in segment]
-        strokes = _solve_economy_attack_segment(
-            attacks,
-            cyclic=cycle_segment and len(segments) == 1,
-        )
-        for parity, (event_index, stroke) in enumerate(zip(segment, strokes)):
-            strokes_by_event[event_index] = stroke
+        for parity, event_index in enumerate(segment):
             parity_by_event[event_index] = parity % 2
 
     transition_by_event: dict[int, PickingTransition] = {}
