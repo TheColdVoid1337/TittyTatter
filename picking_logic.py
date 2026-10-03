@@ -977,6 +977,411 @@ def economy_pick_beats_v2(
     )
 
 
+def _best_placeholder_bridge(
+    previous_string: int,
+    previous_stroke: str,
+    first_string: int,
+    first_stroke: str,
+    placeholder_count: int,
+) -> tuple[float, tuple[str, ...]]:
+    """Optimize a stage-local string-6 placeholder chain between real attacks."""
+    count = max(0, int(placeholder_count))
+    if count == 0:
+        return (
+            _economy_transition_cost_v2(
+                previous_string,
+                previous_stroke,
+                first_string,
+                first_stroke,
+            ),
+            (),
+        )
+
+    directions = (DOWN, UP)
+    states: dict[str, tuple[float, tuple[str, ...]]] = {}
+    for stroke in directions:
+        states[stroke] = (
+            _economy_transition_cost_v2(
+                previous_string,
+                previous_stroke,
+                6,
+                stroke,
+            ),
+            (stroke,),
+        )
+
+    for _position in range(1, count):
+        next_states: dict[str, tuple[float, tuple[str, ...]]] = {}
+        for stroke in directions:
+            best: tuple[float, tuple[str, ...]] | None = None
+            for previous_placeholder, (cost, path) in states.items():
+                candidate = (
+                    cost
+                    + _economy_transition_cost_v2(
+                        6,
+                        previous_placeholder,
+                        6,
+                        stroke,
+                    ),
+                    path + (stroke,),
+                )
+                if best is None or candidate < best:
+                    best = candidate
+            assert best is not None
+            next_states[stroke] = best
+        states = next_states
+
+    best_total: tuple[float, tuple[str, ...]] | None = None
+    for last_placeholder, (cost, path) in states.items():
+        candidate = (
+            cost
+            + _economy_transition_cost_v2(
+                6,
+                last_placeholder,
+                first_string,
+                first_stroke,
+            ),
+            path,
+        )
+        if best_total is None or candidate < best_total:
+            best_total = candidate
+
+    assert best_total is not None
+    return best_total
+
+
+def _joint_ramp_real_strokes(
+    full_events: list[PickingEvent],
+    stage_events: dict[int, list[PickingEvent]],
+) -> dict[str, str]:
+    """Solve all real Ramp attacks once across every practised stage.
+
+    Real pattern attacks are represented by one persistent variable regardless
+    of how many Ramp stages contain them. Stage-local placeholder chains are
+    analytically minimized at each cyclic stage boundary.
+
+    The real attack sequence is a chain plus stage-boundary factors back to the
+    first real attack. Whole-beat motif variables from P4 remain equality
+    constraints inside this joint DP.
+    """
+    annotated_full = annotate_whole_beat_motifs(full_events)
+    full_attack_indices = [
+        index
+        for index, event in enumerate(annotated_full)
+        if event.attack
+    ]
+    if not full_attack_indices:
+        return {}
+
+    real_events = [
+        annotated_full[index]
+        for index in full_attack_indices
+    ]
+    real_ids: list[str] = []
+    for event in real_events:
+        if event.persistent_attack_id is None:
+            raise ValueError("full Ramp attack must have persistent identity")
+        real_ids.append(event.persistent_attack_id)
+
+    real_position = {
+        persistent_id: position
+        for position, persistent_id in enumerate(real_ids)
+    }
+
+    motif_key_by_position: dict[int, str] = {}
+    raw_motif_keys = _motif_variable_keys(
+        annotated_full,
+        full_attack_indices,
+    )
+    positions_by_motif: dict[str, list[int]] = {}
+    for position, event_index in enumerate(full_attack_indices):
+        key = raw_motif_keys.get(event_index)
+        if key is not None:
+            positions_by_motif.setdefault(key, []).append(position)
+    shared_motif_keys = {
+        key
+        for key, positions in positions_by_motif.items()
+        if len(positions) >= 2
+    }
+    for position, event_index in enumerate(full_attack_indices):
+        key = raw_motif_keys.get(event_index)
+        if key in shared_motif_keys:
+            motif_key_by_position[position] = key
+
+    motif_last_position = {
+        key: positions[-1]
+        for key, positions in positions_by_motif.items()
+        if key in shared_motif_keys
+    }
+
+    # Each real->real edge is paid once for every stage in which both attacks
+    # are already open.
+    edge_weights = [0] * len(real_events)
+
+    # Stages with a real prefix contribute a cyclic boundary factor from the
+    # last open real attack, through zero or more temporary TA placeholders,
+    # back to the first real attack.
+    boundary_factors: dict[int, list[int]] = {}
+
+    full_prefix = real_ids
+    for active_beats, events in stage_events.items():
+        del active_beats  # stage identity is carried by the mapping key only.
+        stage_real_ids = [
+            event.persistent_attack_id
+            for event in events
+            if event.attack
+            and event.source is PickingEventSource.REAL_PATTERN
+        ]
+        if any(value is None for value in stage_real_ids):
+            raise ValueError("real Ramp attack missing persistent identity")
+
+        stage_real_ids = [str(value) for value in stage_real_ids]
+        if stage_real_ids != full_prefix[: len(stage_real_ids)]:
+            raise ValueError("Ramp real attacks must form a full-pattern prefix")
+
+        for position in range(1, len(stage_real_ids)):
+            edge_weights[position] += 1
+
+        if stage_real_ids:
+            placeholder_count = sum(
+                1
+                for event in events
+                if event.attack
+                and event.source is PickingEventSource.RAMP_PLACEHOLDER
+            )
+            last_position = real_position[stage_real_ids[-1]]
+            boundary_factors.setdefault(last_position, []).append(
+                placeholder_count
+            )
+
+    directions = (DOWN, UP)
+    # State: previous real stroke, first real stroke, live motif assignments.
+    states: dict[
+        tuple[str | None, str | None, tuple[tuple[str, str], ...]],
+        tuple[float, tuple[str, ...]],
+    ] = {
+        (None, None, ()): (0.0, ())
+    }
+
+    for position, event in enumerate(real_events):
+        key = motif_key_by_position.get(position)
+        next_states: dict[
+            tuple[str | None, str | None, tuple[tuple[str, str], ...]],
+            tuple[float, tuple[str, ...]],
+        ] = {}
+
+        for (previous_stroke, first_stroke, assignments_tuple), (
+            cost,
+            path,
+        ) in states.items():
+            assignments = dict(assignments_tuple)
+            if key is not None and key in assignments:
+                choices = (assignments[key],)
+            else:
+                choices = directions
+
+            for stroke in choices:
+                candidate_cost = cost
+
+                if position == 0:
+                    # One tiny global tie-break only. Individual Ramp stages
+                    # are cyclic and therefore do not each impose a fake start.
+                    candidate_cost += 0.0 if stroke == DOWN else 0.01
+                    candidate_first = stroke
+                else:
+                    assert previous_stroke in directions
+                    weight = edge_weights[position]
+                    if weight:
+                        previous_event = real_events[position - 1]
+                        assert previous_event.string in (5, 6)
+                        assert event.string in (5, 6)
+                        candidate_cost += weight * _economy_transition_cost_v2(
+                            previous_event.string,
+                            previous_stroke,
+                            event.string,
+                            stroke,
+                        )
+                    candidate_first = first_stroke
+
+                assert candidate_first in directions
+
+                for placeholder_count in boundary_factors.get(position, ()):
+                    assert event.string in (5, 6)
+                    first_event = real_events[0]
+                    assert first_event.string in (5, 6)
+                    boundary_cost, _placeholder_path = _best_placeholder_bridge(
+                        event.string,
+                        stroke,
+                        first_event.string,
+                        candidate_first,
+                        placeholder_count,
+                    )
+                    candidate_cost += boundary_cost
+
+                next_assignments = dict(assignments)
+                if key is not None and key not in next_assignments:
+                    next_assignments[key] = stroke
+
+                expired = [
+                    live_key
+                    for live_key in next_assignments
+                    if motif_last_position[live_key] == position
+                ]
+                for live_key in expired:
+                    del next_assignments[live_key]
+
+                state_key = (
+                    stroke,
+                    candidate_first,
+                    tuple(sorted(next_assignments.items())),
+                )
+                candidate_path = path + (stroke,)
+                existing = next_states.get(state_key)
+                if existing is None or candidate_cost < existing[0]:
+                    next_states[state_key] = (
+                        candidate_cost,
+                        candidate_path,
+                    )
+                elif (
+                    existing is not None
+                    and candidate_cost == existing[0]
+                    and candidate_path < existing[1]
+                ):
+                    next_states[state_key] = (
+                        candidate_cost,
+                        candidate_path,
+                    )
+
+        states = next_states
+
+    best: tuple[float, tuple[str, ...]] | None = None
+    for _state, candidate in states.items():
+        if best is None or candidate < best:
+            best = candidate
+
+    assert best is not None
+    _cost, path = best
+    return {
+        persistent_id: stroke
+        for persistent_id, stroke in zip(real_ids, path)
+    }
+
+
+def economy_pick_ramp_stages_v2(
+    full_beats: list[list[str]],
+    stage_active_counts: tuple[int, ...] | list[int],
+    ti_state: str,
+    ta_state: str,
+    off_state: str,
+) -> dict[int, list[list[str | None]]]:
+    """Jointly solve all requested Ramp stages.
+
+    Real stored-pattern attacks keep one stroke across every stage in which
+    they exist. Temporary Ramp TA pulses are stage-local and are optimized only
+    inside their own cyclic stage. P4 whole-beat motif equality is derived from
+    the full real pattern and participates in the same joint real-attack solve.
+    """
+    beat_count = len(full_beats)
+    stages: list[int] = []
+    for raw_active in stage_active_counts:
+        active = max(0, min(beat_count, int(raw_active)))
+        if active not in stages:
+            stages.append(active)
+    if not stages:
+        stages.append(beat_count)
+
+    stage_events = {
+        active: normalize_ramp_stage_events(
+            full_beats,
+            active,
+            ti_state,
+            ta_state,
+            off_state,
+            stage_id=f"ramp-v2:{active}",
+        )
+        for active in stages
+    }
+    full_events = normalize_ramp_stage_events(
+        full_beats,
+        beat_count,
+        ti_state,
+        ta_state,
+        off_state,
+        stage_id="ramp-v2:full",
+    )
+
+    real_strokes = _joint_ramp_real_strokes(
+        full_events,
+        stage_events,
+    )
+
+    result: dict[int, list[list[str | None]]] = {}
+    for active in stages:
+        events = stage_events[active]
+        directions: list[str | None] = [None] * len(events)
+        real_attack_indices = [
+            index
+            for index, event in enumerate(events)
+            if event.attack
+            and event.source is PickingEventSource.REAL_PATTERN
+        ]
+        placeholder_attack_indices = [
+            index
+            for index, event in enumerate(events)
+            if event.attack
+            and event.source is PickingEventSource.RAMP_PLACEHOLDER
+        ]
+
+        for event_index in real_attack_indices:
+            event = events[event_index]
+            if event.persistent_attack_id is None:
+                raise ValueError("real Ramp attack missing persistent identity")
+            directions[event_index] = real_strokes[event.persistent_attack_id]
+
+        if placeholder_attack_indices:
+            if real_attack_indices:
+                last_real = events[real_attack_indices[-1]]
+                first_real = events[real_attack_indices[0]]
+                last_stroke = directions[real_attack_indices[-1]]
+                first_stroke = directions[real_attack_indices[0]]
+                assert last_real.string in (5, 6)
+                assert first_real.string in (5, 6)
+                assert last_stroke in (DOWN, UP)
+                assert first_stroke in (DOWN, UP)
+                _cost, placeholder_path = _best_placeholder_bridge(
+                    last_real.string,
+                    last_stroke,
+                    first_real.string,
+                    first_stroke,
+                    len(placeholder_attack_indices),
+                )
+            else:
+                placeholder_events = [
+                    events[index]
+                    for index in placeholder_attack_indices
+                ]
+                placeholder_path = tuple(
+                    _solve_economy_attack_segment(
+                        placeholder_events,
+                        cyclic=True,
+                    )
+                )
+
+            for event_index, stroke in zip(
+                placeholder_attack_indices,
+                placeholder_path,
+            ):
+                directions[event_index] = stroke
+
+        result[active] = picking_directions_by_beat(
+            events,
+            directions,
+            beat_count,
+        )
+
+    return result
+
+
 def _transition_cost(previous_string: int, previous_direction: str, string: int, direction: str) -> float:
     if previous_string == string:
         # Repeated notes on one string are fastest with alternate picking.

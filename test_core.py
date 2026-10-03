@@ -35,6 +35,7 @@ from picking_logic import (
     economy_pick_events,
     economy_pick_pattern,
     economy_pick_ramp_beats,
+    economy_pick_ramp_stages_v2,
     normalize_picking_events,
     normalize_ramp_stage_events,
     picking_directions_by_beat,
@@ -560,6 +561,103 @@ assert p4_rest_rows[0][1] is None
 
 # Motif-constrained Economy remains deterministic.
 assert economy_pick_events(p4_abab_events, cyclic=True) == p4_abab
+
+
+# Picking Logic v2 P5: all Ramp stages are one constrained exercise.
+p5_full = [
+    [TA, TI, TI, TA],
+    [TA, TI, TI, TA],
+    [TA, TI, TI, TA],
+    [TI, TA, TI, TA],
+]
+p5_stages = (1, 2, 3, 4)
+p5_joint = economy_pick_ramp_stages_v2(
+    p5_full,
+    p5_stages,
+    TI,
+    TA,
+    OFF,
+)
+
+# Every real attack keeps exactly one direction from the first stage where it
+# appears through the final full-pattern stage.
+for beat_index in range(4):
+    reference = p5_joint[4][beat_index]
+    for active in p5_stages:
+        if beat_index < active:
+            assert p5_joint[active][beat_index] == reference
+
+# The repeated A motif is one motor pattern in the full stage, and that same
+# constrained pattern is revealed progressively.
+assert (
+    p5_joint[4][0]
+    == p5_joint[4][1]
+    == p5_joint[4][2]
+)
+assert p5_joint[1][0] == p5_joint[4][0]
+assert p5_joint[2][1] == p5_joint[4][1]
+assert p5_joint[3][2] == p5_joint[4][2]
+
+# Stage-local inactive TA pulses are not persistent real attacks. Within each
+# stage they form a continuing same-string attack stream and therefore
+# alternate instead of all restarting DOWN.
+p5_stage1_placeholder_strokes = [
+    p5_joint[1][beat_index][0]
+    for beat_index in (1, 2, 3)
+]
+assert (
+    p5_stage1_placeholder_strokes[0]
+    != p5_stage1_placeholder_strokes[1]
+)
+assert (
+    p5_stage1_placeholder_strokes[0]
+    == p5_stage1_placeholder_strokes[2]
+)
+
+# The first real A keeps its useful 6->5 DOWN/DOWN sweep while remaining stable
+# across every Ramp stage.
+assert p5_joint[1][0][0:2] == [DOWN, DOWN]
+assert p5_joint[4][0][0:2] == [DOWN, DOWN]
+
+# Ramp 2->full is solved by the same persistent-identity rule rather than a
+# special anchor stage.
+p5_ramp2 = economy_pick_ramp_stages_v2(
+    p5_full,
+    (2, 4),
+    TI,
+    TA,
+    OFF,
+)
+assert p5_ramp2[2][0] == p5_ramp2[4][0]
+assert p5_ramp2[2][1] == p5_ramp2[4][1]
+
+# Covered beats create no placeholder attack and do not disturb persistent
+# identity of surrounding real attacks.
+p5_covered_full = [
+    [TA, TI],
+    [],
+    [TI, TA],
+    [TA, TI],
+]
+p5_covered = economy_pick_ramp_stages_v2(
+    p5_covered_full,
+    (1, 2, 3, 4),
+    TI,
+    TA,
+    OFF,
+)
+assert p5_covered[1][1] == []
+assert p5_covered[2][1] == []
+assert p5_covered[4][0] == p5_covered[1][0]
+
+# Joint Ramp solving is deterministic.
+assert economy_pick_ramp_stages_v2(
+    p5_full,
+    p5_stages,
+    TI,
+    TA,
+    OFF,
+) == p5_joint
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are

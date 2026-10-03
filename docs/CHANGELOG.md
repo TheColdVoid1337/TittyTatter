@@ -13,6 +13,7 @@ Numeric headings are added when a release version is chosen. Future development 
 - Picking Logic v2 P2 deterministic attack-alternate engine on normalized events. OFF/COVERED slots do not consume parity, string changes do not interrupt alternation, Ramp placeholders count as attacks, and explicit phrase-reset markers do not restart the public Alternate strategy. Runtime UI cutover remains deferred until the v2 integration phase.
 - Picking Logic v2 P3 event-based Economy transition engine with directional-sweep classification, wrong-direction crossing detection, full start-polarity search, attack parity, explicit reset handling, cyclic last-to-first scoring, linked sweep-group ids, and machine-readable decision reasons. Runtime UI cutover remains deferred.
 - Picking Logic v2 P4 whole-beat motif constraints. Repeated A/A/A and A/B/A/B beat identities now share stroke variables during the Economy optimization itself, including cyclic end/start repetitions, so motif stability no longer depends on post-hoc rewriting and can coexist with valid sweeps. Subdivision-level motif detection remains future work.
+- Picking Logic v2 P5 joint Ramp solver. All configured Ramp stages now contribute to one optimization: real attacks use shared persistent stroke variables across stages, whole-beat motif constraints remain active, every stage scores its cyclic boundary, and temporary inactive-beat TA placeholders remain stage-local and are optimized as their own bridge stream. Runtime UI cutover remains deferred to P6.
 
 ### Fixed
 
