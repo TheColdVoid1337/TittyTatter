@@ -1724,7 +1724,6 @@ class MainWindow(QMainWindow):
         layout.addStretch()
         return tab
 
-    @staticmethod
     def _build_about_tab(self) -> QWidget:
         tab = QWidget()
         root = QHBoxLayout(tab)
