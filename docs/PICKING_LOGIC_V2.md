@@ -1,6 +1,6 @@
 # Picking Logic v2
 
-Status: **P4 implemented — whole-beat motif constraints**  
+Status: **P5 implemented — joint Ramp solver**  
 Target: post-0.0.4 development on `work`  
 Runtime cutover: **not yet — current arrow generation remains transitional**
 
@@ -930,16 +930,25 @@ The constrained solver retains only motif variables that must reappear later, so
 
 Subdivision-level motif detection that crosses beat boundaries is not implemented yet. Add it only if real patterns demonstrate that whole-beat motif identity is insufficient; do not block P5 merely to invent speculative motif cases.
 
-## Phase P5 — joint Ramp solver
+## Phase P5 — joint Ramp solver — IMPLEMENTED
 
-Build all Ramp stages into one constrained problem:
+All requested Ramp stages now contribute to one optimization.
 
-- shared persistent real attacks;
-- stage-local placeholders;
-- common motif constraints;
-- cyclic stage boundaries.
+Implemented behavior:
 
-Delete superseded anchor/patch heuristics only after the regression matrix is green.
+- every real stored-pattern attack is represented once through its persistent identity;
+- that real attack keeps one stroke across every Ramp stage where it exists;
+- whole-beat P4 motif constraints remain active inside the joint solve;
+- every stage contributes its own cyclic boundary cost;
+- inactive-beat TA placeholders remain stage-local and are never promoted to persistent real attacks;
+- placeholder chains are optimized as bridges between the last open real attack and the first real attack of the loop;
+- when several equal-cost placeholder bridges exist, internal placeholder alternation is preferred over placing a same-string repeat between two temporary TA beats;
+- covered beats create no placeholder attack;
+- Ramp 1->2->...->full and Ramp 2->full use the same solver rather than separate anchor heuristics.
+
+The implementation exploits Ramp's prefix structure: internal real-attack edges are weighted by how many stages contain them, while each stage boundary contributes a factor back to the first real attack. This keeps the joint solve exact without enumerating every persistent-stroke assignment.
+
+The old transitional Ramp anchor/cleanup path remains in the runtime until P6 cutover and manual acceptance.
 
 ## Phase P6 — integration and manual acceptance
 
