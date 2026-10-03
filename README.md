@@ -1,105 +1,164 @@
+<p align="center">
+  <img src="assets/readme_logo.png" width="160" alt="TittyTatter logo">
+</p>
+
 # TittyTatter
 
 > Current release: **0.0.3**
 
-**TittyTatter** is a Windows-first desktop rhythm trainer for practicing custom **TI / TA** patterns with low-latency audio, visual metronome feedback, timed practice, rhythm-game scoring, flexible meters, picking guidance, and export to MIDI / Guitar Pro / WAV.
+**TittyTatter** is a Windows-first desktop **guitar rhythm trainer** for building and practising custom TI / TA rhythm patterns.
 
-## Current feature set
+The same pattern can be trained in several ways: full repetition, progressive beat ramps, silent-gap exercises, sparse or displaced metronome practice, and optional tempo/timer modifiers. A secondary **Game** layer lets you practise the same exercise with keyboard or mouse input and timing grades when a guitar is not available.
 
-- Variable meters: numerator **1–16**, denominator **2 / 4 / 8 / 16**.
-- Per-beat rhythm grids including long notes, straight subdivisions, triplets, and dense subdivisions.
-- Every step can be **(ТИ)**, **ТА**, or silent.
-- Per-beat **Mute** for quiet-beat practice.
-- Practice ramps, count-in, tempo trainer, timed sessions, stage-progress display, and audible/visual stage-change warnings.
-- Low-latency Windows audio with WASAPI preference and selectable output-device settings.
-- Independent **(ТИ)**, **ТА**, metronome, and master levels.
-- Configurable visual metronome: needle, flash, colors, size, lamps, full-panel flash.
-- Rhythm-game mode with assignable TI/TA keys, score, current/last-game statistics, graded timing feedback, hit/miss sounds, lane-only target matching, and early-input buffering.
-- Economy-picking guidance for strings 5/6 with automatic pick-direction choice and ramp-aware preview.
-- Session save/load.
-- Persistent local application settings.
-- Optional per-game diagnostic logging through `./tt run -log`, archived as timestamped `.tar.gz` files under ignored `logs/`.
-- Export:
-  - MIDI;
-  - Guitar Pro 5;
-  - WAV with selectable duration and PCM quality.
+## Highlights
 
-## Windows + WSL workflow
+- Flexible meters: numerator **1–16**, denominator **2 / 4 / 8 / 16**.
+- Per-beat rhythm grids with straight subdivisions, triplets, dense subdivisions, rests, and long-note coverage.
+- Every subdivision can be **(ТИ)**, **ТА**, or silent.
+- Multiple guitar-training methods driven by the same pattern and timeline.
+- Count-in, tempo trainer, practice timer, stage progress, and ramp warnings.
+- Low-latency Windows audio with selectable output-device settings.
+- Independent TI, TA, metronome, and master levels.
+- Configurable visual metronome with scalable Focus view.
+- Optional **Штрих / Picking Guide** with economy and strict-alternate strategies.
+- Secondary **Game** layer with keyboard/mouse bindings, timing grades, score, graph, and configurable HIT/MISS feedback.
+- Session save/load and persistent local settings.
+- MIDI, Guitar Pro 5, and WAV export.
 
-TittyTatter runs as a native Windows GUI/audio application while repository commands are issued from WSL.
+## Training modes
 
-Typical local paths:
+TittyTatter separates **what you play** from **how you train it**. The pattern editor defines the rhythm; the selected Training Mode defines how that pattern behaves over time.
 
-- Windows: `F:\\_PROJECT\\TittyTatter`
-- WSL: `/mnt/f/_PROJECT/TittyTatter`
+Current modes:
 
-The root `tt` helper is the canonical development entry point:
+- **Повтор** — repeat the complete pattern continuously.
+- **Разгон с 1 доли** — expand from the first beat to the full bar.
+- **Разгон с 2 долей** — start from two beats (or one in a one-beat meter), then expand to the full bar.
+- **Пропуски** — alternate configurable audible and silent bar blocks while the internal timeline continues.
+- **Нарастающие пропуски** — keep the audible block fixed while the silent block grows progressively.
+- **Редкий метроном** — reduce metronome guidance to selected beats or bars.
+- **Смещённый метроном** — move the click onto off-beat/eighth/sixteenth positions independently of the pattern subdivision.
 
-```bash
-./tt install      # create/update the Windows .venv and install dependencies
-./tt run          # launch the Windows GUI
-./tt run -log     # launch with opt-in per-game diagnostics
-./tt test         # run core model/game tests
-./tt check        # core + compile + export + game-log + import gates
-./tt doctor       # environment diagnostics
-./tt audio-info   # PortAudio/output-device diagnostics
-./tt pip list     # pip inside the Windows venv
-./tt python       # Windows venv Python
-./tt update       # ff-only pull of the current branch
+When **Игра** is selected, the current Training Mode still controls the exercise. Game mode does not have a separate progression system.
+
+## Focus mode
+
+**Фокус режим [F]** turns the application into a distraction-free practice display:
+
+- configuration tabs and editable beat cards are hidden;
+- the visual metronome expands;
+- the current effective rhythm appears as a read-only strip;
+- ramp stages and silent-gap behaviour remain visible correctly;
+- Game statistics stay compact when Game is active.
+
+## Штрих / Picking Guide
+
+The Picking Guide is an optional guitar-practice aid, not a separate training mode.
+
+It can show:
+
+- economy-picking suggestions;
+- strict alternating down/up strokes;
+- the current stroke and string;
+- several upcoming strokes;
+- current-beat highlighting.
+
+TI is modelled as the 5th string reference and TA as the muted 6th-string reference used by the current trainer design.
+
+## Game layer
+
+Game is a secondary way to execute the same training exercise through computer input.
+
+Features include:
+
+- assignable TI / TA keyboard bindings;
+- physical-key handling that is independent of the active keyboard layout where scan-code information is available;
+- mouse-button bindings;
+- lane-specific TI/TA target matching;
+- PERFECT / GREAT / GOOD / HIT timing grades;
+- score, accuracy, recent-quality graph, and last-game summary;
+- optional separate TI/TA HIT sounds and MISS sounds;
+- optional diagnostic logging.
+
+The currently accepted timing grades are:
+
+| Grade | Timing distance | Points |
+|---|---:|---:|
+| PERFECT | up to 30 ms | 100 |
+| GREAT | up to 70 ms | 75 |
+| GOOD | up to 120 ms | 50 |
+| HIT | other accepted timing | 25 |
+
+## Run from source on Windows
+
+Requirements:
+
+- Windows;
+- a current Python 3 installation;
+- an audio output device supported by PortAudio/sounddevice.
+
+Clone or download the repository, then run:
+
+```bat
+run.bat
 ```
 
-Do **not** create or activate a Linux `.venv/bin` for this project. The supported interpreter is `.venv/Scripts/python.exe`.
+On first launch, `run.bat` creates a local `.venv`, installs `requirements.txt`, and starts TittyTatter.
 
-`run.sh` remains only as a compatibility wrapper around `./tt run`. `run.bat` remains available for direct Windows launch.
+Manual equivalent:
 
-## Local validation policy
-
-Normal development validation is local. GitHub Actions are not used as the default test path.
-
-Before a release/tag, run:
-
-```bash
-./tt install
-./tt doctor
-./tt check
-./tt run
+```bat
+py -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe app.py
 ```
 
-The final GUI/audio acceptance is manual because realtime audio behavior must be verified on the actual Windows device.
+## Optional diagnostics
 
-## Versioning
+Game logging is opt-in. Launch with:
 
-The canonical project version is stored in the root [`VERSION`](VERSION) file.
+```text
+python app.py -log
+```
 
-Current release version: **0.0.3**
+or pass `--log`. Normal runs do not create game diagnostic logs.
 
-Numeric version changes are made only at the release/tag checkpoint. Published version numbers are never reused.
+## Export
 
-## Repository layout
+TittyTatter can export the current pattern to:
 
-- `app.py` — PySide6 GUI, trainer controls, visual metronome, game mode.
-- `audio_engine.py` — callback-driven realtime audio and output-device handling.
-- `game_logic.py` — deterministic game target matching and timing grades.
-- `picking_logic.py` — economy-picking direction optimizer.
-- `game_logger.py` — optional per-game JSONL diagnostics and tar.gz archival.
-- `model.py` — serializable meter/rhythm model.
-- `presets.py` — built-in rhythm cells and grid definitions.
-- `exports.py` — MIDI, Guitar Pro 5, and WAV export.
-- `settings_store.py` — ignored local application settings.
-- `test_core.py` — deterministic rhythm/model/game checks.
-- `test_exports.py` — export regression checks.
-- `test_game_logger.py` — game-log archive regression checks.
-- `tt` — WSL-first Windows runtime/development helper.
-- `docs/` — living documentation.
+- **MIDI**
+- **Guitar Pro 5**
+- **WAV**
+
+Export uses the same rhythm model as realtime playback.
 
 ## Documentation
 
-Start with [`docs/README.md`](docs/README.md).
+Detailed documentation lives under [`docs/`](docs/README.md):
 
+- [User guide](docs/USER_GUIDE.md)
 - [Project state](docs/PROJECT_STATE.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [User guide](docs/USER_GUIDE.md)
+- [Development workflow](docs/WORKFLOW.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Decisions](docs/DECISIONS.md)
+- [Durable decisions](docs/DECISIONS.md)
 - [Test matrix](docs/TEST_MATRIX.md)
 - [Changelog](docs/CHANGELOG.md)
+
+## Project structure
+
+- `app.py` — PySide6 GUI and application coordination.
+- `audio_engine.py` — realtime audio scheduling and synthesized sounds.
+- `model.py` / `presets.py` — rhythm model and built-in grid/pattern data.
+- `training_modes.py` — Training Mode definitions and timeline helpers.
+- `game_logic.py` / `input_binding.py` — Game timing and input bindings.
+- `picking_logic.py` — picking-direction logic.
+- `exports.py` — MIDI / GP5 / WAV export.
+- `game_logger.py` — optional diagnostic logging.
+- `docs/` — living project documentation.
+
+## License
+
+No explicit open-source license has been added yet. Repository visibility alone does not grant redistribution or modification rights beyond those provided by applicable law.
