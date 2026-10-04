@@ -966,6 +966,7 @@ def _solve_economy_attack_segment(
                     first_string,
                     first_stroke,
                     escape_profile=profile,
+                    crossing_preference=crossing,
                 )
 
             if total >= best_total:
@@ -1495,6 +1496,7 @@ def _joint_ramp_real_strokes(
                             event.string,
                             stroke,
                             escape_profile=profile,
+                            crossing_preference=crossing,
                         )
                     candidate_first = first_stroke
 
