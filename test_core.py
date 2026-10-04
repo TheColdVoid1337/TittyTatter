@@ -680,7 +680,8 @@ assert p6_stage1_placeholders[0] != p6_stage1_placeholders[1]
 assert p6_stage1_placeholders[0] == p6_stage1_placeholders[2]
 
 
-# Picking Logic v2 P7a: optional explicit first-stroke override.
+# Picking Logic v2 P7a: public first-stroke control belongs to Alternate.
+# Economy's explicit start parameter remains an internal regression/debug hook.
 p7_simple_events = normalize_picking_events(
     [[TA, TI]],
     [[TA, TI]],
@@ -716,7 +717,8 @@ assert economy_pick_events(
     start_direction=None,
 )
 
-# Ramp uses the same fixed first real stroke across all stages.
+# Internal Economy/Ramp hook still supports a fixed start for regression and
+# possible future special exercises; the normal UI never passes this override.
 p7_ramp_up = economy_pick_ramp_stages_v2(
     p5_full,
     p5_stages,

@@ -989,23 +989,25 @@ P6 is complete. Automated checks and the required live Loop/Ramp/Alternate manua
 
 P7 is intentionally incremental. P1-P6 remains the stable core.
 
-### P7a — explicit first-stroke override — IMPLEMENTED / LOCAL CHECK PENDING
+### P7a — Alternate first-stroke control — IMPLEMENTED / LOCAL CHECK PENDING
 
-The Picking tab now exposes:
+When **Strict Alternate** is selected, the Picking tab exposes:
 
-- **Auto** — preserve the established optimizer/default behavior;
-- **Down ↓** — constrain the first attack to DOWN;
-- **Up ↑** — constrain the first attack to UP.
+- **Auto** — product-default DOWN-first attack alternation;
+- **Down ↓** — explicitly start DOWN;
+- **Up ↑** — explicitly start UP.
 
-The choice applies consistently to:
+The row is hidden for **Economy**.
 
-- public Alternate;
-- normal Economy;
-- joint Ramp Economy.
+Product rule:
 
-For Economy/Ramp, this is a real hard constraint on the first real attack, not a cosmetic arrow rewrite. Motif equality and persistent Ramp stroke identity continue to operate after that constraint. The setting is persisted with the other Picking preferences.
+> Economy always chooses its own start polarity from the complete exercise optimization.
 
-P7a exists because start polarity can materially change later string-change geometry and is useful for deliberate practice. It does not claim that one start direction is universally correct.
+A user-selected Alternate start must therefore never constrain normal Economy or joint Ramp Economy. This preserves the meaning of "Economy": choose the best practical global solution rather than the best solution under an arbitrary user-forced first stroke.
+
+The internal Economy `start_direction` parameter remains intentionally available for regression tests, diagnostics, and possible future special exercises, but it is not a normal Economy UI preference.
+
+The Alternate choice is persisted with the other Picking preferences.
 
 ### Later optional P7 work
 

@@ -293,7 +293,7 @@ Documentation is updated in place.
 8. **P6 complete and manually accepted:** live Alternate/Economy/Ramp paths use Picking Logic v2.
 9. **Cleanup complete and locally validated:** transitional implementation/tests were removed in `debda3e`; `./tt check` passed on `0df6f88`.
 10. Picking Logic v2 core rollout is complete.
-11. **P7a implemented / local check pending:** optional Auto / DOWN / UP first-stroke control now constrains Alternate, Economy, and joint Ramp while preserving motif/stage rules.
+11. **P7a implemented / local check pending:** Auto / DOWN / UP first-stroke control is available only for Strict Alternate. Economy and joint Ramp always keep automatic global start-polarity optimization.
 12. Later P7 mechanics (USX/DSX/DBX, inside/outside preferences, sweep visualization, ghost-stroke Alternate) remain optional and should be added one evidence-driven step at a time.
 
 ## Durable repository rules
