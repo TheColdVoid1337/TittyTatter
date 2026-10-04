@@ -1942,12 +1942,13 @@ class MainWindow(QMainWindow):
         self.picking_strategy.currentIndexChanged.connect(self._picking_settings_changed)
         form.addRow("Тактика:", self.picking_strategy)
 
+        self.picking_start_label = QLabel("Первый штрих:")
         self.picking_start_stroke = QComboBox()
         self.picking_start_stroke.addItem("Авто", "auto")
         self.picking_start_stroke.addItem("Вниз ↓", "down")
         self.picking_start_stroke.addItem("Вверх ↑", "up")
         self.picking_start_stroke.currentIndexChanged.connect(self._picking_settings_changed)
-        form.addRow("Первый штрих:", self.picking_start_stroke)
+        form.addRow(self.picking_start_label, self.picking_start_stroke)
 
         self.picking_show_next = QCheckBox("Показывать следующие штрихи справа")
         self.picking_show_next.setChecked(True)
@@ -3155,7 +3156,6 @@ class MainWindow(QMainWindow):
         enabled = self.picking_enabled.isChecked()
         for widget in (
             getattr(self, "picking_strategy", None),
-            getattr(self, "picking_start_stroke", None),
             getattr(self, "picking_show_next", None),
             getattr(self, "picking_highlight_current", None),
             getattr(self, "picking_cue_size", None),
@@ -3163,13 +3163,26 @@ class MainWindow(QMainWindow):
             if widget is not None:
                 widget.setEnabled(enabled)
 
+        is_alternate = (
+            hasattr(self, "picking_strategy")
+            and self.picking_strategy.currentData() == "alternate"
+        )
+        if hasattr(self, "picking_start_label"):
+            self.picking_start_label.setVisible(is_alternate)
+        if hasattr(self, "picking_start_stroke"):
+            self.picking_start_stroke.setVisible(is_alternate)
+            self.picking_start_stroke.setEnabled(enabled and is_alternate)
+
         if hasattr(self, "picking_next_count"):
             self.picking_next_count.setEnabled(
                 enabled and self.picking_show_next.isChecked()
             )
 
     def _picking_start_direction(self) -> str | None:
-        if not hasattr(self, "picking_start_stroke"):
+        if (
+            not hasattr(self, "picking_start_stroke")
+            or self.picking_strategy.currentData() != "alternate"
+        ):
             return None
         value = self.picking_start_stroke.currentData()
         if value == "down":
@@ -3256,7 +3269,6 @@ class MainWindow(QMainWindow):
                 TI,
                 TA,
                 OFF,
-                start_direction=start_direction,
             )[active]
         else:
             directions_by_beat = economy_pick_beats_v2(
@@ -3267,7 +3279,6 @@ class MainWindow(QMainWindow):
                 OFF,
                 cyclic=True,
                 stage_id=f"{mode}:economy",
-                start_direction=start_direction,
             )
         row5: list[list[str]] = []
         row6: list[list[str]] = []

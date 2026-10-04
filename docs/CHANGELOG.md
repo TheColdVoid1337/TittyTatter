@@ -9,7 +9,7 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ### Added
 
-- Picking Logic v2 P7a optional first-stroke override. Picking Guide users can keep Auto behavior or explicitly start the exercise DOWN/UP; the choice is persisted and constrains Alternate, normal Economy, and the joint Ramp solver without changing later motif/stage stability rules.
+- Picking Logic v2 P7a first-stroke control is now scoped to Strict Alternate only. Economy always keeps automatic start-polarity optimization; the internal Economy start-direction parameter remains available only as a test/debug/future special-exercise hook.
 - Picking Logic v2 P1 normalized event model with explicit real-pattern vs Ramp-placeholder sources, persistent real-attack identities across stages, explicit covered slots, exact rhythmic phase, and caller-controlled phrase-reset boundaries.
 - Picking Logic v2 P2 deterministic attack-alternate engine on normalized events. OFF/COVERED slots do not consume parity, string changes do not interrupt alternation, Ramp placeholders count as attacks, and explicit phrase-reset markers do not restart the public Alternate strategy. Runtime UI cutover remains deferred until the v2 integration phase.
 - Picking Logic v2 P3 event-based Economy transition engine with directional-sweep classification, wrong-direction crossing detection, full start-polarity search, attack parity, explicit reset handling, cyclic last-to-first scoring, linked sweep-group ids, and machine-readable decision reasons. Runtime UI cutover remains deferred.
