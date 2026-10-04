@@ -179,9 +179,9 @@ Reference mapping:
 - TI → string 5;
 - TA → string 6.
 
-The current post-0.0.4 implementation is **transitional**. It contains linear/cyclic optimization plus repeated-pattern and Ramp-specific stabilization added from real practice feedback. Those fixes are useful regression evidence, but they are not the final architecture.
+The current implementation is **Picking Logic v2**. The earlier post-0.0.4 transitional optimizer was removed after P6 live acceptance.
 
-The target design is canonical in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
+The canonical design is [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 **P1 is implemented:** `PickingEvent`, real-pattern vs Ramp-placeholder source identity, stable real-attack ids across stages, explicit covered slots, exact rhythmic phase, and explicit reset-boundary input are available as pure deterministic normalization helpers.
 
@@ -195,7 +195,7 @@ The target design is canonical in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 **P6 runtime cutover is implemented:** `app.py` now routes Alternate to the v2 attack-alternate adapter, normal Economy to the event-based v2 Economy adapter, and Ramp Economy to the P5 joint-stage solver. The public UI shape is unchanged.
 
-Manual acceptance of the live v2 path is complete. Transitional legacy picking functions may now be removed in a separate cleanup change with the normal local gate.
+Manual acceptance of the live v2 path is complete. Transitional legacy picking functions were removed in `debda3e`; that cleanup change still requires the normal local `./tt check` gate.
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 

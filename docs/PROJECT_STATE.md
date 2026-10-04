@@ -133,24 +133,24 @@ The published 0.0.4 baseline includes:
 - cyclic repeated-beat period preservation;
 - cyclic Ramp-stage behavior.
 
-Post-0.0.4 `work` contains additional transitional picking fixes derived from manual practice screenshots:
+Post-0.0.4 `work` now uses **Picking Logic v2** as the only live Picking Guide implementation.
 
-- repeated active motifs are stabilized;
-- repeated patterns may preserve a sweep-rich phrase-level variant;
-- Ramp stages attempt to keep already-learned strokes stable;
-- inactive Ramp TA pulses are treated as a continuing attack stream rather than unrelated one-note phrases.
-
-These fixes are useful regression evidence, but they are **not** the final Picking architecture.
-
-The canonical next design is:
+Canonical design:
 
 - [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md)
 
-Picking Logic v2 is currently at **P6 runtime cutover implemented; automated and manual acceptance pending**.
+Current v2 behavior includes:
 
-P1-P4 are locally validated. P5 joint Ramp solving was locally validated green on `eed6ddb`. The live Picking Guide now calls the v2 Alternate, Economy, and joint Ramp solvers. The old transitional functions remain only as regression/reference code until P6 acceptance is complete.
+- attack-alternate public Alternate semantics;
+- event-based practical directional Economy;
+- explicit directional-sweep classification;
+- repeated whole-beat motif constraints inside optimization;
+- joint Ramp-stage solving with persistent real attacks;
+- stage-local inactive-beat TA placeholders;
+- cyclic loop/stage boundary scoring;
+- stable real-attack strokes as Ramp stages open.
 
-The current UI/runtime arrow generator still uses the transitional path; v2 visual cutover remains deferred until the integration phase.
+P1-P6 were implemented and manually accepted in the live GUI. The superseded transitional picking implementation was removed in cleanup commit `debda3e`; that cleanup itself still requires the normal local `./tt check` gate before being called locally validated.
 
 Picking Guide and Game remain mutually exclusive in the UI.
 
@@ -215,7 +215,7 @@ Confirmed:
 
 ### Post-0.0.4 work
 
-P6 partial manual acceptance on `e611ec2`:
+P6 manual acceptance completed on the live v2 runtime path (including `e611ec2`):
 
 - `./tt check` green;
 - Ramp 1->2->3->4 Economy checked in the live GUI with the sweep-compatible control motif `TA TI TI TA` repeated for beats 1-3 and `TI TA TI TA` on beat 4;
@@ -229,19 +229,11 @@ P6 partial manual acceptance on `e611ec2`:
 
 P6 manual acceptance is complete.
 
-Recent Picking changes on `work` were investigated through manual screenshots and direct practice feedback.
+Picking Logic v2 P1-P6 behavior was validated through repeated `./tt check` gates plus live GUI screenshots for Ramp 1->full, Ramp 2->full, Alternate with OFF slots, directional sweeps, placeholders, and Loop A/B/A/B motif stability.
 
-The last runtime Picking commit before the v2 design-document commits is:
+Cleanup commit `debda3e Remove transitional picking implementation` removes only superseded legacy Picking code/tests; it is **not yet locally validated** until the user pulls it and runs the normal gate.
 
-```text
-cdda56a Alternate inactive ramp TA pulses
-```
-
-That exact runtime change still requires normal local confirmation if it has not yet been checked after pull.
-
-The later Picking Logic v2 commits are documentation-only and do not themselves validate or alter runtime behavior.
-
-Do not report post-release runtime code as locally validated without explicit user evidence.
+Do not report the cleanup commit as locally validated without explicit user evidence.
 
 ## Repository / branch state
 
@@ -288,7 +280,6 @@ Documentation is updated in place.
 - No finalized installer/updater or packaged binary release workflow.
 - Practice history is limited compared with a long-term statistics database.
 - Picking Guide currently uses the project's TI/string-5 and TA/string-6 reference model.
-- Current Picking runtime logic remains transitional until Picking Logic v2 replaces the accumulated post-0.0.4 heuristics.
 - Player-specific USX/DSX/DBX behavior is not inferred or configured yet.
 
 ## Immediate sequence
@@ -300,8 +291,9 @@ Documentation is updated in place.
 5. **P3 complete and locally validated:** Economy transition/scoring semantics with explicit transition types, start-polarity search, parity, loop-boundary scoring, linked sweeps, and explanations.
 6. **P4 complete and locally validated:** motif consistency is enforced inside the optimizer rather than post-hoc.
 7. **P5 complete and locally validated:** all Ramp stages are solved jointly with persistent real attacks, stage-local placeholders, motif constraints, and cyclic stage boundaries.
-8. **P6 cutover implemented; acceptance pending:** run `./tt check`, then `./tt run` and manually verify Loop/Alternate/Economy plus both Ramp modes and the known sweep/placeholder cases.
-9. Delete or quarantine the transitional picking path only after that manual acceptance.
+8. **P6 complete and manually accepted:** live Alternate/Economy/Ramp paths use Picking Logic v2.
+9. **Cleanup pending local gate:** transitional implementation/tests were removed in `debda3e`; pull and run `./tt check` before considering cleanup validated.
+10. After cleanup validation, treat P7 advanced mechanics (USX/DSX/DBX, optional sweep visualization, ghost-stroke Alternate) as optional future work rather than required v2 completion.
 
 ## Durable repository rules
 

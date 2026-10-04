@@ -960,7 +960,7 @@ The live Picking Guide now uses Picking Logic v2:
 
 The public two-strategy UI is unchanged.
 
-The old transitional picking functions remain in `picking_logic.py` for regression comparison until local manual acceptance confirms the v2 runtime path. Do not delete them before that checkpoint.
+The old transitional picking functions were removed in cleanup commit `debda3e` after P6 manual acceptance. Git history retains the earlier implementation for archaeology/regression reference. The cleanup commit itself still needs the normal local `./tt check` gate.
 
 Required local gate:
 
@@ -1012,18 +1012,18 @@ These are not required for the first v2 cutover.
 
 ## 24. Current-code relationship
 
-The current post-0.0.4 picking commits remain useful evidence and regression material.
+The early post-0.0.4 picking commits remain useful historical evidence and regression material in Git history, but their transitional runtime implementation has now been removed.
 
-They should be treated as **transitional behavior**, not as the final architecture.
+The live module contains the v2 event/identity layer, Alternate engine, Economy transition model, motif constraints, joint Ramp solver, and compatibility projection used by the UI.
 
-In particular, v2 should eventually replace the need for:
+The removed transitional path included:
 
 - post-hoc repeated-beat rewriting;
 - stage-anchor heuristics;
-- special cleanup of inactive Ramp TA pulses;
-- ad-hoc fixes whose purpose is only to preserve one screenshot case.
+- special inactive-Ramp-TA cleanup;
+- screenshot-specific stabilization helpers.
 
-The intended destination is one coherent optimizer whose constraints naturally produce those behaviors.
+Those behaviors are now produced by the coherent v2 constraints/solver rather than retained as parallel legacy code.
 
 ---
 

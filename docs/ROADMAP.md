@@ -10,7 +10,7 @@ Game remains an optional input/scoring layer over the same training timeline. Pi
 
 ## Immediate post-0.0.4 focus — Picking Logic v2
 
-The 0.0.4 release is complete. The immediate technical focus is to replace the current patch-heavy Picking Guide heuristics with the architecture defined in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
+The 0.0.4 release is complete. Picking Logic v2 P1-P6 is implemented and manually accepted; the superseded transitional implementation has been removed. The remaining immediate action is the local cleanup gate on that removal.
 
 Implementation order:
 
@@ -20,6 +20,8 @@ Implementation order:
 4. **DONE — P4:** repeated whole-beat motifs are shared constraints inside Economy optimization; subdivision-level cross-beat motifs remain evidence-driven future work;
 5. **DONE — P5:** all Ramp stages are solved jointly so real attacks keep one learned direction while stage-local placeholders remain independently optimizable;
 6. **DONE — P6:** the live Picking Guide uses v2 and the automated/manual Loop, Ramp, Alternate, sweep, placeholder, and repeated-motif acceptance checks passed.
+7. **CLEANUP / CHECK PENDING:** transitional Picking code/tests were removed in `debda3e`; run the local `./tt check` gate.
+8. **OPTIONAL — P7:** advanced mechanics such as explicit USX/DSX/DBX profiles, sweep-link visualization, or ghost-stroke Alternate are future enhancements, not required for v2 completion.
 
 Do not add more screenshot-specific picking heuristics when the failure belongs to the v2 model. Convert new failures into regression cases first.
 
