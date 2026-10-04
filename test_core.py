@@ -773,6 +773,18 @@ assert escape_profile_crossing_status(
     DOWN,
     PickingTransition.DIRECTIONAL_SWEEP,
 ) == "sweep"
+assert escape_profile_adjustment(
+    EscapeProfile.USX, 6, DOWN, 5, DOWN
+) < 0
+assert escape_profile_adjustment(
+    EscapeProfile.USX, 5, UP, 6, UP
+) > 0
+assert escape_profile_adjustment(
+    EscapeProfile.DSX, 5, UP, 6, UP
+) < 0
+assert escape_profile_adjustment(
+    EscapeProfile.DSX, 6, DOWN, 5, DOWN
+) > 0
 
 # Profiles must be able to influence a complete Economy solution rather than
 # existing only as metadata. Search a tiny deterministic two-string corpus.

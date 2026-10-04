@@ -693,10 +693,11 @@ def escape_profile_adjustment(
 ) -> float:
     """Return the P7b Economy score adjustment for one transition.
 
-    USX prefers alternate string changes after an upstroke. DSX prefers them
-    after a downstroke. DBX accepts either escaped stroke. Directional sweeps
-    remain a separate economy mechanism and are not penalized by escape
-    profile selection.
+    USX prefers alternate string changes after an upstroke and downstroke
+    sweeps. DSX prefers alternate string changes after a downstroke and
+    upstroke sweeps. DBX accepts either alternate escape and keeps sweep
+    scoring neutral. All profile constraints are soft preferences rather than
+    hard bans.
     """
     profile = normalize_escape_profile(escape_profile)
     if profile is EscapeProfile.AUTO or previous_string == string:
@@ -708,6 +709,15 @@ def escape_profile_adjustment(
         string,
         stroke,
     )
+
+    if transition is PickingTransition.DIRECTIONAL_SWEEP:
+        if profile is EscapeProfile.DBX:
+            return 0.0
+        compatible_sweep = (
+            DOWN if profile is EscapeProfile.USX else UP
+        )
+        return -1.0 if stroke == compatible_sweep else 12.0
+
     status = escape_profile_crossing_status(
         profile,
         previous_stroke,

@@ -65,6 +65,10 @@ def self_test():
         ("DSX penalizes UP escape", escape_profile_adjustment(EscapeProfile.DSX,6,UP,5,DOWN)>0),
         ("DBX accepts UP", escape_profile_crossing_status(EscapeProfile.DBX,UP,PickingTransition.ALTERNATE_CROSSING)=="compatible"),
         ("DBX accepts DOWN", escape_profile_crossing_status(EscapeProfile.DBX,DOWN,PickingTransition.ALTERNATE_CROSSING)=="compatible"),
+        ("USX rewards downstroke sweep", escape_profile_adjustment(EscapeProfile.USX,6,DOWN,5,DOWN)<0),
+        ("USX penalizes upstroke sweep", escape_profile_adjustment(EscapeProfile.USX,5,UP,6,UP)>0),
+        ("DSX rewards upstroke sweep", escape_profile_adjustment(EscapeProfile.DSX,5,UP,6,UP)<0),
+        ("DSX penalizes downstroke sweep", escape_profile_adjustment(EscapeProfile.DSX,6,DOWN,5,DOWN)>0),
         ("USX and DSX can differ", bool(discriminating(1))),
     ]
     for label,ok in checks:
@@ -99,7 +103,7 @@ def build_report(git_head, settings):
         "USX: alternate string changes prefer previous stroke UP",
         "DSX: alternate string changes prefer previous stroke DOWN",
         "DBX: alternate string changes accept previous stroke UP or DOWN",
-        "Directional sweeps remain available for every profile.",
+        "USX prefers downstroke sweeps; DSX prefers upstroke sweeps; DBX/AUTO keep sweep direction neutral.",
         "",
         "TRANSITION PROBES",
         f"USX after UP adjustment={escape_profile_adjustment(EscapeProfile.USX,6,UP,5,DOWN):g}",
