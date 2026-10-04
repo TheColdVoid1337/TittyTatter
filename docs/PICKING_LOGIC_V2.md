@@ -2,7 +2,7 @@
 
 Status: **P6 complete — runtime cutover manually accepted**  
 Target: post-0.0.4 development on `work`  
-Runtime cutover: **not yet — current arrow generation remains transitional**
+Runtime cutover: **complete — live Picking Guide uses v2 only**
 
 This document defines the next picking-engine design for TittyTatter. It exists to stop the Picking Guide from accumulating one-off fixes for individual patterns and to make the intended guitar-practice behavior explicit before another runtime rewrite.
 
@@ -960,14 +960,16 @@ The live Picking Guide now uses Picking Logic v2:
 
 The public two-strategy UI is unchanged.
 
-The old transitional picking functions were removed in cleanup commit `debda3e` after P6 manual acceptance. Git history retains the earlier implementation for archaeology/regression reference. The cleanup commit itself still needs the normal local `./tt check` gate.
+The old transitional picking functions were removed in cleanup commit `debda3e` after P6 manual acceptance. Git history retains the earlier implementation for archaeology/regression reference. The cleanup commit was locally validated green with the full `./tt check` gate on `0df6f88`.
 
-Required local gate:
+Acceptance gate used:
 
 ```bash
 ./tt check
 ./tt run
 ```
+
+The live v2 behavior was manually accepted before cleanup, and the post-cleanup `./tt check` gate passed on `0df6f88`.
 
 Manual acceptance must include:
 

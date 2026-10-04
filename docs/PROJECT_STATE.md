@@ -150,7 +150,7 @@ Current v2 behavior includes:
 - cyclic loop/stage boundary scoring;
 - stable real-attack strokes as Ramp stages open.
 
-P1-P6 were implemented and manually accepted in the live GUI. The superseded transitional picking implementation was removed in cleanup commit `debda3e`; that cleanup itself still requires the normal local `./tt check` gate before being called locally validated.
+P1-P6 were implemented and manually accepted in the live GUI. The superseded transitional picking implementation was removed in cleanup commit `debda3e` and locally validated green with `./tt check` on `0df6f88`.
 
 Picking Guide and Game remain mutually exclusive in the UI.
 
@@ -231,9 +231,7 @@ P6 manual acceptance is complete.
 
 Picking Logic v2 P1-P6 behavior was validated through repeated `./tt check` gates plus live GUI screenshots for Ramp 1->full, Ramp 2->full, Alternate with OFF slots, directional sweeps, placeholders, and Loop A/B/A/B motif stability.
 
-Cleanup commit `debda3e Remove transitional picking implementation` removes only superseded legacy Picking code/tests; it is **not yet locally validated** until the user pulls it and runs the normal gate.
-
-Do not report the cleanup commit as locally validated without explicit user evidence.
+Cleanup commit `debda3e Remove transitional picking implementation` was pulled through `0df6f88` and explicitly passed the full local `./tt check` gate: core tests, compile, export tests, game log tests, and dependency imports all reported OK.
 
 ## Repository / branch state
 
@@ -292,8 +290,8 @@ Documentation is updated in place.
 6. **P4 complete and locally validated:** motif consistency is enforced inside the optimizer rather than post-hoc.
 7. **P5 complete and locally validated:** all Ramp stages are solved jointly with persistent real attacks, stage-local placeholders, motif constraints, and cyclic stage boundaries.
 8. **P6 complete and manually accepted:** live Alternate/Economy/Ramp paths use Picking Logic v2.
-9. **Cleanup pending local gate:** transitional implementation/tests were removed in `debda3e`; pull and run `./tt check` before considering cleanup validated.
-10. After cleanup validation, treat P7 advanced mechanics (USX/DSX/DBX, optional sweep visualization, ghost-stroke Alternate) as optional future work rather than required v2 completion.
+9. **Cleanup complete and locally validated:** transitional implementation/tests were removed in `debda3e`; `./tt check` passed on `0df6f88`.
+10. Picking Logic v2 core rollout is complete. Treat P7 advanced mechanics (USX/DSX/DBX, optional sweep visualization, ghost-stroke Alternate) as optional future work rather than required v2 completion.
 
 ## Durable repository rules
 

@@ -195,7 +195,7 @@ The canonical design is [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 **P6 runtime cutover is implemented:** `app.py` now routes Alternate to the v2 attack-alternate adapter, normal Economy to the event-based v2 Economy adapter, and Ramp Economy to the P5 joint-stage solver. The public UI shape is unchanged.
 
-Manual acceptance of the live v2 path is complete. Transitional legacy picking functions were removed in `debda3e`; that cleanup change still requires the normal local `./tt check` gate.
+Manual acceptance of the live v2 path is complete. Transitional legacy picking functions were removed in `debda3e`, and the post-cleanup `./tt check` gate passed on `0df6f88`.
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 

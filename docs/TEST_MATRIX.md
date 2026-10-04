@@ -57,7 +57,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Picking v2 P3 | same-string alternation, 6->5 and 5->6 directional sweeps, wrong-direction crossing classification, DOWN/UP start search, attack parity, OFF continuity, explicit reset behavior, cyclic last->first scoring, linked sweep groups, deterministic decision reasons |
 | Picking v2 P4 | repeated whole-beat motif annotation and in-optimizer equality constraints for A/A/A/B, A/B/A/B, cyclic end/start repetition, OFF-containing motifs, sweep-preserving stable motifs, deterministic constrained output |
 | Picking v2 P5 | joint Ramp 1->full and 2->full solving; persistent real-stroke equality across stages; P4 motif preservation; stage-local alternating TA placeholders; useful sweep retention; covered-beat handling; deterministic joint output |
-| Picking v2 P6 | live app routes only v2 Alternate/Economy/Ramp solvers; Loop/Ramp/Alternate visual acceptance passed; transitional implementation removed in `debda3e`, cleanup gate pending |
+| Picking v2 P6 | live app routes only v2 Alternate/Economy/Ramp solvers; Loop/Ramp/Alternate visual acceptance passed; transitional implementation removed in `debda3e`; post-cleanup `./tt check` passed on `0df6f88` |
 | Syntax | application modules compile |
 
 ## Automated export coverage
