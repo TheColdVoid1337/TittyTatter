@@ -1024,7 +1024,7 @@ Important product rule:
 
 > The profile is an explicit user preference. TittyTatter does not infer a player's biomechanics.
 
-Scoring is intentionally **soft**, not a hard ban. A trapped-stroke alternate crossing receives a strong penalty for USX/DSX, while a compatible crossing receives a small reward. Directional sweeps remain a separate Economy mechanism and are not disabled by USX/DSX/DBX selection.
+Scoring is intentionally **soft**, not a hard ban. A trapped-stroke alternate crossing receives a strong penalty for USX/DSX, while a compatible crossing receives a small reward. One-way economy sweep direction is profile-aware as well: USX prefers downstroke sweeps, DSX prefers upstroke sweeps, while Auto/DBX keep sweep direction neutral. Opposite-direction sweeps remain possible through a penalty rather than being forbidden.
 
 P7b propagates through normal Economy, joint Ramp Economy, motif-constrained optimization, placeholder bridge scoring, and saved Picking settings. Strict Alternate hides the mechanics-profile row.
 

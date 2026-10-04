@@ -223,7 +223,7 @@ Real stored-pattern attacks keep persistent identities and therefore one stroke 
 
 **Decision:** Economy may accept an explicit `AUTO / USX / DSX / DBX` profile, but TittyTatter must never infer that profile from stroke arrows or rhythm data.
 
-USX prefers alternate string changes after an upstroke, DSX after a downstroke, and DBX accepts either. These preferences affect scoring rather than acting as absolute prohibitions. Directional sweeps remain a separate Economy mechanism and are not disabled by escape-profile selection.
+USX prefers alternate string changes after an upstroke and downstroke sweeps. DSX prefers alternate string changes after a downstroke and upstroke sweeps. DBX accepts either alternate escape and does not bias sweep direction. These preferences affect scoring rather than acting as absolute prohibitions; opposite-direction sweeps remain available with a penalty.
 
 **Reason:** real players can use helper motions, swiping, or mixed mechanics. A soft explicit preference improves mechanical relevance without pretending the current two-string model completely describes a player's biomechanics.
 

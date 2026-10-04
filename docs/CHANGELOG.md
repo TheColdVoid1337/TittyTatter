@@ -21,6 +21,7 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ### Fixed
 
+- Corrected P7b one-way Economy profile scoring after the first local gate exposed that USX/DSX changed transition scores but could not change any complete two-string solution. USX now prefers downstroke sweeps and DSX upstroke sweeps, matching their respective one-way economy mechanics while keeping opposite-direction sweeps as soft fallbacks.
 - Removed the superseded transitional Picking Guide implementation and its legacy heuristic tests after Picking Logic v2 P6 runtime/manual acceptance; the live module now retains only the v2 event, Alternate, Economy, motif, and joint Ramp paths.
 - Ramp v2 equal-cost placeholder bridges now prefer alternating cleanly from the last active same-string stroke, moving an unavoidable odd-cycle repeat to the loop boundary instead of placing it at the active-to-placeholder transition.
 - Picking Guide now preserves the same whole-beat picking pattern for repeated active motifs separated by fully silent beats, including motifs that cross the bar boundary.

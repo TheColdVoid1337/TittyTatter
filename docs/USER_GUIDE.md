@@ -258,7 +258,7 @@ When Economy is selected, **Механика Economy** offers:
 - **DSX — смена после ↓** — prefer alternate string changes after a downstroke escape;
 - **DBX — смена после ↑/↓** — either stroke can be an escape for alternate string changes.
 
-The profile is a preference, not an automatic diagnosis of the player's technique. Directional sweeps remain available in every profile.
+The profile is a preference, not an automatic diagnosis of the player's technique. USX prefers downstroke sweeps, DSX prefers upstroke sweeps, and Auto/DBX keep sweep direction neutral. The opposite sweep direction is still available as a penalized fallback rather than being hard-disabled.
 
 ### Строго переменный ↓↑
 
