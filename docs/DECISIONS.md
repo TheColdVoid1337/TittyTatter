@@ -235,3 +235,27 @@ For P7b, `./tt picking-log` is the canonical algorithmic evidence artifact. It s
 
 **Reason:** solver behavior is more reliably reviewed as exact text than by manually comparing screenshots of arrows.
 
+## D-041 — Inside/outside is an independent soft preference
+
+**Decision:** Economy may expose an explicit `AUTO / INSIDE / OUTSIDE` crossing preference in addition to the escape profile.
+
+The preference applies only to true alternating adjacent-string crossings. It is a soft additive score, not a hard rule. It must not rewrite same-string alternation, directional sweeps, motif identity, or Ramp persistence.
+
+**Reason:** inside/outside geometry is useful practice information, but it is not the same thing as USX/DSX/DBX escape mechanics. Keeping the dimensions independent avoids another overloaded picking mode.
+
+## D-042 — Sweep visualization is presentation-only
+
+**Decision:** sweep-link visualization must be derived from already-solved directional sweeps and must never feed back into the optimizer.
+
+The UI may draw a connector between linked sweep attacks. `SweepLink` coordinates are diagnostic/presentation metadata; disabling visualization must not change arrows.
+
+**Reason:** the optimizer already owns the mechanical decision. Presentation should make linked motion easier to read without creating a second source of picking logic.
+
+## D-043 — Ghost-stroke Alternate stays deferred after P7d
+
+**Decision:** P7e rhythmic/ghost-stroke Alternate is not part of the P7c/P7d implementation.
+
+Public Strict Alternate continues to alternate attacks only. OFF slots still do not consume a stroke.
+
+**Reason:** ghost-stroke semantics describe a materially different arm-motion exercise and should not be introduced implicitly while advanced Economy mechanics are being stabilized.
+
