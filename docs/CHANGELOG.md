@@ -9,9 +9,12 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ### Added
 
+- Picking Logic v2 P7c Auto / Inside / Outside Economy crossing preference with explicit crossing-geometry metadata and additive soft scoring alongside USX/DSX/DBX.
+- Picking Logic v2 P7d optional sweep-link visualization. Valid directional sweeps expose presentation-safe coordinates and the metronome overlay can draw a connector without modifying optimizer output.
+- `./tt picking-log` now reports saved crossing/sweep settings plus P7c crossing and P7d sweep-link probes; new logs use the generic `logs/picking_v2_*.txt` filename.
 - Picking Logic v2 P7a first-stroke control is now scoped to Strict Alternate only. Economy always keeps automatic start-polarity optimization; the internal Economy start-direction parameter remains available only as a test/debug/future special-exercise hook.
 - Picking Logic v2 P7b explicit Economy mechanics profiles: Auto, USX (alternate string changes prefer an escaped upstroke), DSX (prefer an escaped downstroke), and DBX (either stroke). Profiles influence Economy scoring without disabling directional sweeps or guessing the user's mechanics.
-- Added `./tt picking-log`, a deterministic terminal diagnostic that writes `logs/picking_p7b_*.txt` with profile-discriminating patterns, Ramp output, saved-profile metadata, and a PASS/FAIL self-test so Picking validation can be shared as text instead of screenshots.
+- Added `./tt picking-log`, a deterministic terminal diagnostic that writes `logs/picking_v2_*.txt` with profile-discriminating patterns, Ramp output, saved-profile metadata, and a PASS/FAIL self-test so Picking validation can be shared as text instead of screenshots.
 - Picking Logic v2 P1 normalized event model with explicit real-pattern vs Ramp-placeholder sources, persistent real-attack identities across stages, explicit covered slots, exact rhythmic phase, and caller-controlled phrase-reset boundaries.
 - Picking Logic v2 P2 deterministic attack-alternate engine on normalized events. OFF/COVERED slots do not consume parity, string changes do not interrupt alternation, Ramp placeholders count as attacks, and explicit phrase-reset markers do not restart the public Alternate strategy. Runtime UI cutover remains deferred until the v2 integration phase.
 - Picking Logic v2 P3 event-based Economy transition engine with directional-sweep classification, wrong-direction crossing detection, full start-polarity search, attack parity, explicit reset handling, cyclic last-to-first scoring, linked sweep-group ids, and machine-readable decision reasons. Runtime UI cutover remains deferred.
