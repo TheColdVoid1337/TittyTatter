@@ -23,7 +23,9 @@ Implementation order:
 7. **DONE — CLEANUP:** transitional Picking code/tests were removed in `debda3e`; the full local `./tt check` gate passed on `0df6f88`.
 8. **DONE — P7a:** Auto / DOWN / UP first-stroke control is scoped to Strict Alternate and persisted; Economy/Ramp stay on automatic start-polarity optimization. `./tt check` and live GUI acceptance passed on `10ab611`.
 9. **DONE — P7b:** explicit Auto / USX / DSX / DBX Economy profiles and `./tt picking-log` passed local validation on `fab918b`.
-10. **OPTIONAL P7c+:** inside/outside preferences, sweep-link visualization, and ghost-stroke Alternate remain separate future experiments.
+10. **P7c IMPLEMENTED / CHECK PENDING:** Auto / Inside / Outside Economy crossing preference is wired through normal and Ramp solving, persisted in UI, and included in Picking diagnostics.
+11. **P7d IMPLEMENTED / CHECK PENDING:** optional sweep-link visualization is driven by solved directional-sweep metadata and covered by `./tt picking-log`.
+12. **DEFERRED — P7e:** rhythmic/ghost-stroke Alternate remains future work; public Strict Alternate stays attack-alternate.
 
 Do not add more screenshot-specific picking heuristics when the failure belongs to the v2 model. Convert new failures into regression cases first.
 
