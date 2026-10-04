@@ -989,7 +989,7 @@ P6 is complete. Automated checks and the required live Loop/Ramp/Alternate manua
 
 P7 is intentionally incremental. P1-P6 remains the stable core.
 
-### P7a — Alternate first-stroke control — IMPLEMENTED / LOCAL CHECK PENDING
+### P7a — Alternate first-stroke control — COMPLETE / LOCALLY VALIDATED
 
 When **Strict Alternate** is selected, the Picking tab exposes:
 
@@ -1018,7 +1018,7 @@ Still optional and not implemented by P7a:
 - sweep-link visualization;
 - rhythmic/ghost-stroke Alternate mode.
 
-Do not bundle those mechanics into P7a before the first-stroke control passes the normal local and GUI gate.
+P7a passed the normal local and GUI gate on `10ab611`: automated checks were green, the first-stroke row was hidden for Economy, and Strict Alternate correctly changed global polarity for DOWN/UP.
 
 ---
 

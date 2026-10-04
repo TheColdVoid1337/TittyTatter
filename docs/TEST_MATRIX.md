@@ -58,7 +58,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Picking v2 P4 | repeated whole-beat motif annotation and in-optimizer equality constraints for A/A/A/B, A/B/A/B, cyclic end/start repetition, OFF-containing motifs, sweep-preserving stable motifs, deterministic constrained output |
 | Picking v2 P5 | joint Ramp 1->full and 2->full solving; persistent real-stroke equality across stages; P4 motif preservation; stage-local alternating TA placeholders; useful sweep retention; covered-beat handling; deterministic joint output |
 | Picking v2 P6 | live app routes only v2 Alternate/Economy/Ramp solvers; Loop/Ramp/Alternate visual acceptance passed; transitional implementation removed in `debda3e`; post-cleanup `./tt check` passed on `0df6f88` |
-| Picking v2 P7a | Strict Alternate Auto/DOWN/UP first-stroke control; Economy/Ramp UI ignores persisted start override and stays Auto; internal Economy constraint hook remains regression-tested; UI visibility/persistence/manual check pending |
+| Picking v2 P7a | PASS on `10ab611`: Strict Alternate Auto/DOWN/UP first-stroke control; Economy/Ramp hide/ignore the override and stay Auto; DOWN/UP flips whole Alternate polarity; full `./tt check` green; internal Economy constraint hook remains regression-tested |
 | Syntax | application modules compile |
 
 ## Automated export coverage

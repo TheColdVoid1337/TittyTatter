@@ -197,7 +197,7 @@ The canonical design is [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 Manual acceptance of the live v2 path is complete. Transitional legacy picking functions were removed in `debda3e`, and the post-cleanup `./tt check` gate passed on `0df6f88`.
 
-**P7a is implemented on `work`:** Strict Alternate exposes an optional first-stroke control (Auto / DOWN / UP). The row is hidden for Economy, and the live Economy/joint-Ramp paths always use automatic start-polarity optimization. The internal Economy start-direction API remains only as a test/debug/future special-exercise hook. The Alternate value is persisted in Picking settings. Local validation is pending.
+**P7a is implemented on `work`:** Strict Alternate exposes an optional first-stroke control (Auto / DOWN / UP). The row is hidden for Economy, and the live Economy/joint-Ramp paths always use automatic start-polarity optimization. The internal Economy start-direction API remains only as a test/debug/future special-exercise hook. The Alternate value is persisted in Picking settings. P7a was locally validated on `10ab611`: automated checks passed, the control is hidden for Economy, and Strict Alternate DOWN/UP changes the whole attack-alternate polarity as intended.
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 

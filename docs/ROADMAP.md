@@ -21,7 +21,7 @@ Implementation order:
 5. **DONE — P5:** all Ramp stages are solved jointly so real attacks keep one learned direction while stage-local placeholders remain independently optimizable;
 6. **DONE — P6:** the live Picking Guide uses v2 and the automated/manual Loop, Ramp, Alternate, sweep, placeholder, and repeated-motif acceptance checks passed.
 7. **DONE — CLEANUP:** transitional Picking code/tests were removed in `debda3e`; the full local `./tt check` gate passed on `0df6f88`.
-8. **P7a IMPLEMENTED / CHECK PENDING:** Auto / DOWN / UP first-stroke control is scoped to Strict Alternate and persisted; Economy/Ramp always stay on automatic start-polarity optimization.
+8. **DONE — P7a:** Auto / DOWN / UP first-stroke control is scoped to Strict Alternate and persisted; Economy/Ramp stay on automatic start-polarity optimization. `./tt check` and live GUI acceptance passed on `10ab611`.
 9. **OPTIONAL P7b+:** USX/DSX/DBX profiles, inside/outside preferences, sweep-link visualization, and ghost-stroke Alternate remain separate future experiments.
 
 Do not add more screenshot-specific picking heuristics when the failure belongs to the v2 model. Convert new failures into regression cases first.
