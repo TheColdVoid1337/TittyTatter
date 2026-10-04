@@ -1,6 +1,6 @@
 # Picking Logic v2
 
-Status: **P6 runtime cutover implemented — manual acceptance pending**  
+Status: **P6 complete — runtime cutover manually accepted**  
 Target: post-0.0.4 development on `work`  
 Runtime cutover: **not yet — current arrow generation remains transitional**
 
@@ -981,7 +981,7 @@ Manual acceptance must include:
 - inactive Ramp TA placeholders alternating rather than restarting DOWN;
 - already-open real Ramp attacks keeping the same stroke when later beats appear.
 
-P6 is complete only after both automated and manual acceptance are explicitly confirmed.
+P6 is complete. Automated checks and the required live Loop/Ramp/Alternate manual acceptance were explicitly confirmed on the v2 runtime path.
 
 ## Phase P7 — optional advanced mechanics
 
