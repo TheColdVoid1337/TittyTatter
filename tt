@@ -62,7 +62,7 @@ Usage:
   ./tt check          Run tests, compile checks, and dependency imports
   ./tt doctor         Show WSL/Windows/Python environment diagnostics
   ./tt audio-info     Show output devices and TittyTatter's selected backend
-  ./tt picking-log    Generate a P7b Picking mechanics diagnostic log
+  ./tt picking-log    Generate a Picking Logic v2 diagnostic log
   ./tt pip ...        Run pip inside the Windows venv
   ./tt python [...]   Run the Windows venv Python
   ./tt build          Build the Windows app with PyInstaller
@@ -142,7 +142,7 @@ case "$cmd" in
     ensure_venv
     mkdir -p "$ROOT/logs"
     stamp="$(date +%Y%m%d_%H%M%S)"
-    out="$ROOT/logs/picking_p7b_${stamp}.txt"
+    out="$ROOT/logs/picking_v2_${stamp}.txt"
     "$PY" "$(winpath "$ROOT/picking_diagnostics.py")" \
       --git-head "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)" \
       --settings "$(winpath "$ROOT/tittytatter.settings.json")" \

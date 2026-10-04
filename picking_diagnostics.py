@@ -10,7 +10,7 @@ from picking_logic import (
     economy_pick_events, economy_pick_ramp_stages_v2,
     escape_profile_adjustment, escape_profile_crossing_status,
     classify_alternate_crossing_geometry, crossing_preference_adjustment,
-    normalize_picking_events,
+    detect_sweep_links, normalize_picking_events,
 )
 from presets import OFF, TA, TI
 
@@ -75,6 +75,8 @@ def self_test():
         ("P7c outside classifier", classify_alternate_crossing_geometry(6,UP,5,DOWN).value=="outside"),
         ("P7c inside reward", crossing_preference_adjustment(CrossingPreference.INSIDE,6,DOWN,5,UP)<0),
         ("P7c outside penalty", crossing_preference_adjustment(CrossingPreference.INSIDE,6,UP,5,DOWN)>0),
+        ("P7d two sweep links", len(detect_sweep_links([[TA,TI,TI,TA]],[[DOWN,DOWN,UP,UP]],TI,TA))==2),
+        ("P7d alternate has no sweep links", detect_sweep_links([[TA,TI]],[[DOWN,UP]],TI,TA)==[]),
     ]
     for label,ok in checks:
         if not ok:
@@ -89,19 +91,23 @@ def self_test():
                 break
     return failures
 
-def saved_profile(path):
+def saved_picking(path):
     try:
         data=json.loads(Path(path).read_text(encoding="utf-8"))
-        return str(data.get("picking",{}).get("escape_profile","auto"))
+        picking=data.get("picking",{})
+        return picking if isinstance(picking,dict) else {}
     except Exception:
-        return "unavailable"
+        return {}
 
 def build_report(git_head, settings):
     failures=self_test()
+    saved=saved_picking(settings)
     lines=[
-        "TittyTatter Picking Logic P7b Diagnostic",
+        "TittyTatter Picking Logic v2 Diagnostic",
         f"git_head={git_head}",
-        f"saved_escape_profile={saved_profile(settings)}",
+        f"saved_escape_profile={saved.get('escape_profile','auto')}",
+        f"saved_crossing_preference={saved.get('crossing_preference','auto')}",
+        f"saved_show_sweeps={saved.get('show_sweeps',True)}",
         "",
         "PROFILE RULES",
         "AUTO: no escape-motion preference",
@@ -136,6 +142,18 @@ def build_report(git_head, settings):
             for d in decisions
         )
         lines.append(f"  {preference.value.upper():7} strokes={strokes} geometry={geometry}")
+
+    sweep_states=[[TA,TI,TI,TA]]
+    sweep_directions=[[DOWN,DOWN,UP,UP]]
+    sweep_links=detect_sweep_links(sweep_states,sweep_directions,TI,TA)
+    lines+=["","P7D SWEEP LINK PROBE",f"  link_count={len(sweep_links)}"]
+    for index,link in enumerate(sweep_links,1):
+        lines.append(
+            f"  LINK {index:02d} "
+            f"{link.from_beat}.{link.from_subdivision}"
+            f"->{link.to_beat}.{link.to_subdivision} "
+            f"direction={sn(link.direction)}"
+        )
 
     ramp_pattern=[[TA,TI,TI,TA],[TA,TI,TI,TA],[TA,TI,TI,TA],[TI,TA,TI,TA]]
     lines+=["","RAMP 1->2->3->4 PROFILE OUTPUT"]
