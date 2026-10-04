@@ -201,6 +201,10 @@ Manual acceptance of the live v2 path is complete. Transitional legacy picking f
 
 **P7b is implemented on `work`:** Economy exposes an explicit escape profile (Auto / USX / DSX / DBX). USX rewards alternate string changes after UP and downstroke sweeps; DSX rewards alternate string changes after DOWN and upstroke sweeps; DBX accepts either alternate escape and keeps sweep direction neutral; Auto preserves neutral scoring. Opposite-direction sweeps remain possible but are penalized rather than forbidden. The profile propagates through normal Economy, motif constraints, joint Ramp, and placeholder bridges. `picking_diagnostics.py` plus `./tt picking-log` provides terminal/log evidence without screenshots.
 
+**P7c is implemented on `work`:** Economy has an independent `CrossingPreference` (Auto / Inside / Outside). `classify_alternate_crossing_geometry()` classifies only true alternating string changes, and `crossing_preference_adjustment()` contributes a soft additive score. `PickDecision.crossing_geometry` keeps the result explainable. The preference propagates through normal Economy, joint Ramp, and placeholder bridges.
+
+**P7d is implemented on `work`:** `SweepLink` and `detect_sweep_links()` convert solved directional sweeps into presentation-safe beat/subdivision coordinates. `MetronomeVisual` draws optional connectors without feeding anything back into the optimizer, so visualization cannot change stroke decisions.
+
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 
