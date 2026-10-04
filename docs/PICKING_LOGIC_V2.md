@@ -1009,7 +1009,7 @@ The internal Economy `start_direction` parameter remains intentionally available
 
 The Alternate choice is persisted with the other Picking preferences.
 
-### P7b — explicit escape-motion profile — IMPLEMENTED / LOCAL LOG PENDING
+### P7b — explicit escape-motion profile — COMPLETE / LOCALLY LOG-VALIDATED
 
 Economy now accepts one explicit mechanics profile:
 
@@ -1048,7 +1048,7 @@ Still optional after P7b:
 - sweep-link visualization;
 - rhythmic/ghost-stroke Alternate mode.
 
-P7a passed the normal local and GUI gate on `10ab611`. P7b requires the normal `./tt check` plus a pasted `./tt picking-log` report before it is accepted.
+P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`: `./tt check` was green, `saved_escape_profile=usx`, profile-discriminating cyclic cases were emitted, joint Ramp output remained stable, and the report ended with `SELF-TEST PASS`.
 
 ---
 
