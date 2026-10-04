@@ -279,6 +279,7 @@ Documentation is updated in place.
 - Practice history is limited compared with a long-term statistics database.
 - Picking Guide currently uses the project's TI/string-5 and TA/string-6 reference model.
 - Player-specific USX/DSX/DBX behavior is not inferred or configured yet.
+- P7a first-stroke override is implemented on `work` but is not locally validated until the user runs the normal gate.
 
 ## Immediate sequence
 
@@ -291,7 +292,9 @@ Documentation is updated in place.
 7. **P5 complete and locally validated:** all Ramp stages are solved jointly with persistent real attacks, stage-local placeholders, motif constraints, and cyclic stage boundaries.
 8. **P6 complete and manually accepted:** live Alternate/Economy/Ramp paths use Picking Logic v2.
 9. **Cleanup complete and locally validated:** transitional implementation/tests were removed in `debda3e`; `./tt check` passed on `0df6f88`.
-10. Picking Logic v2 core rollout is complete. Treat P7 advanced mechanics (USX/DSX/DBX, optional sweep visualization, ghost-stroke Alternate) as optional future work rather than required v2 completion.
+10. Picking Logic v2 core rollout is complete.
+11. **P7a implemented / local check pending:** optional Auto / DOWN / UP first-stroke control now constrains Alternate, Economy, and joint Ramp while preserving motif/stage rules.
+12. Later P7 mechanics (USX/DSX/DBX, inside/outside preferences, sweep visualization, ghost-stroke Alternate) remain optional and should be added one evidence-driven step at a time.
 
 ## Durable repository rules
 

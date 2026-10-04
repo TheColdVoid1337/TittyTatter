@@ -197,6 +197,8 @@ The canonical design is [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 Manual acceptance of the live v2 path is complete. Transitional legacy picking functions were removed in `debda3e`, and the post-cleanup `./tt check` gate passed on `0df6f88`.
 
+**P7a is implemented on `work`:** an optional first-stroke constraint (Auto / DOWN / UP) is propagated through Alternate, event-based Economy, and joint Ramp solving. Economy treats an explicit start as a hard first-attack constraint; Auto keeps the existing optimizer search/tie-break behavior. The value is persisted in Picking settings. Local validation is pending.
+
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 
 ```text

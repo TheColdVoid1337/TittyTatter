@@ -987,15 +987,36 @@ P6 is complete. Automated checks and the required live Loop/Ramp/Alternate manua
 
 ## Phase P7 — optional advanced mechanics
 
-Only after v2 is stable:
+P7 is intentionally incremental. P1-P6 remains the stable core.
 
-- USX / DSX / DBX profile;
+### P7a — explicit first-stroke override — IMPLEMENTED / LOCAL CHECK PENDING
+
+The Picking tab now exposes:
+
+- **Auto** — preserve the established optimizer/default behavior;
+- **Down ↓** — constrain the first attack to DOWN;
+- **Up ↑** — constrain the first attack to UP.
+
+The choice applies consistently to:
+
+- public Alternate;
+- normal Economy;
+- joint Ramp Economy.
+
+For Economy/Ramp, this is a real hard constraint on the first real attack, not a cosmetic arrow rewrite. Motif equality and persistent Ramp stroke identity continue to operate after that constraint. The setting is persisted with the other Picking preferences.
+
+P7a exists because start polarity can materially change later string-change geometry and is useful for deliberate practice. It does not claim that one start direction is universally correct.
+
+### Later optional P7 work
+
+Still optional and not implemented by P7a:
+
+- explicit USX / DSX / DBX profile;
 - inside/outside preference tuning;
-- optional sweep-link visualization;
-- optional rhythmic/ghost-stroke Alternate mode;
-- optional user start-stroke override if real practice shows a need.
+- sweep-link visualization;
+- rhythmic/ghost-stroke Alternate mode.
 
-These are not required for the first v2 cutover.
+Do not bundle those mechanics into P7a before the first-stroke control passes the normal local and GUI gate.
 
 ---
 
