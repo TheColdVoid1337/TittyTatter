@@ -331,6 +331,86 @@ def picking_directions_by_beat(
     return rows
 
 
+def detect_sweep_links(
+    effective_beats: list[list[str]],
+    directions_by_beat: list[list[str | None]],
+    ti_state: str,
+    ta_state: str,
+    *,
+    include_loop_boundary: bool = False,
+) -> list[SweepLink]:
+    """Detect visual sweep links from an already-solved picking pattern.
+
+    This helper does not optimize or rewrite strokes. It only classifies the
+    solved consecutive attacks so the UI can visualize the same directional
+    sweep relation represented by PickDecision.sweep_group_id.
+    """
+    if len(effective_beats) != len(directions_by_beat):
+        raise ValueError("beat and picking-row counts must match")
+
+    attacks: list[tuple[int, int, int, str]] = []
+    for beat_index, (states, directions) in enumerate(
+        zip(effective_beats, directions_by_beat)
+    ):
+        if not states:
+            continue
+        if len(states) != len(directions):
+            raise ValueError("state and picking subdivision counts must match")
+        for subdivision_index, (state, stroke) in enumerate(
+            zip(states, directions)
+        ):
+            string = _picking_string_for_state(state, ti_state, ta_state)
+            if string is None:
+                continue
+            if stroke not in (DOWN, UP):
+                continue
+            attacks.append(
+                (beat_index, subdivision_index, string, stroke)
+            )
+
+    if len(attacks) < 2:
+        return []
+
+    pairs = [
+        (attacks[index - 1], attacks[index], False)
+        for index in range(1, len(attacks))
+    ]
+    if include_loop_boundary:
+        pairs.append((attacks[-1], attacks[0], True))
+
+    links: list[SweepLink] = []
+    for previous, current, loop_boundary in pairs:
+        (
+            previous_beat,
+            previous_subdivision,
+            previous_string,
+            previous_stroke,
+        ) = previous
+        beat, subdivision, string, stroke = current
+        if (
+            classify_pick_transition(
+                previous_string,
+                previous_stroke,
+                string,
+                stroke,
+            )
+            is not PickingTransition.DIRECTIONAL_SWEEP
+        ):
+            continue
+        links.append(
+            SweepLink(
+                from_beat=previous_beat,
+                from_subdivision=previous_subdivision,
+                to_beat=beat,
+                to_subdivision=subdivision,
+                direction=stroke,
+                loop_boundary=loop_boundary,
+            )
+        )
+
+    return links
+
+
 def alternate_pick_beats_v2(
     full_beats: list[list[str]],
     effective_beats: list[list[str]],
@@ -664,6 +744,18 @@ class PickDecision:
     reason: str
     attack_parity: int | None
     crossing_geometry: CrossingGeometry | None = None
+    loop_boundary: bool = False
+
+
+@dataclass(frozen=True)
+class SweepLink:
+    """Presentation-safe coordinates for one linked directional sweep."""
+
+    from_beat: int
+    from_subdivision: int
+    to_beat: int
+    to_subdivision: int
+    direction: str
     loop_boundary: bool = False
 
 

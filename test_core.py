@@ -40,6 +40,7 @@ from picking_logic import (
     escape_profile_crossing_status,
     classify_alternate_crossing_geometry,
     crossing_preference_adjustment,
+    detect_sweep_links,
     normalize_picking_events,
     normalize_ramp_stage_events,
     picking_directions_by_beat,
@@ -906,6 +907,39 @@ p7c_usx_inside = economy_pick_events(
     crossing_preference=CrossingPreference.INSIDE,
 )
 assert all(decision.stroke in (DOWN, UP) for decision in p7c_usx_inside)
+
+
+# Picking Logic v2 P7d: sweep-link presentation metadata.
+p7d_states = [[TA, TI, TI, TA]]
+p7d_directions = [[DOWN, DOWN, UP, UP]]
+p7d_links = detect_sweep_links(
+    p7d_states,
+    p7d_directions,
+    TI,
+    TA,
+)
+assert len(p7d_links) == 2
+assert (
+    p7d_links[0].from_beat,
+    p7d_links[0].from_subdivision,
+    p7d_links[0].to_beat,
+    p7d_links[0].to_subdivision,
+    p7d_links[0].direction,
+) == (0, 0, 0, 1, DOWN)
+assert (
+    p7d_links[1].from_subdivision,
+    p7d_links[1].to_subdivision,
+    p7d_links[1].direction,
+) == (2, 3, UP)
+assert all(not link.loop_boundary for link in p7d_links)
+
+# Presentation metadata never invents a sweep for strict alternating strokes.
+assert detect_sweep_links(
+    [[TA, TI]],
+    [[DOWN, UP]],
+    TI,
+    TA,
+) == []
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are
