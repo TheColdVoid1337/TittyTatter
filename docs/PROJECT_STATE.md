@@ -296,7 +296,9 @@ Documentation is updated in place.
 11. **P7a complete and locally/manual validated:** Auto / DOWN / UP first-stroke control is available only for Strict Alternate; Economy and joint Ramp keep automatic global start-polarity optimization. `./tt check` passed on `10ab611`, and the GUI correctly hides the row for Economy and flips Alternate polarity for DOWN/UP.
 12. **P7b complete and locally/log validated:** Auto / USX / DSX / DBX Economy profiles influence alternate string-crossing escape compatibility and one-way sweep direction (USX downstroke sweep, DSX upstroke sweep) while keeping the opposite sweep direction as a soft fallback. On `fab918b`, `./tt check` passed including Picking diagnostics, the saved GUI profile was reported as `usx`, USX/DSX produced discriminating complete solutions, Ramp persistent strokes stayed stable, and the diagnostic ended with `SELF-TEST PASS`.
 13. `./tt picking-log` is the canonical P7b evidence path: it records saved profile state, discriminating pattern outputs, Ramp output, and PASS/FAIL self-tests in an ignored text log.
-14. Later P7 mechanics (inside/outside preferences, sweep visualization, ghost-stroke Alternate) remain optional and should be added one evidence-driven step at a time.
+14. **P7c implemented / local validation pending:** Economy has Auto / Inside / Outside alternate-crossing preference, persisted in settings and included in solver diagnostics.
+15. **P7d implemented / local validation pending:** valid directional sweeps can be rendered as linked motions in the Picking overlay; `./tt picking-log` records exact sweep-link coordinates.
+16. **P7e deferred:** rhythmic/ghost-stroke Alternate remains future work; Strict Alternate continues to mean attack-alternate.
 
 ## Durable repository rules
 
