@@ -260,6 +260,16 @@ When Economy is selected, **Механика Economy** offers:
 
 The profile is a preference, not an automatic diagnosis of the player's technique. USX prefers downstroke sweeps, DSX prefers upstroke sweeps, and Auto/DBX keep sweep direction neutral. The opposite sweep direction is still available as a penalized fallback rather than being hard-disabled.
 
+Economy also exposes **Пересечения струн**:
+
+- **Авто** — neutral inside/outside scoring;
+- **Внутри** — prefer inside alternate crossings;
+- **Снаружи** — prefer outside alternate crossings.
+
+This preference only affects alternating string changes. It does not convert or suppress directional sweeps.
+
+**Показывать связи sweep** adds a thin connector between the two attacks that belong to one valid directional sweep. The connector is presentation-only and never changes the suggested arrows.
+
 ### Строго переменный ↓↑
 
 Alternates down/up across attacks.
@@ -402,7 +412,7 @@ For Picking Logic / mechanics-profile validation, run:
 ./tt picking-log
 ```
 
-This prints a deterministic Auto/USX/DSX/DBX comparison and saves the same report under `logs/picking_p7b_*.txt`.
+This prints deterministic Auto/USX/DSX/DBX, inside/outside, and sweep-link probes and saves the same report under `logs/picking_v2_*.txt`.
 
 The report is designed to be pasted directly into a bug/validation conversation, so screenshots are not required for algorithmic P7b checks.
 
