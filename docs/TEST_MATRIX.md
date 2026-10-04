@@ -257,7 +257,7 @@ Current manual status on `e611ec2`:
 - PASS — Ramp 1->2->3->4 Economy, sweep-compatible `TA TI TI TA` motif: stable `DOWN DOWN UP UP`, both directional sweeps retained, real strokes unchanged across stages, placeholder entry/stream clean;
 - PASS — Ramp 2->full Economy: the first two real beats preserve the same Economy strokes between the 2-beat and 4-beat stages, while inactive TA placeholders alternate cleanly;
 - PASS — public Alternate with OFF slots: `TA . TA . | TI . TI . | TA . TI . | TA . . TI` renders attack-alternate `DOWN UP DOWN UP DOWN UP DOWN UP` without OFF consuming parity;
-- PENDING — non-Ramp Economy repeated-motif case.
+- PASS — non-Ramp Loop / Economy A B A B: beats 1/3 match and beats 2/4 match in the live GUI.
 
 #### Economy
 
