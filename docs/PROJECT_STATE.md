@@ -278,7 +278,7 @@ Documentation is updated in place.
 - No finalized installer/updater or packaged binary release workflow.
 - Practice history is limited compared with a long-term statistics database.
 - Picking Guide currently uses the project's TI/string-5 and TA/string-6 reference model.
-- Player-specific USX/DSX/DBX behavior is never inferred. P7b allows an explicit Economy profile, but local acceptance is pending until `./tt check` and `./tt picking-log` are reviewed.
+- Player-specific USX/DSX/DBX behavior is never inferred. P7b exposes an explicit Economy profile and was locally/log validated on `fab918b`.
 - P7a Strict-Alternate first-stroke control is locally validated on `10ab611`: `./tt check` passed and live GUI behavior was confirmed.
 
 ## Immediate sequence
@@ -294,7 +294,7 @@ Documentation is updated in place.
 9. **Cleanup complete and locally validated:** transitional implementation/tests were removed in `debda3e`; `./tt check` passed on `0df6f88`.
 10. Picking Logic v2 core rollout is complete.
 11. **P7a complete and locally/manual validated:** Auto / DOWN / UP first-stroke control is available only for Strict Alternate; Economy and joint Ramp keep automatic global start-polarity optimization. `./tt check` passed on `10ab611`, and the GUI correctly hides the row for Economy and flips Alternate polarity for DOWN/UP.
-12. **P7b implemented / local log pending:** explicit Auto / USX / DSX / DBX Economy profiles now influence both alternate string-crossing escape compatibility and one-way sweep direction (USX downstroke sweep, DSX upstroke sweep) while keeping the opposite sweep direction as a soft fallback. The selection is explicit, persisted, and never inferred.
+12. **P7b complete and locally/log validated:** Auto / USX / DSX / DBX Economy profiles influence alternate string-crossing escape compatibility and one-way sweep direction (USX downstroke sweep, DSX upstroke sweep) while keeping the opposite sweep direction as a soft fallback. On `fab918b`, `./tt check` passed including Picking diagnostics, the saved GUI profile was reported as `usx`, USX/DSX produced discriminating complete solutions, Ramp persistent strokes stayed stable, and the diagnostic ended with `SELF-TEST PASS`.
 13. `./tt picking-log` is the canonical P7b evidence path: it records saved profile state, discriminating pattern outputs, Ramp output, and PASS/FAIL self-tests in an ignored text log.
 14. Later P7 mechanics (inside/outside preferences, sweep visualization, ghost-stroke Alternate) remain optional and should be added one evidence-driven step at a time.
 
