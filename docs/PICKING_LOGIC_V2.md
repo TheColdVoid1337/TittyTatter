@@ -1009,16 +1009,46 @@ The internal Economy `start_direction` parameter remains intentionally available
 
 The Alternate choice is persisted with the other Picking preferences.
 
+### P7b — explicit escape-motion profile — IMPLEMENTED / LOCAL LOG PENDING
+
+Economy now accepts one explicit mechanics profile:
+
+- **Auto** — no escape-motion preference;
+- **USX** — alternate string changes prefer to occur after an UP stroke;
+- **DSX** — alternate string changes prefer to occur after a DOWN stroke;
+- **DBX** — alternate string changes may occur after either stroke.
+
+This follows the escape-motion model: USX escapes on upstrokes, DSX escapes on downstrokes, and DBX escapes on both.
+
+Important product rule:
+
+> The profile is an explicit user preference. TittyTatter does not infer a player's biomechanics.
+
+Scoring is intentionally **soft**, not a hard ban. A trapped-stroke alternate crossing receives a strong penalty for USX/DSX, while a compatible crossing receives a small reward. Directional sweeps remain a separate Economy mechanism and are not disabled by USX/DSX/DBX selection.
+
+P7b propagates through normal Economy, joint Ramp Economy, motif-constrained optimization, placeholder bridge scoring, and saved Picking settings. Strict Alternate hides the mechanics-profile row.
+
+### P7b diagnostic log
+
+Run:
+
+```bash
+./tt picking-log
+```
+
+The command writes `logs/picking_p7b_YYYYMMDD_HHMMSS.txt` and prints the same report to the terminal. It includes Git HEAD, saved profile, scoring probes, automatically discovered patterns where USX and DSX differ, Auto/USX/DSX/DBX output, Ramp output, and PASS/FAIL self-tests.
+
+For P7b algorithm validation, this log is preferred evidence over screenshots.
+
 ### Later optional P7 work
 
-Still optional and not implemented by P7a:
+Still optional after P7b:
 
-- explicit USX / DSX / DBX profile;
 - inside/outside preference tuning;
 - sweep-link visualization;
 - rhythmic/ghost-stroke Alternate mode.
 
-P7a passed the normal local and GUI gate on `10ab611`: automated checks were green, the first-stroke row was hidden for Economy, and Strict Alternate correctly changed global polarity for DOWN/UP.
+P7a passed the normal local and GUI gate on `10ab611`. P7b requires the normal `./tt check` plus a pasted `./tt picking-log` report before it is accepted.
 
 ---
 

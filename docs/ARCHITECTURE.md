@@ -199,6 +199,9 @@ Manual acceptance of the live v2 path is complete. Transitional legacy picking f
 
 **P7a is implemented on `work`:** Strict Alternate exposes an optional first-stroke control (Auto / DOWN / UP). The row is hidden for Economy, and the live Economy/joint-Ramp paths always use automatic start-polarity optimization. The internal Economy start-direction API remains only as a test/debug/future special-exercise hook. The Alternate value is persisted in Picking settings. P7a was locally validated on `10ab611`: automated checks passed, the control is hidden for Economy, and Strict Alternate DOWN/UP changes the whole attack-alternate polarity as intended.
 
+**P7b is implemented on `work`:** Economy exposes an explicit escape profile (Auto / USX / DSX / DBX). USX rewards alternate string changes after UP and penalizes them after DOWN; DSX does the inverse; DBX accepts either; Auto preserves neutral scoring. Directional sweeps remain available. The profile propagates through normal Economy, motif constraints, joint Ramp, and placeholder bridges. `picking_diagnostics.py` plus `./tt picking-log` provides terminal/log evidence without screenshots.
+
+
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 
 ```text
@@ -219,7 +222,7 @@ Target behavior includes:
 - parity and loop-boundary awareness;
 - repeated motor motifs constrained during optimization rather than rewritten afterward;
 - Ramp stages solved jointly, with persistent real attacks and stage-local placeholder attacks;
-- future AUTO/USX/DSX/DBX scoring hook without inferring the player's mechanics;
+- explicit AUTO/USX/DSX/DBX Economy scoring without inferring the player's mechanics;
 - machine-readable decision reasons for regression/debug work.
 
 The UI may continue to show only arrows initially. Internal sweep links and transition reasons are model data, not a requirement for a new user-facing control.

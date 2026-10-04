@@ -278,7 +278,7 @@ Documentation is updated in place.
 - No finalized installer/updater or packaged binary release workflow.
 - Practice history is limited compared with a long-term statistics database.
 - Picking Guide currently uses the project's TI/string-5 and TA/string-6 reference model.
-- Player-specific USX/DSX/DBX behavior is not inferred or configured yet.
+- Player-specific USX/DSX/DBX behavior is never inferred. P7b allows an explicit Economy profile, but local acceptance is pending until `./tt check` and `./tt picking-log` are reviewed.
 - P7a Strict-Alternate first-stroke control is locally validated on `10ab611`: `./tt check` passed and live GUI behavior was confirmed.
 
 ## Immediate sequence
@@ -294,7 +294,9 @@ Documentation is updated in place.
 9. **Cleanup complete and locally validated:** transitional implementation/tests were removed in `debda3e`; `./tt check` passed on `0df6f88`.
 10. Picking Logic v2 core rollout is complete.
 11. **P7a complete and locally/manual validated:** Auto / DOWN / UP first-stroke control is available only for Strict Alternate; Economy and joint Ramp keep automatic global start-polarity optimization. `./tt check` passed on `10ab611`, and the GUI correctly hides the row for Economy and flips Alternate polarity for DOWN/UP.
-12. Later P7 mechanics (USX/DSX/DBX, inside/outside preferences, sweep visualization, ghost-stroke Alternate) remain optional and should be added one evidence-driven step at a time.
+12. **P7b implemented / local log pending:** explicit Auto / USX / DSX / DBX Economy profiles now influence alternate string-crossing scoring while leaving directional sweeps available. The selection is explicit, persisted, and never inferred.
+13. `./tt picking-log` is the canonical P7b evidence path: it records saved profile state, discriminating pattern outputs, Ramp output, and PASS/FAIL self-tests in an ignored text log.
+14. Later P7 mechanics (inside/outside preferences, sweep visualization, ghost-stroke Alternate) remain optional and should be added one evidence-driven step at a time.
 
 ## Durable repository rules
 
