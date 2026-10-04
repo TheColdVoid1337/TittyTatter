@@ -225,8 +225,9 @@ P6 partial manual acceptance on `e611ec2`:
 - inactive TA placeholders alternated cleanly, including the active->placeholder boundary after the `e611ec2` tie-break fix;
 - public Alternate with OFF slots was checked in the live GUI using the 8-attack control pattern `TA . TA . | TI . TI . | TA . TI . | TA . . TI`; the visible attack sequence alternated `DOWN UP DOWN UP DOWN UP DOWN UP`, so OFF slots did not consume or reset parity.
 - Ramp 2->full Economy was checked in the live GUI on the same sparse control pattern: the first two real beats kept the same Economy strokes from the 2-beat stage to the 4-beat stage, and the temporary inactive-beat TA placeholders alternated cleanly.
+- Loop / Economy A B A B was checked in the live GUI: beat 1 matched beat 3 and beat 2 matched beat 4, confirming stable repeated motif identity in the live v2 path.
 
-P6 is not fully accepted yet: only the non-Ramp Economy repetition case still needs manual GUI confirmation.
+P6 manual acceptance is complete.
 
 Recent Picking changes on `work` were investigated through manual screenshots and direct practice feedback.
 
