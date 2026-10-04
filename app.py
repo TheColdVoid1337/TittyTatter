@@ -1950,6 +1950,17 @@ class MainWindow(QMainWindow):
         self.picking_start_stroke.currentIndexChanged.connect(self._picking_settings_changed)
         form.addRow(self.picking_start_label, self.picking_start_stroke)
 
+        self.picking_escape_label = QLabel("Механика Economy:")
+        self.picking_escape_profile = QComboBox()
+        self.picking_escape_profile.addItem("Авто", "auto")
+        self.picking_escape_profile.addItem("USX — смена после ↑", "usx")
+        self.picking_escape_profile.addItem("DSX — смена после ↓", "dsx")
+        self.picking_escape_profile.addItem("DBX — смена после ↑/↓", "dbx")
+        self.picking_escape_profile.currentIndexChanged.connect(
+            self._picking_settings_changed
+        )
+        form.addRow(self.picking_escape_label, self.picking_escape_profile)
+
         self.picking_show_next = QCheckBox("Показывать следующие штрихи справа")
         self.picking_show_next.setChecked(True)
         self.picking_show_next.toggled.connect(self._picking_settings_changed)
@@ -3167,11 +3178,20 @@ class MainWindow(QMainWindow):
             hasattr(self, "picking_strategy")
             and self.picking_strategy.currentData() == "alternate"
         )
+        is_economy = (
+            hasattr(self, "picking_strategy")
+            and self.picking_strategy.currentData() == "economy"
+        )
         if hasattr(self, "picking_start_label"):
             self.picking_start_label.setVisible(is_alternate)
         if hasattr(self, "picking_start_stroke"):
             self.picking_start_stroke.setVisible(is_alternate)
             self.picking_start_stroke.setEnabled(enabled and is_alternate)
+        if hasattr(self, "picking_escape_label"):
+            self.picking_escape_label.setVisible(is_economy)
+        if hasattr(self, "picking_escape_profile"):
+            self.picking_escape_profile.setVisible(is_economy)
+            self.picking_escape_profile.setEnabled(enabled and is_economy)
 
         if hasattr(self, "picking_next_count"):
             self.picking_next_count.setEnabled(
@@ -3190,6 +3210,15 @@ class MainWindow(QMainWindow):
         if value == "up":
             return UP
         return None
+
+    def _picking_escape_profile_value(self) -> str:
+        if (
+            not hasattr(self, "picking_escape_profile")
+            or self.picking_strategy.currentData() != "economy"
+        ):
+            return "auto"
+        value = str(self.picking_escape_profile.currentData() or "auto").lower()
+        return value if value in {"auto", "usx", "dsx", "dbx"} else "auto"
 
     def _picking_settings_changed(self, *_args) -> None:
         if self.picking_enabled.isChecked() and self.game_enabled.isChecked():
@@ -3247,6 +3276,7 @@ class MainWindow(QMainWindow):
             beat_states.append(states)
 
         start_direction = self._picking_start_direction()
+        escape_profile = self._picking_escape_profile_value()
 
         if self.picking_strategy.currentData() == "alternate":
             directions_by_beat = alternate_pick_beats_v2(
@@ -3269,6 +3299,7 @@ class MainWindow(QMainWindow):
                 TI,
                 TA,
                 OFF,
+                escape_profile=escape_profile,
             )[active]
         else:
             directions_by_beat = economy_pick_beats_v2(
@@ -3279,6 +3310,7 @@ class MainWindow(QMainWindow):
                 OFF,
                 cyclic=True,
                 stage_id=f"{mode}:economy",
+                escape_profile=escape_profile,
             )
         row5: list[list[str]] = []
         row6: list[list[str]] = []
@@ -3939,6 +3971,7 @@ class MainWindow(QMainWindow):
                 "enabled": self.picking_enabled.isChecked(),
                 "strategy": self.picking_strategy.currentData(),
                 "start_stroke": self.picking_start_stroke.currentData(),
+                "escape_profile": self.picking_escape_profile.currentData(),
                 "show_next": self.picking_show_next.isChecked(),
                 "next_count": self.picking_next_count.value(),
                 "highlight_current": self.picking_highlight_current.isChecked(),
@@ -4075,6 +4108,7 @@ class MainWindow(QMainWindow):
         picking = data.get("picking", {})
         self._combo_data(self.picking_strategy, picking.get("strategy", "economy"))
         self._combo_data(self.picking_start_stroke, picking.get("start_stroke", "auto"))
+        self._combo_data(self.picking_escape_profile, picking.get("escape_profile", "auto"))
         self.picking_show_next.setChecked(bool(picking.get("show_next", True)))
         self.picking_next_count.setValue(int(picking.get("next_count", 1)))
         self.picking_highlight_current.setChecked(bool(picking.get("highlight_current", True)))
@@ -4190,6 +4224,7 @@ class MainWindow(QMainWindow):
 
         self._combo_data(self.picking_strategy, "economy")
         self._combo_data(self.picking_start_stroke, "auto")
+        self._combo_data(self.picking_escape_profile, "auto")
         self.picking_show_next.setChecked(True)
         self.picking_next_count.setValue(1)
         self.picking_highlight_current.setChecked(True)

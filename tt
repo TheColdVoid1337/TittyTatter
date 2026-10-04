@@ -62,6 +62,7 @@ Usage:
   ./tt check          Run tests, compile checks, and dependency imports
   ./tt doctor         Show WSL/Windows/Python environment diagnostics
   ./tt audio-info     Show output devices and TittyTatter's selected backend
+  ./tt picking-log    Generate a P7b Picking mechanics diagnostic log
   ./tt pip ...        Run pip inside the Windows venv
   ./tt python [...]   Run the Windows venv Python
   ./tt build          Build the Windows app with PyInstaller
@@ -102,7 +103,9 @@ case "$cmd" in
     echo "== core tests =="
     "$PY" "$(winpath "$TEST")"
     echo "== compile =="
-    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/game_logger.py")" "$(winpath "$ROOT/input_binding.py")" "$(winpath "$ROOT/training_modes.py")"
+    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/picking_diagnostics.py")" "$(winpath "$ROOT/game_logger.py")" "$(winpath "$ROOT/input_binding.py")" "$(winpath "$ROOT/training_modes.py")"
+    echo "== picking diagnostics =="
+    "$PY" "$(winpath "$ROOT/picking_diagnostics.py")" --self-test
     echo "== export tests =="
     "$PY" "$(winpath "$ROOT/test_exports.py")"
     echo "== game log tests =="
@@ -133,6 +136,18 @@ case "$cmd" in
 
   audio-info)
     audio_info
+    ;;
+
+  picking-log|picking-report)
+    ensure_venv
+    mkdir -p "$ROOT/logs"
+    stamp="$(date +%Y%m%d_%H%M%S)"
+    out="$ROOT/logs/picking_p7b_${stamp}.txt"
+    "$PY" "$(winpath "$ROOT/picking_diagnostics.py")" \
+      --git-head "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)" \
+      --settings "$(winpath "$ROOT/tittytatter.settings.json")" \
+      --output "$(winpath "$out")"
+    echo "WSL log: $out"
     ;;
 
   pip)
