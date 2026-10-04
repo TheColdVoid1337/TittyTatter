@@ -23,6 +23,7 @@ from picking_logic import (
     DOWN,
     PICKING_COVERED,
     UP,
+    EscapeProfile,
     PickDecision,
     PickingEventSource,
     PickingTransition,
@@ -33,6 +34,8 @@ from picking_logic import (
     economy_pick_beats_v2,
     economy_pick_events,
     economy_pick_ramp_stages_v2,
+    escape_profile_adjustment,
+    escape_profile_crossing_status,
     normalize_picking_events,
     normalize_ramp_stage_events,
     picking_directions_by_beat,
@@ -734,6 +737,97 @@ for active in p5_stages:
 # to the product's normal DOWN-first attack-alternate behavior.
 assert alternate_pick_events(p2_events, start_direction=UP)[0] == UP
 assert alternate_pick_events(p2_events, start_direction=None)[0] == DOWN
+
+
+# Picking Logic v2 P7b: explicit escape-motion profile scoring.
+assert escape_profile_adjustment(
+    EscapeProfile.USX, 6, UP, 5, DOWN
+) < 0
+assert escape_profile_adjustment(
+    EscapeProfile.USX, 6, DOWN, 5, UP
+) > 0
+assert escape_profile_adjustment(
+    EscapeProfile.DSX, 6, DOWN, 5, UP
+) < 0
+assert escape_profile_adjustment(
+    EscapeProfile.DSX, 6, UP, 5, DOWN
+) > 0
+assert escape_profile_adjustment(
+    EscapeProfile.DBX, 6, UP, 5, DOWN
+) <= 0
+assert escape_profile_adjustment(
+    EscapeProfile.DBX, 6, DOWN, 5, UP
+) <= 0
+assert escape_profile_crossing_status(
+    EscapeProfile.USX,
+    UP,
+    PickingTransition.ALTERNATE_CROSSING,
+) == "compatible"
+assert escape_profile_crossing_status(
+    EscapeProfile.DSX,
+    UP,
+    PickingTransition.ALTERNATE_CROSSING,
+) == "trapped"
+assert escape_profile_crossing_status(
+    EscapeProfile.USX,
+    DOWN,
+    PickingTransition.DIRECTIONAL_SWEEP,
+) == "sweep"
+
+# Profiles must be able to influence a complete Economy solution rather than
+# existing only as metadata. Search a tiny deterministic two-string corpus.
+profile_difference_found = False
+for mask in range(1, 31):
+    states = [
+        TA if (mask >> bit) & 1 else TI
+        for bit in range(5)
+    ]
+    if len(set(states)) < 2:
+        continue
+    events = normalize_picking_events(
+        [states],
+        [states],
+        TI,
+        TA,
+        OFF,
+        stage_id=f"p7b:{mask}",
+    )
+    usx = [
+        decision.stroke
+        for decision in economy_pick_events(
+            events,
+            cyclic=True,
+            escape_profile=EscapeProfile.USX,
+        )
+    ]
+    dsx = [
+        decision.stroke
+        for decision in economy_pick_events(
+            events,
+            cyclic=True,
+            escape_profile=EscapeProfile.DSX,
+        )
+    ]
+    if usx != dsx:
+        profile_difference_found = True
+        break
+assert profile_difference_found
+
+# Ramp keeps persistent real strokes stable even when an explicit mechanics
+# profile participates in scoring.
+p7b_ramp = economy_pick_ramp_stages_v2(
+    p5_full,
+    p5_stages,
+    TI,
+    TA,
+    OFF,
+    escape_profile=EscapeProfile.USX,
+)
+for beat_index in range(4):
+    reference = p7b_ramp[4][beat_index]
+    for active in p5_stages:
+        if beat_index < active:
+            assert p7b_ramp[active][beat_index] == reference
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are

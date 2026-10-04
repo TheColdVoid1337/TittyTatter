@@ -17,6 +17,26 @@ class PickingEventSource(str, Enum):
     RAMP_PLACEHOLDER = "ramp_placeholder"
 
 
+class EscapeProfile(str, Enum):
+    """User-selected picking escape mechanics for Economy scoring."""
+
+    AUTO = "auto"
+    USX = "usx"
+    DSX = "dsx"
+    DBX = "dbx"
+
+
+def normalize_escape_profile(
+    value: EscapeProfile | str | None,
+) -> EscapeProfile:
+    if isinstance(value, EscapeProfile):
+        return value
+    try:
+        return EscapeProfile(str(value or "auto").lower())
+    except ValueError:
+        return EscapeProfile.AUTO
+
+
 @dataclass(frozen=True)
 class PickingEvent:
     """Normalized Picking Logic v2 slot.
@@ -414,6 +434,7 @@ def _solve_economy_constrained(
     *,
     cyclic: bool,
     start_direction: str | None = None,
+    escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
 ) -> list[str]:
     """Exact DP for Economy with shared motif-direction variables.
 
@@ -448,6 +469,7 @@ def _solve_economy_constrained(
     }
 
     directions = (DOWN, UP)
+    profile = normalize_escape_profile(escape_profile)
     fixed_start = start_direction if start_direction in directions else None
     # state -> (cost, path). State stores previous stroke, first stroke for the
     # cyclic closing edge, and currently-live shared motif assignments.
@@ -509,6 +531,7 @@ def _solve_economy_constrained(
                         effective_previous,
                         event.string,
                         stroke,
+                        escape_profile=profile,
                     )
 
                 next_assignments = dict(assignments)
@@ -576,6 +599,7 @@ def _solve_economy_constrained(
                 last_stroke,
                 first_event.string,
                 first_stroke,
+                escape_profile=profile,
             )
 
         if best_path is None or total < best_cost:
@@ -641,11 +665,68 @@ def classify_pick_transition(
     return PickingTransition.WRONG_DIRECTION_CROSSING
 
 
+def escape_profile_crossing_status(
+    escape_profile: EscapeProfile | str | None,
+    previous_stroke: str,
+    transition: PickingTransition,
+) -> str:
+    """Describe whether a string change matches the selected escape profile."""
+    profile = normalize_escape_profile(escape_profile)
+    if transition is PickingTransition.DIRECTIONAL_SWEEP:
+        return "sweep"
+    if transition is not PickingTransition.ALTERNATE_CROSSING:
+        return "n/a"
+    if profile is EscapeProfile.AUTO:
+        return "auto"
+    if profile is EscapeProfile.DBX:
+        return "compatible"
+    escaped = UP if profile is EscapeProfile.USX else DOWN
+    return "compatible" if previous_stroke == escaped else "trapped"
+
+
+def escape_profile_adjustment(
+    escape_profile: EscapeProfile | str | None,
+    previous_string: int,
+    previous_stroke: str,
+    string: int,
+    stroke: str,
+) -> float:
+    """Return the P7b Economy score adjustment for one transition.
+
+    USX prefers alternate string changes after an upstroke. DSX prefers them
+    after a downstroke. DBX accepts either escaped stroke. Directional sweeps
+    remain a separate economy mechanism and are not penalized by escape
+    profile selection.
+    """
+    profile = normalize_escape_profile(escape_profile)
+    if profile is EscapeProfile.AUTO or previous_string == string:
+        return 0.0
+
+    transition = classify_pick_transition(
+        previous_string,
+        previous_stroke,
+        string,
+        stroke,
+    )
+    status = escape_profile_crossing_status(
+        profile,
+        previous_stroke,
+        transition,
+    )
+    if status == "compatible":
+        return -1.0 if profile in (EscapeProfile.USX, EscapeProfile.DSX) else -0.25
+    if status == "trapped":
+        return 12.0
+    return 0.0
+
+
 def _economy_transition_cost_v2(
     previous_string: int,
     previous_stroke: str,
     string: int,
     stroke: str,
+    *,
+    escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
 ) -> float:
     transition = classify_pick_transition(
         previous_string,
@@ -654,16 +735,25 @@ def _economy_transition_cost_v2(
         stroke,
     )
     if transition is PickingTransition.SAME_STRING_ALTERNATE:
-        return 0.0
-    if transition is PickingTransition.DIRECTIONAL_SWEEP:
-        return -4.0
-    if transition is PickingTransition.ALTERNATE_CROSSING:
-        return 0.0
-    if transition is PickingTransition.SAME_STRING_REPEAT:
-        return 100.0
-    if transition is PickingTransition.WRONG_DIRECTION_CROSSING:
-        return 100.0
-    raise AssertionError(f"unexpected transition: {transition}")
+        base = 0.0
+    elif transition is PickingTransition.DIRECTIONAL_SWEEP:
+        base = -4.0
+    elif transition is PickingTransition.ALTERNATE_CROSSING:
+        base = 0.0
+    elif transition is PickingTransition.SAME_STRING_REPEAT:
+        base = 100.0
+    elif transition is PickingTransition.WRONG_DIRECTION_CROSSING:
+        base = 100.0
+    else:
+        raise AssertionError(f"unexpected transition: {transition}")
+
+    return base + escape_profile_adjustment(
+        escape_profile,
+        previous_string,
+        previous_stroke,
+        string,
+        stroke,
+    )
 
 
 def _transition_reason(
@@ -700,12 +790,14 @@ def _solve_economy_attack_segment(
     *,
     cyclic: bool,
     start_direction: str | None = None,
+    escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
 ) -> list[str]:
     """Choose DOWN/UP for one reset-free attack segment."""
     if not attacks:
         return []
 
     directions = (DOWN, UP)
+    profile = normalize_escape_profile(escape_profile)
     fixed_start = start_direction if start_direction in directions else None
     best_total = float("inf")
     best_result: list[str] | None = None
@@ -739,6 +831,7 @@ def _solve_economy_attack_segment(
                         previous_stroke,
                         string,
                         stroke,
+                        escape_profile=profile,
                     )
                     if candidate < best_cost:
                         best_cost = candidate
@@ -758,6 +851,7 @@ def _solve_economy_attack_segment(
                     final_stroke,
                     first_string,
                     first_stroke,
+                    escape_profile=profile,
                 )
 
             if total >= best_total:
@@ -782,6 +876,7 @@ def economy_pick_events(
     *,
     cyclic: bool,
     start_direction: str | None = None,
+    escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
 ) -> list[PickDecision]:
     """Solve practical directional Economy on normalized PickingEvent data.
 
@@ -848,6 +943,7 @@ def economy_pick_events(
         attack_indices,
         cyclic=cyclic,
         start_direction=start_direction,
+        escape_profile=escape_profile,
     )
     for event_index, stroke in zip(attack_indices, constrained_strokes):
         strokes_by_event[event_index] = stroke
@@ -972,6 +1068,7 @@ def economy_pick_beats_v2(
     cyclic: bool = True,
     stage_id: str = "economy",
     start_direction: str | None = None,
+    escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
 ) -> list[list[str | None]]:
     """Compatibility projection for the P3 event-based Economy engine."""
     events = normalize_picking_events(
@@ -988,6 +1085,7 @@ def economy_pick_beats_v2(
         events,
         cyclic=cyclic,
         start_direction=start_direction,
+        escape_profile=escape_profile,
     )
     return picking_directions_by_beat(
         events,
@@ -1002,9 +1100,12 @@ def _best_placeholder_bridge(
     first_string: int,
     first_stroke: str,
     placeholder_count: int,
+    *,
+    escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
 ) -> tuple[float, tuple[str, ...]]:
     """Optimize a stage-local string-6 placeholder chain between real attacks."""
     count = max(0, int(placeholder_count))
+    profile = normalize_escape_profile(escape_profile)
     if count == 0:
         return (
             _economy_transition_cost_v2(
@@ -1012,6 +1113,7 @@ def _best_placeholder_bridge(
                 previous_stroke,
                 first_string,
                 first_stroke,
+                escape_profile=profile,
             ),
             (),
         )
@@ -1029,6 +1131,7 @@ def _best_placeholder_bridge(
                 previous_stroke,
                 6,
                 stroke,
+                escape_profile=profile,
             ),
             0,
             int(previous_string == 6 and previous_stroke == stroke),
@@ -1052,6 +1155,7 @@ def _best_placeholder_bridge(
                         previous_placeholder,
                         6,
                         stroke,
+                        escape_profile=profile,
                     ),
                     repeats + int(previous_placeholder == stroke),
                     entry_repeat,
@@ -1077,6 +1181,7 @@ def _best_placeholder_bridge(
                 last_placeholder,
                 first_string,
                 first_stroke,
+                escape_profile=profile,
             ),
             repeats,
             entry_repeat,
@@ -1095,6 +1200,7 @@ def _joint_ramp_real_strokes(
     stage_events: dict[int, list[PickingEvent]],
     *,
     start_direction: str | None = None,
+    escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
 ) -> dict[str, str]:
     """Solve all real Ramp attacks once across every practised stage.
 
@@ -1197,6 +1303,7 @@ def _joint_ramp_real_strokes(
             )
 
     directions = (DOWN, UP)
+    profile = normalize_escape_profile(escape_profile)
     fixed_start = start_direction if start_direction in directions else None
     # State: previous real stroke, first real stroke, live motif assignments.
     states: dict[
@@ -1246,6 +1353,7 @@ def _joint_ramp_real_strokes(
                             previous_stroke,
                             event.string,
                             stroke,
+                            escape_profile=profile,
                         )
                     candidate_first = first_stroke
 
@@ -1261,6 +1369,7 @@ def _joint_ramp_real_strokes(
                         first_event.string,
                         candidate_first,
                         placeholder_count,
+                        escape_profile=profile,
                     )
                     candidate_cost += boundary_cost
 
@@ -1321,6 +1430,7 @@ def economy_pick_ramp_stages_v2(
     off_state: str,
     *,
     start_direction: str | None = None,
+    escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
 ) -> dict[int, list[list[str | None]]]:
     """Jointly solve all requested Ramp stages.
 
@@ -1362,6 +1472,7 @@ def economy_pick_ramp_stages_v2(
         full_events,
         stage_events,
         start_direction=start_direction,
+        escape_profile=escape_profile,
     )
 
     result: dict[int, list[list[str | None]]] = {}
@@ -1403,6 +1514,7 @@ def economy_pick_ramp_stages_v2(
                     first_real.string,
                     first_stroke,
                     len(placeholder_attack_indices),
+                    escape_profile=escape_profile,
                 )
             else:
                 placeholder_events = [
@@ -1414,6 +1526,7 @@ def economy_pick_ramp_stages_v2(
                         placeholder_events,
                         cyclic=True,
                         start_direction=start_direction,
+                        escape_profile=escape_profile,
                     )
                 )
 
