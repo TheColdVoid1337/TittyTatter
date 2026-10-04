@@ -195,7 +195,7 @@ The target design is canonical in [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 **P6 runtime cutover is implemented:** `app.py` now routes Alternate to the v2 attack-alternate adapter, normal Economy to the event-based v2 Economy adapter, and Ramp Economy to the P5 joint-stage solver. The public UI shape is unchanged.
 
-Manual acceptance is still required before the transitional legacy picking functions are removed.
+Manual acceptance of the live v2 path is complete. Transitional legacy picking functions may now be removed in a separate cleanup change with the normal local gate.
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
 
