@@ -6,9 +6,10 @@ from itertools import product
 from pathlib import Path
 
 from picking_logic import (
-    DOWN, UP, EscapeProfile, PickingTransition,
+    DOWN, UP, CrossingPreference, EscapeProfile, PickingTransition,
     economy_pick_events, economy_pick_ramp_stages_v2,
     escape_profile_adjustment, escape_profile_crossing_status,
+    classify_alternate_crossing_geometry, crossing_preference_adjustment,
     normalize_picking_events,
 )
 from presets import OFF, TA, TI
@@ -70,6 +71,10 @@ def self_test():
         ("DSX rewards upstroke sweep", escape_profile_adjustment(EscapeProfile.DSX,5,UP,6,UP)<0),
         ("DSX penalizes downstroke sweep", escape_profile_adjustment(EscapeProfile.DSX,6,DOWN,5,DOWN)>0),
         ("USX and DSX can differ", bool(discriminating(1))),
+        ("P7c inside classifier", classify_alternate_crossing_geometry(6,DOWN,5,UP).value=="inside"),
+        ("P7c outside classifier", classify_alternate_crossing_geometry(6,UP,5,DOWN).value=="outside"),
+        ("P7c inside reward", crossing_preference_adjustment(CrossingPreference.INSIDE,6,DOWN,5,UP)<0),
+        ("P7c outside penalty", crossing_preference_adjustment(CrossingPreference.INSIDE,6,UP,5,DOWN)>0),
     ]
     for label,ok in checks:
         if not ok:
@@ -120,6 +125,18 @@ def build_report(git_head, settings):
             s=stats(events,decisions,profile)
             strokes=" ".join(sn(d.stroke) for d in decisions)
             lines.append(f"  {profile.value.upper():4} strokes={strokes} sweeps={s['sweeps']} alt_cross={s['alternate_crossings']} compatible={s['compatible']} trapped={s['trapped']}")
+    crossing_states=[TA,TI]
+    lines+=["","P7C INSIDE / OUTSIDE CROSSING PROBE"]
+    for preference in (CrossingPreference.AUTO, CrossingPreference.INSIDE, CrossingPreference.OUTSIDE):
+        events=normalize_picking_events([crossing_states],[crossing_states],TI,TA,OFF,stage_id=f"diag:crossing:{preference.value}")
+        decisions=economy_pick_events(events,cyclic=True,crossing_preference=preference)
+        strokes=" ".join(sn(d.stroke) for d in decisions)
+        geometry=" ".join(
+            d.crossing_geometry.value if d.crossing_geometry is not None else "-"
+            for d in decisions
+        )
+        lines.append(f"  {preference.value.upper():7} strokes={strokes} geometry={geometry}")
+
     ramp_pattern=[[TA,TI,TI,TA],[TA,TI,TI,TA],[TA,TI,TI,TA],[TI,TA,TI,TA]]
     lines+=["","RAMP 1->2->3->4 PROFILE OUTPUT"]
     for profile in PROFILES:

@@ -26,6 +26,21 @@ class EscapeProfile(str, Enum):
     DBX = "dbx"
 
 
+class CrossingPreference(str, Enum):
+    """Optional Economy preference for alternate string-crossing geometry."""
+
+    AUTO = "auto"
+    INSIDE = "inside"
+    OUTSIDE = "outside"
+
+
+class CrossingGeometry(str, Enum):
+    """Geometry of an alternating adjacent-string crossing."""
+
+    INSIDE = "inside"
+    OUTSIDE = "outside"
+
+
 def normalize_escape_profile(
     value: EscapeProfile | str | None,
 ) -> EscapeProfile:
@@ -35,6 +50,17 @@ def normalize_escape_profile(
         return EscapeProfile(str(value or "auto").lower())
     except ValueError:
         return EscapeProfile.AUTO
+
+
+def normalize_crossing_preference(
+    value: CrossingPreference | str | None,
+) -> CrossingPreference:
+    if isinstance(value, CrossingPreference):
+        return value
+    try:
+        return CrossingPreference(str(value or "auto").lower())
+    except ValueError:
+        return CrossingPreference.AUTO
 
 
 @dataclass(frozen=True)
@@ -435,6 +461,7 @@ def _solve_economy_constrained(
     cyclic: bool,
     start_direction: str | None = None,
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
+    crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> list[str]:
     """Exact DP for Economy with shared motif-direction variables.
 
@@ -470,6 +497,7 @@ def _solve_economy_constrained(
 
     directions = (DOWN, UP)
     profile = normalize_escape_profile(escape_profile)
+    crossing = normalize_crossing_preference(crossing_preference)
     fixed_start = start_direction if start_direction in directions else None
     # state -> (cost, path). State stores previous stroke, first stroke for the
     # cyclic closing edge, and currently-live shared motif assignments.
@@ -532,6 +560,7 @@ def _solve_economy_constrained(
                         event.string,
                         stroke,
                         escape_profile=profile,
+                        crossing_preference=crossing,
                     )
 
                 next_assignments = dict(assignments)
@@ -600,6 +629,7 @@ def _solve_economy_constrained(
                 first_event.string,
                 first_stroke,
                 escape_profile=profile,
+                crossing_preference=crossing,
             )
 
         if best_path is None or total < best_cost:
@@ -633,6 +663,7 @@ class PickDecision:
     sweep_group_id: str | None
     reason: str
     attack_parity: int | None
+    crossing_geometry: CrossingGeometry | None = None
     loop_boundary: bool = False
 
 
@@ -663,6 +694,65 @@ def classify_pick_transition(
         return PickingTransition.DIRECTIONAL_SWEEP
 
     return PickingTransition.WRONG_DIRECTION_CROSSING
+
+
+def classify_alternate_crossing_geometry(
+    previous_string: int,
+    previous_stroke: str,
+    string: int,
+    stroke: str,
+) -> CrossingGeometry | None:
+    """Classify an alternating adjacent-string change as inside or outside."""
+    if (
+        classify_pick_transition(
+            previous_string,
+            previous_stroke,
+            string,
+            stroke,
+        )
+        is not PickingTransition.ALTERNATE_CROSSING
+    ):
+        return None
+
+    inside = (
+        previous_string == 6
+        and string == 5
+        and previous_stroke == DOWN
+    ) or (
+        previous_string == 5
+        and string == 6
+        and previous_stroke == UP
+    )
+    return CrossingGeometry.INSIDE if inside else CrossingGeometry.OUTSIDE
+
+
+def crossing_preference_adjustment(
+    crossing_preference: CrossingPreference | str | None,
+    previous_string: int,
+    previous_stroke: str,
+    string: int,
+    stroke: str,
+) -> float:
+    """Return the P7c soft score for inside/outside alternate crossings."""
+    preference = normalize_crossing_preference(crossing_preference)
+    if preference is CrossingPreference.AUTO:
+        return 0.0
+
+    geometry = classify_alternate_crossing_geometry(
+        previous_string,
+        previous_stroke,
+        string,
+        stroke,
+    )
+    if geometry is None:
+        return 0.0
+
+    wanted = (
+        CrossingGeometry.INSIDE
+        if preference is CrossingPreference.INSIDE
+        else CrossingGeometry.OUTSIDE
+    )
+    return -0.75 if geometry is wanted else 3.0
 
 
 def escape_profile_crossing_status(
@@ -737,6 +827,7 @@ def _economy_transition_cost_v2(
     stroke: str,
     *,
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
+    crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> float:
     transition = classify_pick_transition(
         previous_string,
@@ -757,12 +848,22 @@ def _economy_transition_cost_v2(
     else:
         raise AssertionError(f"unexpected transition: {transition}")
 
-    return base + escape_profile_adjustment(
-        escape_profile,
-        previous_string,
-        previous_stroke,
-        string,
-        stroke,
+    return (
+        base
+        + escape_profile_adjustment(
+            escape_profile,
+            previous_string,
+            previous_stroke,
+            string,
+            stroke,
+        )
+        + crossing_preference_adjustment(
+            crossing_preference,
+            previous_string,
+            previous_stroke,
+            string,
+            stroke,
+        )
     )
 
 
@@ -801,6 +902,7 @@ def _solve_economy_attack_segment(
     cyclic: bool,
     start_direction: str | None = None,
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
+    crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> list[str]:
     """Choose DOWN/UP for one reset-free attack segment."""
     if not attacks:
@@ -808,6 +910,7 @@ def _solve_economy_attack_segment(
 
     directions = (DOWN, UP)
     profile = normalize_escape_profile(escape_profile)
+    crossing = normalize_crossing_preference(crossing_preference)
     fixed_start = start_direction if start_direction in directions else None
     best_total = float("inf")
     best_result: list[str] | None = None
@@ -842,6 +945,7 @@ def _solve_economy_attack_segment(
                         string,
                         stroke,
                         escape_profile=profile,
+                        crossing_preference=crossing,
                     )
                     if candidate < best_cost:
                         best_cost = candidate
@@ -887,6 +991,7 @@ def economy_pick_events(
     cyclic: bool,
     start_direction: str | None = None,
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
+    crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> list[PickDecision]:
     """Solve practical directional Economy on normalized PickingEvent data.
 
@@ -954,6 +1059,7 @@ def economy_pick_events(
         cyclic=cyclic,
         start_direction=start_direction,
         escape_profile=escape_profile,
+        crossing_preference=crossing_preference,
     )
     for event_index, stroke in zip(attack_indices, constrained_strokes):
         strokes_by_event[event_index] = stroke
@@ -964,6 +1070,7 @@ def economy_pick_events(
 
     transition_by_event: dict[int, PickingTransition] = {}
     reason_by_event: dict[int, str] = {}
+    geometry_by_event: dict[int, CrossingGeometry | None] = {}
     loop_by_event: dict[int, bool] = {}
     sweep_group_by_event: dict[int, str] = {}
 
@@ -984,6 +1091,12 @@ def economy_pick_events(
                         stroke,
                     )
                     transition_by_event[event_index] = transition
+                    geometry_by_event[event_index] = classify_alternate_crossing_geometry(
+                        previous_event.string,
+                        previous_stroke,
+                        event.string,
+                        stroke,
+                    )
                     reason_by_event[event_index] = (
                         "loop boundary: "
                         + _transition_reason(
@@ -1002,6 +1115,7 @@ def economy_pick_events(
                         else PickingTransition.NONE
                     )
                     transition_by_event[event_index] = transition
+                    geometry_by_event[event_index] = None
                     if transition is PickingTransition.RESET:
                         reason_by_event[event_index] = (
                             f"explicit phrase reset; start {stroke}"
@@ -1023,6 +1137,12 @@ def economy_pick_events(
                 stroke,
             )
             transition_by_event[event_index] = transition
+            geometry_by_event[event_index] = classify_alternate_crossing_geometry(
+                previous_event.string,
+                previous_stroke,
+                event.string,
+                stroke,
+            )
             reason_by_event[event_index] = _transition_reason(
                 transition,
                 previous_event.string,
@@ -1060,6 +1180,7 @@ def economy_pick_events(
             sweep_group_id=sweep_group_by_event.get(event_index),
             reason=reason_by_event[event_index],
             attack_parity=parity_by_event[event_index],
+            crossing_geometry=geometry_by_event.get(event_index),
             loop_boundary=loop_by_event[event_index],
         )
 
@@ -1079,6 +1200,7 @@ def economy_pick_beats_v2(
     stage_id: str = "economy",
     start_direction: str | None = None,
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
+    crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> list[list[str | None]]:
     """Compatibility projection for the P3 event-based Economy engine."""
     events = normalize_picking_events(
@@ -1096,6 +1218,7 @@ def economy_pick_beats_v2(
         cyclic=cyclic,
         start_direction=start_direction,
         escape_profile=escape_profile,
+        crossing_preference=crossing_preference,
     )
     return picking_directions_by_beat(
         events,
@@ -1112,10 +1235,12 @@ def _best_placeholder_bridge(
     placeholder_count: int,
     *,
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
+    crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> tuple[float, tuple[str, ...]]:
     """Optimize a stage-local string-6 placeholder chain between real attacks."""
     count = max(0, int(placeholder_count))
     profile = normalize_escape_profile(escape_profile)
+    crossing = normalize_crossing_preference(crossing_preference)
     if count == 0:
         return (
             _economy_transition_cost_v2(
@@ -1124,6 +1249,7 @@ def _best_placeholder_bridge(
                 first_string,
                 first_stroke,
                 escape_profile=profile,
+                crossing_preference=crossing,
             ),
             (),
         )
@@ -1142,6 +1268,7 @@ def _best_placeholder_bridge(
                 6,
                 stroke,
                 escape_profile=profile,
+                crossing_preference=crossing,
             ),
             0,
             int(previous_string == 6 and previous_stroke == stroke),
@@ -1166,6 +1293,7 @@ def _best_placeholder_bridge(
                         6,
                         stroke,
                         escape_profile=profile,
+                        crossing_preference=crossing,
                     ),
                     repeats + int(previous_placeholder == stroke),
                     entry_repeat,
@@ -1192,6 +1320,7 @@ def _best_placeholder_bridge(
                 first_string,
                 first_stroke,
                 escape_profile=profile,
+                crossing_preference=crossing,
             ),
             repeats,
             entry_repeat,
@@ -1211,6 +1340,7 @@ def _joint_ramp_real_strokes(
     *,
     start_direction: str | None = None,
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
+    crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> dict[str, str]:
     """Solve all real Ramp attacks once across every practised stage.
 
@@ -1314,6 +1444,7 @@ def _joint_ramp_real_strokes(
 
     directions = (DOWN, UP)
     profile = normalize_escape_profile(escape_profile)
+    crossing = normalize_crossing_preference(crossing_preference)
     fixed_start = start_direction if start_direction in directions else None
     # State: previous real stroke, first real stroke, live motif assignments.
     states: dict[
@@ -1380,6 +1511,7 @@ def _joint_ramp_real_strokes(
                         candidate_first,
                         placeholder_count,
                         escape_profile=profile,
+                        crossing_preference=crossing,
                     )
                     candidate_cost += boundary_cost
 
@@ -1441,6 +1573,7 @@ def economy_pick_ramp_stages_v2(
     *,
     start_direction: str | None = None,
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
+    crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> dict[int, list[list[str | None]]]:
     """Jointly solve all requested Ramp stages.
 
@@ -1483,6 +1616,7 @@ def economy_pick_ramp_stages_v2(
         stage_events,
         start_direction=start_direction,
         escape_profile=escape_profile,
+        crossing_preference=crossing_preference,
     )
 
     result: dict[int, list[list[str | None]]] = {}
@@ -1525,6 +1659,7 @@ def economy_pick_ramp_stages_v2(
                     first_stroke,
                     len(placeholder_attack_indices),
                     escape_profile=escape_profile,
+                    crossing_preference=crossing_preference,
                 )
             else:
                 placeholder_events = [
@@ -1537,6 +1672,7 @@ def economy_pick_ramp_stages_v2(
                         cyclic=True,
                         start_direction=start_direction,
                         escape_profile=escape_profile,
+                        crossing_preference=crossing_preference,
                     )
                 )
 

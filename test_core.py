@@ -24,6 +24,8 @@ from picking_logic import (
     PICKING_COVERED,
     UP,
     EscapeProfile,
+    CrossingGeometry,
+    CrossingPreference,
     PickDecision,
     PickingEventSource,
     PickingTransition,
@@ -36,6 +38,8 @@ from picking_logic import (
     economy_pick_ramp_stages_v2,
     escape_profile_adjustment,
     escape_profile_crossing_status,
+    classify_alternate_crossing_geometry,
+    crossing_preference_adjustment,
     normalize_picking_events,
     normalize_ramp_stage_events,
     picking_directions_by_beat,
@@ -840,6 +844,68 @@ for beat_index in range(4):
     for active in p5_stages:
         if beat_index < active:
             assert p7b_ramp[active][beat_index] == reference
+
+
+# Picking Logic v2 P7c: inside/outside alternate-crossing preference.
+assert classify_alternate_crossing_geometry(
+    6, DOWN, 5, UP
+) is CrossingGeometry.INSIDE
+assert classify_alternate_crossing_geometry(
+    5, UP, 6, DOWN
+) is CrossingGeometry.INSIDE
+assert classify_alternate_crossing_geometry(
+    6, UP, 5, DOWN
+) is CrossingGeometry.OUTSIDE
+assert classify_alternate_crossing_geometry(
+    5, DOWN, 6, UP
+) is CrossingGeometry.OUTSIDE
+assert classify_alternate_crossing_geometry(
+    6, DOWN, 5, DOWN
+) is None
+
+p7c_crossing_events = normalize_picking_events(
+    [[TA, TI]],
+    [[TA, TI]],
+    TI,
+    TA,
+    OFF,
+    stage_id="p7c:crossing",
+)
+p7c_inside = economy_pick_events(
+    p7c_crossing_events,
+    cyclic=True,
+    crossing_preference=CrossingPreference.INSIDE,
+)
+p7c_outside = economy_pick_events(
+    p7c_crossing_events,
+    cyclic=True,
+    crossing_preference=CrossingPreference.OUTSIDE,
+)
+assert [decision.stroke for decision in p7c_inside] == [DOWN, UP]
+assert [decision.stroke for decision in p7c_outside] == [UP, DOWN]
+assert all(
+    decision.crossing_geometry is CrossingGeometry.INSIDE
+    for decision in p7c_inside
+)
+assert all(
+    decision.crossing_geometry is CrossingGeometry.OUTSIDE
+    for decision in p7c_outside
+)
+assert crossing_preference_adjustment(
+    CrossingPreference.INSIDE, 6, DOWN, 5, UP
+) < 0
+assert crossing_preference_adjustment(
+    CrossingPreference.INSIDE, 6, UP, 5, DOWN
+) > 0
+
+# P7c remains a soft preference and composes with explicit escape mechanics.
+p7c_usx_inside = economy_pick_events(
+    p7c_crossing_events,
+    cyclic=True,
+    escape_profile=EscapeProfile.USX,
+    crossing_preference=CrossingPreference.INSIDE,
+)
+assert all(decision.stroke in (DOWN, UP) for decision in p7c_usx_inside)
 
 
 # Training modes remain additive: the original repeat and beat-ramp modes are
