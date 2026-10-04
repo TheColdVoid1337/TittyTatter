@@ -59,6 +59,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Picking v2 P5 | joint Ramp 1->full and 2->full solving; persistent real-stroke equality across stages; P4 motif preservation; stage-local alternating TA placeholders; useful sweep retention; covered-beat handling; deterministic joint output |
 | Picking v2 P6 | live app routes only v2 Alternate/Economy/Ramp solvers; Loop/Ramp/Alternate visual acceptance passed; transitional implementation removed in `debda3e`; post-cleanup `./tt check` passed on `0df6f88` |
 | Picking v2 P7a | PASS on `10ab611`: Strict Alternate Auto/DOWN/UP first-stroke control; Economy/Ramp hide/ignore the override and stay Auto; DOWN/UP flips whole Alternate polarity; full `./tt check` green; internal Economy constraint hook remains regression-tested |
+| Picking v2 P7b | Auto/USX/DSX/DBX scoring probes; USX/DSX complete-solution divergence corpus; DBX accepts either escaped stroke; Ramp persistent identities stay stable under profile scoring; `./tt picking-log` emits profile/Ramp report and self-test |
 | Syntax | application modules compile |
 
 ## Automated export coverage
@@ -263,6 +264,10 @@ Current manual status on `e611ec2`:
 #### Economy
 
 - TI/TA reference strings are correct;
+- P7b mechanics selector is visible only for Economy;
+- Auto / USX / DSX / DBX selection persists;
+- USX / DSX / DBX does not remove valid directional sweeps;
+- use `./tt picking-log` as the primary algorithmic acceptance artifact rather than screenshots;
 - repeated single-beat pattern `A A A A` preserves period 1;
 - repeated `A B A B` preserves period 2;
 - cyclic boundary behaves correctly in Loop;

@@ -219,3 +219,19 @@ Real stored-pattern attacks keep persistent identities and therefore one stroke 
 
 **Reason:** stroke direction alone does not determine escape behavior. Personalized mechanics may become an advanced preference later, but they require an explicit user choice rather than inference.
 
+## D-039 — Escape mechanics are explicit soft Economy preferences
+
+**Decision:** Economy may accept an explicit `AUTO / USX / DSX / DBX` profile, but TittyTatter must never infer that profile from stroke arrows or rhythm data.
+
+USX prefers alternate string changes after an upstroke, DSX after a downstroke, and DBX accepts either. These preferences affect scoring rather than acting as absolute prohibitions. Directional sweeps remain a separate Economy mechanism and are not disabled by escape-profile selection.
+
+**Reason:** real players can use helper motions, swiping, or mixed mechanics. A soft explicit preference improves mechanical relevance without pretending the current two-string model completely describes a player's biomechanics.
+
+## D-040 — Picking algorithm acceptance should be loggable
+
+**Decision:** advanced Picking Logic changes should provide deterministic terminal diagnostics where practical.
+
+For P7b, `./tt picking-log` is the canonical algorithmic evidence artifact. It should include the current Git HEAD, saved profile, discriminating patterns, Ramp results, and PASS/FAIL self-tests.
+
+**Reason:** solver behavior is more reliably reviewed as exact text than by manually comparing screenshots of arrows.
+

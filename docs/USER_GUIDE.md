@@ -230,6 +230,7 @@ Current controls include:
 
 - enable/disable Picking Guide;
 - picking strategy;
+- strategy-specific advanced control;
 - show following strokes;
 - number of following strokes;
 - current-beat highlighting;
@@ -246,17 +247,31 @@ Current reference mapping:
 - TI → string 5;
 - TA → string 6.
 
-Repeated whole-beat patterns preserve their minimal repeating beat period, so identical repeated beats do not receive inconsistent arrows merely because the full bar was flattened.
+Repeated whole-beat motifs keep one stable motor pattern. Ramp stages are solved jointly so already-open real attacks keep the same strokes as later beats appear.
 
-Ramp stages are treated as cyclic effective bars.
+OFF slots do not reset picking continuity unless an explicit reset boundary is part of the exercise.
 
-Rests split picking continuity.
+When Economy is selected, **Механика Economy** offers:
+
+- **Авто** — no escape-motion preference;
+- **USX — смена после ↑** — prefer alternate string changes after an upstroke escape;
+- **DSX — смена после ↓** — prefer alternate string changes after a downstroke escape;
+- **DBX — смена после ↑/↓** — either stroke can be an escape for alternate string changes.
+
+The profile is a preference, not an automatic diagnosis of the player's technique. Directional sweeps remain available in every profile.
 
 ### Строго переменный ↓↑
 
 Alternates down/up across attacks.
 
 Rests do not consume a picking direction.
+
+The **Первый штрих** control appears only for Strict Alternate:
+
+- Auto / Down starts DOWN;
+- Up starts UP.
+
+Economy does not expose this start-stroke override because Economy chooses start polarity globally.
 
 ### Following strokes
 
@@ -378,6 +393,18 @@ Current historical defaults:
 Audio settings expose the available output-device/system controls, including sample rate, block size, latency request, and WASAPI options where supported.
 
 Stop playback before changing audio-system settings.
+
+## Picking diagnostics
+
+For Picking Logic / mechanics-profile validation, run:
+
+```bash
+./tt picking-log
+```
+
+This prints a deterministic Auto/USX/DSX/DBX comparison and saves the same report under `logs/picking_p7b_*.txt`.
+
+The report is designed to be pasted directly into a bug/validation conversation, so screenshots are not required for algorithmic P7b checks.
 
 ## Diagnostic logs
 

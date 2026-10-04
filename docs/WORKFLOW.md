@@ -238,6 +238,14 @@ or:
 ./tt run --log
 ```
 
+Picking Logic mechanics diagnostics:
+
+```bash
+./tt picking-log
+```
+
+Use the generated `logs/picking_p7b_*.txt` as first-class evidence for P7b algorithm/profile behavior; screenshots are not required when the question is about solver output rather than UI geometry.
+
 The project uses a native Windows virtual environment. From WSL the direct interpreter is:
 
 ```text
@@ -251,10 +259,11 @@ Do not instruct this project to use `.venv/bin/activate`; that is not the canoni
 `./tt check` currently covers approximately:
 
 1. `test_core.py`;
-2. Python compile checks for application modules;
-3. `test_exports.py`;
-4. `test_game_logger.py`;
-5. dependency imports.
+2. Python compile checks for application modules, including `picking_diagnostics.py`;
+3. Picking Logic diagnostic self-test;
+4. `test_exports.py`;
+5. `test_game_logger.py`;
+6. dependency imports.
 
 A normal green result ends with:
 
@@ -262,6 +271,8 @@ A normal green result ends with:
 == core tests ==
 core tests OK
 == compile ==
+== picking diagnostics ==
+picking diagnostics OK
 == export tests ==
 export tests OK
 == game log tests ==
