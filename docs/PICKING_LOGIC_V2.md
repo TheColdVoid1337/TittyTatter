@@ -1040,15 +1040,40 @@ The command writes `logs/picking_p7b_YYYYMMDD_HHMMSS.txt` and prints the same re
 
 For P7b algorithm validation, this log is preferred evidence over screenshots.
 
-### Later optional P7 work
+### P7c — inside / outside crossing preference — IMPLEMENTED / LOCAL LOG PENDING
 
-Still optional after P7b:
+Economy now has a second independent mechanical preference:
 
-- inside/outside preference tuning;
-- sweep-link visualization;
-- rhythmic/ghost-stroke Alternate mode.
+- **Auto** — neutral inside/outside scoring;
+- **Inside** — prefer alternating crossings where both pick strokes point into the gap between the two strings;
+- **Outside** — prefer the opposite geometry.
 
-P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`: `./tt check` was green, `saved_escape_profile=usx`, profile-discriminating cyclic cases were emitted, joint Ramp output remained stable, and the report ended with `SELF-TEST PASS`.
+For the current string-6 / string-5 model:
+
+- 6 DOWN -> 5 UP = inside;
+- 5 UP -> 6 DOWN = inside;
+- 6 UP -> 5 DOWN = outside;
+- 5 DOWN -> 6 UP = outside.
+
+The preference is soft. It only adjusts true alternate string crossings and does not rewrite same-string alternation or directional sweeps. Escape profile and crossing preference are additive scoring inputs, so USX/DSX/DBX remains the stronger biomechanics constraint when the two preferences disagree.
+
+`PickDecision` records `crossing_geometry` for diagnostics. The live Economy UI persists Auto / Inside / Outside and hides the control for Strict Alternate.
+
+### P7d — sweep-link visualization — IMPLEMENTED / LOCAL GUI+LOG PENDING
+
+Directional sweeps are exposed as presentation metadata through `SweepLink` / `detect_sweep_links()`.
+
+The live Picking overlay can draw a thin same-color connector between the two attacks of a valid directional sweep. The link is derived from already-solved strokes; it never changes optimizer output.
+
+The Economy UI includes **Показывать связи sweep**. The setting is persisted and hidden for Strict Alternate.
+
+`./tt picking-log` now contains a P7d sweep-link probe with exact source/target coordinates, so the algorithmic relation can be reviewed without screenshots. One quick GUI smoke is still required to confirm that the connector is readable and does not obscure the arrows.
+
+### P7e — deferred
+
+Rhythmic / ghost-stroke Alternate remains explicitly deferred. Public Strict Alternate continues to mean attack-alternate.
+
+P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`. P7c/P7d require the normal `./tt check`, one `./tt picking-log`, and a brief verbal GUI confirmation; screenshots are not required.
 
 ---
 
