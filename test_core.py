@@ -680,6 +680,60 @@ assert p6_stage1_placeholders[0] != p6_stage1_placeholders[1]
 assert p6_stage1_placeholders[0] == p6_stage1_placeholders[2]
 
 
+# Picking Logic v2 P7a: optional explicit first-stroke override.
+p7_simple_events = normalize_picking_events(
+    [[TA, TI]],
+    [[TA, TI]],
+    TI,
+    TA,
+    OFF,
+    stage_id="p7:start",
+)
+assert [
+    decision.stroke
+    for decision in economy_pick_events(
+        p7_simple_events,
+        cyclic=False,
+        start_direction=DOWN,
+    )
+] == [DOWN, DOWN]
+assert [
+    decision.stroke
+    for decision in economy_pick_events(
+        p7_simple_events,
+        cyclic=False,
+        start_direction=UP,
+    )
+] == [UP, DOWN]
+
+# Auto remains the established optimizer behavior.
+assert economy_pick_events(
+    p7_simple_events,
+    cyclic=False,
+) == economy_pick_events(
+    p7_simple_events,
+    cyclic=False,
+    start_direction=None,
+)
+
+# Ramp uses the same fixed first real stroke across all stages.
+p7_ramp_up = economy_pick_ramp_stages_v2(
+    p5_full,
+    p5_stages,
+    TI,
+    TA,
+    OFF,
+    start_direction=UP,
+)
+for active in p5_stages:
+    assert p7_ramp_up[active][0][0] == UP
+
+# Alternate supports the same user override while Auto/invalid still defaults
+# to the product's normal DOWN-first attack-alternate behavior.
+assert alternate_pick_events(p2_events, start_direction=UP)[0] == UP
+assert alternate_pick_events(p2_events, start_direction=None)[0] == DOWN
+
+
 # Training modes remain additive: the original repeat and beat-ramp modes are
 # preserved while the new guitar-practice modes share the same engine timeline.
 assert [key for key, _label in TRAINING_MODES][:3] == ["loop", "ramp_1_4", "ramp_2_4"]

@@ -62,6 +62,8 @@ from game_logic import (
 )
 from model import BarPattern, BeatPattern
 from picking_logic import (
+    DOWN,
+    UP,
     alternate_pick_beats_v2,
     economy_pick_beats_v2,
     economy_pick_ramp_stages_v2,
@@ -1940,6 +1942,13 @@ class MainWindow(QMainWindow):
         self.picking_strategy.currentIndexChanged.connect(self._picking_settings_changed)
         form.addRow("Тактика:", self.picking_strategy)
 
+        self.picking_start_stroke = QComboBox()
+        self.picking_start_stroke.addItem("Авто", "auto")
+        self.picking_start_stroke.addItem("Вниз ↓", "down")
+        self.picking_start_stroke.addItem("Вверх ↑", "up")
+        self.picking_start_stroke.currentIndexChanged.connect(self._picking_settings_changed)
+        form.addRow("Первый штрих:", self.picking_start_stroke)
+
         self.picking_show_next = QCheckBox("Показывать следующие штрихи справа")
         self.picking_show_next.setChecked(True)
         self.picking_show_next.toggled.connect(self._picking_settings_changed)
@@ -3146,6 +3155,7 @@ class MainWindow(QMainWindow):
         enabled = self.picking_enabled.isChecked()
         for widget in (
             getattr(self, "picking_strategy", None),
+            getattr(self, "picking_start_stroke", None),
             getattr(self, "picking_show_next", None),
             getattr(self, "picking_highlight_current", None),
             getattr(self, "picking_cue_size", None),
@@ -3157,6 +3167,16 @@ class MainWindow(QMainWindow):
             self.picking_next_count.setEnabled(
                 enabled and self.picking_show_next.isChecked()
             )
+
+    def _picking_start_direction(self) -> str | None:
+        if not hasattr(self, "picking_start_stroke"):
+            return None
+        value = self.picking_start_stroke.currentData()
+        if value == "down":
+            return DOWN
+        if value == "up":
+            return UP
+        return None
 
     def _picking_settings_changed(self, *_args) -> None:
         if self.picking_enabled.isChecked() and self.game_enabled.isChecked():
@@ -3213,6 +3233,8 @@ class MainWindow(QMainWindow):
             full_beat_states.append(full_states)
             beat_states.append(states)
 
+        start_direction = self._picking_start_direction()
+
         if self.picking_strategy.currentData() == "alternate":
             directions_by_beat = alternate_pick_beats_v2(
                 full_beat_states,
@@ -3221,6 +3243,7 @@ class MainWindow(QMainWindow):
                 TA,
                 OFF,
                 placeholder_beats=placeholder_beats,
+                start_direction=start_direction,
                 stage_id=f"{mode}:alternate:{active}",
             )
         elif mode in RAMP_MODES:
@@ -3233,6 +3256,7 @@ class MainWindow(QMainWindow):
                 TI,
                 TA,
                 OFF,
+                start_direction=start_direction,
             )[active]
         else:
             directions_by_beat = economy_pick_beats_v2(
@@ -3243,6 +3267,7 @@ class MainWindow(QMainWindow):
                 OFF,
                 cyclic=True,
                 stage_id=f"{mode}:economy",
+                start_direction=start_direction,
             )
         row5: list[list[str]] = []
         row6: list[list[str]] = []
@@ -3902,6 +3927,7 @@ class MainWindow(QMainWindow):
             "picking": {
                 "enabled": self.picking_enabled.isChecked(),
                 "strategy": self.picking_strategy.currentData(),
+                "start_stroke": self.picking_start_stroke.currentData(),
                 "show_next": self.picking_show_next.isChecked(),
                 "next_count": self.picking_next_count.value(),
                 "highlight_current": self.picking_highlight_current.isChecked(),
@@ -4037,6 +4063,7 @@ class MainWindow(QMainWindow):
 
         picking = data.get("picking", {})
         self._combo_data(self.picking_strategy, picking.get("strategy", "economy"))
+        self._combo_data(self.picking_start_stroke, picking.get("start_stroke", "auto"))
         self.picking_show_next.setChecked(bool(picking.get("show_next", True)))
         self.picking_next_count.setValue(int(picking.get("next_count", 1)))
         self.picking_highlight_current.setChecked(bool(picking.get("highlight_current", True)))
@@ -4151,6 +4178,7 @@ class MainWindow(QMainWindow):
         self.visual.set_game_stats(False, 0, 0, [], 0)
 
         self._combo_data(self.picking_strategy, "economy")
+        self._combo_data(self.picking_start_stroke, "auto")
         self.picking_show_next.setChecked(True)
         self.picking_next_count.setValue(1)
         self.picking_highlight_current.setChecked(True)

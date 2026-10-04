@@ -227,7 +227,7 @@ def normalize_ramp_stage_events(
 def alternate_pick_events(
     events: list[PickingEvent],
     *,
-    start_direction: str = DOWN,
+    start_direction: str | None = DOWN,
 ) -> list[str | None]:
     """Assign deterministic attack-alternate strokes to normalized events.
 
@@ -293,7 +293,7 @@ def alternate_pick_beats_v2(
     off_state: str,
     *,
     placeholder_beats: set[int] | frozenset[int] | tuple[int, ...] = (),
-    start_direction: str = DOWN,
+    start_direction: str | None = DOWN,
     stage_id: str = "alternate",
 ) -> list[list[str | None]]:
     """Compatibility adapter for Alternate v2.
@@ -413,6 +413,7 @@ def _solve_economy_constrained(
     attack_indices: list[int],
     *,
     cyclic: bool,
+    start_direction: str | None = None,
 ) -> list[str]:
     """Exact DP for Economy with shared motif-direction variables.
 
@@ -447,6 +448,7 @@ def _solve_economy_constrained(
     }
 
     directions = (DOWN, UP)
+    fixed_start = start_direction if start_direction in directions else None
     # state -> (cost, path). State stores previous stroke, first stroke for the
     # cyclic closing edge, and currently-live shared motif assignments.
     states: dict[
@@ -477,6 +479,8 @@ def _solve_economy_constrained(
             assignments = dict(assignments_tuple)
             if key is not None and key in assignments:
                 choices = (assignments[key],)
+            elif position == 0 and fixed_start is not None:
+                choices = (fixed_start,)
             else:
                 choices = directions
 
@@ -494,7 +498,10 @@ def _solve_economy_constrained(
             for stroke in choices:
                 candidate_cost = cost
                 if effective_previous is None:
-                    candidate_cost += 0.0 if stroke == DOWN else 0.01
+                    if position == 0 and fixed_start is not None:
+                        candidate_cost += 0.0
+                    else:
+                        candidate_cost += 0.0 if stroke == DOWN else 0.01
                 else:
                     assert previous_string in (5, 6)
                     candidate_cost += _economy_transition_cost_v2(
@@ -692,20 +699,25 @@ def _solve_economy_attack_segment(
     attacks: list[PickingEvent],
     *,
     cyclic: bool,
+    start_direction: str | None = None,
 ) -> list[str]:
     """Choose DOWN/UP for one reset-free attack segment."""
     if not attacks:
         return []
 
     directions = (DOWN, UP)
+    fixed_start = start_direction if start_direction in directions else None
     best_total = float("inf")
     best_result: list[str] | None = None
 
-    for first_stroke in directions:
+    first_choices = (fixed_start,) if fixed_start is not None else directions
+    for first_stroke in first_choices:
         layers: list[dict[str, tuple[float, str | None]]] = [
             {
                 first_stroke: (
-                    0.0 if first_stroke == DOWN else 0.01,
+                    0.0
+                    if fixed_start is not None
+                    else (0.0 if first_stroke == DOWN else 0.01),
                     None,
                 )
             }
@@ -769,6 +781,7 @@ def economy_pick_events(
     events: list[PickingEvent],
     *,
     cyclic: bool,
+    start_direction: str | None = None,
 ) -> list[PickDecision]:
     """Solve practical directional Economy on normalized PickingEvent data.
 
@@ -834,6 +847,7 @@ def economy_pick_events(
         events,
         attack_indices,
         cyclic=cyclic,
+        start_direction=start_direction,
     )
     for event_index, stroke in zip(attack_indices, constrained_strokes):
         strokes_by_event[event_index] = stroke
@@ -957,6 +971,7 @@ def economy_pick_beats_v2(
     reset_before_beats: set[int] | frozenset[int] | tuple[int, ...] = (),
     cyclic: bool = True,
     stage_id: str = "economy",
+    start_direction: str | None = None,
 ) -> list[list[str | None]]:
     """Compatibility projection for the P3 event-based Economy engine."""
     events = normalize_picking_events(
@@ -969,7 +984,11 @@ def economy_pick_beats_v2(
         reset_before_beats=reset_before_beats,
         stage_id=stage_id,
     )
-    decisions = economy_pick_events(events, cyclic=cyclic)
+    decisions = economy_pick_events(
+        events,
+        cyclic=cyclic,
+        start_direction=start_direction,
+    )
     return picking_directions_by_beat(
         events,
         [decision.stroke for decision in decisions],
@@ -1074,6 +1093,8 @@ def _best_placeholder_bridge(
 def _joint_ramp_real_strokes(
     full_events: list[PickingEvent],
     stage_events: dict[int, list[PickingEvent]],
+    *,
+    start_direction: str | None = None,
 ) -> dict[str, str]:
     """Solve all real Ramp attacks once across every practised stage.
 
@@ -1176,6 +1197,7 @@ def _joint_ramp_real_strokes(
             )
 
     directions = (DOWN, UP)
+    fixed_start = start_direction if start_direction in directions else None
     # State: previous real stroke, first real stroke, live motif assignments.
     states: dict[
         tuple[str | None, str | None, tuple[tuple[str, str], ...]],
@@ -1198,6 +1220,8 @@ def _joint_ramp_real_strokes(
             assignments = dict(assignments_tuple)
             if key is not None and key in assignments:
                 choices = (assignments[key],)
+            elif position == 0 and fixed_start is not None:
+                choices = (fixed_start,)
             else:
                 choices = directions
 
@@ -1207,7 +1231,8 @@ def _joint_ramp_real_strokes(
                 if position == 0:
                     # One tiny global tie-break only. Individual Ramp stages
                     # are cyclic and therefore do not each impose a fake start.
-                    candidate_cost += 0.0 if stroke == DOWN else 0.01
+                    if fixed_start is None:
+                        candidate_cost += 0.0 if stroke == DOWN else 0.01
                     candidate_first = stroke
                 else:
                     assert previous_stroke in directions
@@ -1294,6 +1319,8 @@ def economy_pick_ramp_stages_v2(
     ti_state: str,
     ta_state: str,
     off_state: str,
+    *,
+    start_direction: str | None = None,
 ) -> dict[int, list[list[str | None]]]:
     """Jointly solve all requested Ramp stages.
 
@@ -1334,6 +1361,7 @@ def economy_pick_ramp_stages_v2(
     real_strokes = _joint_ramp_real_strokes(
         full_events,
         stage_events,
+        start_direction=start_direction,
     )
 
     result: dict[int, list[list[str | None]]] = {}
@@ -1385,6 +1413,7 @@ def economy_pick_ramp_stages_v2(
                     _solve_economy_attack_segment(
                         placeholder_events,
                         cyclic=True,
+                        start_direction=start_direction,
                     )
                 )
 
