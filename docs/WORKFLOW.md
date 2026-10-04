@@ -244,7 +244,7 @@ Picking Logic mechanics diagnostics:
 ./tt picking-log
 ```
 
-Use the generated `logs/picking_p7b_*.txt` as first-class evidence for P7b algorithm/profile behavior; screenshots are not required when the question is about solver output rather than UI geometry.
+Use the generated `logs/picking_v2_*.txt` as first-class evidence for advanced Picking Logic behavior. It covers escape profiles, inside/outside preference, and sweep-link metadata; screenshots are not required when the question is about solver output rather than UI geometry.
 
 The project uses a native Windows virtual environment. From WSL the direct interpreter is:
 
