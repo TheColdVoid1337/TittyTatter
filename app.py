@@ -64,7 +64,9 @@ from model import BarPattern, BeatPattern
 from picking_logic import (
     DOWN,
     UP,
+    SweepLink,
     alternate_pick_beats_v2,
+    detect_sweep_links,
     economy_pick_beats_v2,
     economy_pick_ramp_stages_v2,
 )
@@ -315,6 +317,7 @@ class MetronomeVisual(QWidget):
         self.picking_visible = False
         self.picking_row_5: list[list[str]] = []
         self.picking_row_6: list[list[str]] = []
+        self.picking_sweep_links: list[SweepLink] = []
         self.picking_show_next = True
         self.picking_next_count = 1
         self.picking_highlight_current = True
@@ -467,10 +470,12 @@ class MetronomeVisual(QWidget):
         visible: bool,
         row_5: list[list[str]] | None = None,
         row_6: list[list[str]] | None = None,
+        sweep_links: list[SweepLink] | None = None,
     ) -> None:
         self.picking_visible = bool(visible)
         self.picking_row_5 = [list(beat) for beat in (row_5 or [])]
         self.picking_row_6 = [list(beat) for beat in (row_6 or [])]
+        self.picking_sweep_links = list(sweep_links or [])
         self.update()
 
     def configure_picking(
@@ -800,6 +805,7 @@ class MetronomeVisual(QWidget):
         painter.drawText(QRectF(panel_left, y6 - 13, label_width, 18), Qt.AlignCenter, "6")
 
         x = panel_left + label_width
+        slot_centers: dict[tuple[int, int, int], tuple[float, float]] = {}
 
         def draw_cell(token: str, cx: float, cy: float) -> None:
             if token == "↑":
@@ -842,6 +848,14 @@ class MetronomeVisual(QWidget):
             for cell_index in range(cells):
                 token5 = beat5[cell_index] if cell_index < len(beat5) else " "
                 token6 = beat6[cell_index] if cell_index < len(beat6) else " "
+                slot_centers[(beat_index, cell_index, 5)] = (
+                    x + cell_width / 2.0,
+                    y5 - 4.0,
+                )
+                slot_centers[(beat_index, cell_index, 6)] = (
+                    x + cell_width / 2.0,
+                    y6 - 4.0,
+                )
                 draw_cell(token5, x, y5)
                 draw_cell(token6, x, y6)
                 x += cell_width
@@ -858,6 +872,54 @@ class MetronomeVisual(QWidget):
                     int(y6 + 4),
                 )
                 x += boundary_width
+
+        # Sweep links live only in the vertical gap between the two string
+        # rows. This makes a linked economy motion visible without changing
+        # arrow colors or obscuring the rhythm grid.
+        for link in self.picking_sweep_links:
+            from_token = self._picking_token_at(
+                link.from_beat,
+                link.from_subdivision,
+            )
+            to_token = self._picking_token_at(
+                link.to_beat,
+                link.to_subdivision,
+            )
+            if from_token is None or to_token is None:
+                continue
+            from_string = from_token[1]
+            to_string = to_token[1]
+            start = slot_centers.get(
+                (link.from_beat, link.from_subdivision, from_string)
+            )
+            end = slot_centers.get(
+                (link.to_beat, link.to_subdivision, to_string)
+            )
+            if start is None or end is None:
+                continue
+
+            if link.direction == "↑":
+                color = QColor(75, 220, 115, 175)
+            else:
+                color = QColor(235, 80, 80, 175)
+            painter.setPen(
+                QPen(color, 2, Qt.SolidLine, Qt.RoundCap)
+            )
+
+            start_x, _start_y = start
+            end_x, _end_y = end
+            if from_string == 6:
+                start_y = y6 - 11.0
+                end_y = y5 + 4.0
+            else:
+                start_y = y5 + 4.0
+                end_y = y6 - 11.0
+            painter.drawLine(
+                int(start_x),
+                int(start_y),
+                int(end_x),
+                int(end_y),
+            )
 
         painter.restore()
 
@@ -1960,6 +2022,24 @@ class MainWindow(QMainWindow):
             self._picking_settings_changed
         )
         form.addRow(self.picking_escape_label, self.picking_escape_profile)
+
+        self.picking_crossing_label = QLabel("Пересечения струн:")
+        self.picking_crossing_preference = QComboBox()
+        self.picking_crossing_preference.addItem("Авто", "auto")
+        self.picking_crossing_preference.addItem("Внутри", "inside")
+        self.picking_crossing_preference.addItem("Снаружи", "outside")
+        self.picking_crossing_preference.currentIndexChanged.connect(
+            self._picking_settings_changed
+        )
+        form.addRow(
+            self.picking_crossing_label,
+            self.picking_crossing_preference,
+        )
+
+        self.picking_show_sweeps = QCheckBox("Показывать связи sweep")
+        self.picking_show_sweeps.setChecked(True)
+        self.picking_show_sweeps.toggled.connect(self._picking_settings_changed)
+        form.addRow("", self.picking_show_sweeps)
 
         self.picking_show_next = QCheckBox("Показывать следующие штрихи справа")
         self.picking_show_next.setChecked(True)
@@ -3192,6 +3272,14 @@ class MainWindow(QMainWindow):
         if hasattr(self, "picking_escape_profile"):
             self.picking_escape_profile.setVisible(is_economy)
             self.picking_escape_profile.setEnabled(enabled and is_economy)
+        if hasattr(self, "picking_crossing_label"):
+            self.picking_crossing_label.setVisible(is_economy)
+        if hasattr(self, "picking_crossing_preference"):
+            self.picking_crossing_preference.setVisible(is_economy)
+            self.picking_crossing_preference.setEnabled(enabled and is_economy)
+        if hasattr(self, "picking_show_sweeps"):
+            self.picking_show_sweeps.setVisible(is_economy)
+            self.picking_show_sweeps.setEnabled(enabled and is_economy)
 
         if hasattr(self, "picking_next_count"):
             self.picking_next_count.setEnabled(
@@ -3219,6 +3307,17 @@ class MainWindow(QMainWindow):
             return "auto"
         value = str(self.picking_escape_profile.currentData() or "auto").lower()
         return value if value in {"auto", "usx", "dsx", "dbx"} else "auto"
+
+    def _picking_crossing_preference_value(self) -> str:
+        if (
+            not hasattr(self, "picking_crossing_preference")
+            or self.picking_strategy.currentData() != "economy"
+        ):
+            return "auto"
+        value = str(
+            self.picking_crossing_preference.currentData() or "auto"
+        ).lower()
+        return value if value in {"auto", "inside", "outside"} else "auto"
 
     def _picking_settings_changed(self, *_args) -> None:
         if self.picking_enabled.isChecked() and self.game_enabled.isChecked():
@@ -3277,6 +3376,7 @@ class MainWindow(QMainWindow):
 
         start_direction = self._picking_start_direction()
         escape_profile = self._picking_escape_profile_value()
+        crossing_preference = self._picking_crossing_preference_value()
 
         if self.picking_strategy.currentData() == "alternate":
             directions_by_beat = alternate_pick_beats_v2(
@@ -3300,6 +3400,7 @@ class MainWindow(QMainWindow):
                 TA,
                 OFF,
                 escape_profile=escape_profile,
+                crossing_preference=crossing_preference,
             )[active]
         else:
             directions_by_beat = economy_pick_beats_v2(
@@ -3311,7 +3412,20 @@ class MainWindow(QMainWindow):
                 cyclic=True,
                 stage_id=f"{mode}:economy",
                 escape_profile=escape_profile,
+                crossing_preference=crossing_preference,
             )
+        sweep_links: list[SweepLink] = []
+        if (
+            self.picking_strategy.currentData() == "economy"
+            and self.picking_show_sweeps.isChecked()
+        ):
+            sweep_links = detect_sweep_links(
+                beat_states,
+                directions_by_beat,
+                TI,
+                TA,
+            )
+
         row5: list[list[str]] = []
         row6: list[list[str]] = []
 
@@ -3337,7 +3451,12 @@ class MainWindow(QMainWindow):
             row5.append(beat5)
             row6.append(beat6)
 
-        self.visual.set_picking_pattern(True, row5, row6)
+        self.visual.set_picking_pattern(
+            True,
+            row5,
+            row6,
+            sweep_links=sweep_links,
+        )
 
     def _maybe_warn_ramp(self, st: dict) -> None:
         if self.mode.currentData() not in RAMP_MODES or not self.ramp_warning.isChecked():
@@ -3972,6 +4091,8 @@ class MainWindow(QMainWindow):
                 "strategy": self.picking_strategy.currentData(),
                 "start_stroke": self.picking_start_stroke.currentData(),
                 "escape_profile": self.picking_escape_profile.currentData(),
+                "crossing_preference": self.picking_crossing_preference.currentData(),
+                "show_sweeps": self.picking_show_sweeps.isChecked(),
                 "show_next": self.picking_show_next.isChecked(),
                 "next_count": self.picking_next_count.value(),
                 "highlight_current": self.picking_highlight_current.isChecked(),
@@ -4109,6 +4230,11 @@ class MainWindow(QMainWindow):
         self._combo_data(self.picking_strategy, picking.get("strategy", "economy"))
         self._combo_data(self.picking_start_stroke, picking.get("start_stroke", "auto"))
         self._combo_data(self.picking_escape_profile, picking.get("escape_profile", "auto"))
+        self._combo_data(
+            self.picking_crossing_preference,
+            picking.get("crossing_preference", "auto"),
+        )
+        self.picking_show_sweeps.setChecked(bool(picking.get("show_sweeps", True)))
         self.picking_show_next.setChecked(bool(picking.get("show_next", True)))
         self.picking_next_count.setValue(int(picking.get("next_count", 1)))
         self.picking_highlight_current.setChecked(bool(picking.get("highlight_current", True)))
@@ -4225,6 +4351,8 @@ class MainWindow(QMainWindow):
         self._combo_data(self.picking_strategy, "economy")
         self._combo_data(self.picking_start_stroke, "auto")
         self._combo_data(self.picking_escape_profile, "auto")
+        self._combo_data(self.picking_crossing_preference, "auto")
+        self.picking_show_sweeps.setChecked(True)
         self.picking_show_next.setChecked(True)
         self.picking_next_count.setValue(1)
         self.picking_highlight_current.setChecked(True)
