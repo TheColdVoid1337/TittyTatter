@@ -255,7 +255,7 @@ With Gap or Progressive Gap plus Game:
 Current manual status on `e611ec2`:
 
 - PASS — Ramp 1->2->3->4 Economy, sweep-compatible `TA TI TI TA` motif: stable `DOWN DOWN UP UP`, both directional sweeps retained, real strokes unchanged across stages, placeholder entry/stream clean;
-- PENDING — Ramp 2->full Economy;
+- PASS — Ramp 2->full Economy: first two real beats preserve their strokes at full reveal and inactive placeholders alternate cleanly;
 - PENDING — public Alternate with OFF slots;
 - PENDING — non-Ramp Economy repeated-motif case.
 
