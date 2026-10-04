@@ -222,9 +222,10 @@ P6 partial manual acceptance on `e611ec2`:
 - the repeated A motif stayed `DOWN DOWN UP UP` on every opened stage;
 - the 6->5 DOWN/DOWN and 5->6 UP/UP directional sweeps were preserved;
 - already-open real attacks did not change as later beats opened;
-- inactive TA placeholders alternated cleanly, including the active->placeholder boundary after the `e611ec2` tie-break fix.
+- inactive TA placeholders alternated cleanly, including the active->placeholder boundary after the `e611ec2` tie-break fix;
+- Ramp 2->full Economy was checked in the live GUI: the first two real beats kept the same strokes from the 2-beat stage to the full stage, while inactive placeholders alternated cleanly.
 
-P6 is not fully accepted yet: Ramp 2->full, public Alternate with OFF slots, and a non-Ramp Economy repetition case still need manual GUI confirmation.
+P6 is not fully accepted yet: public Alternate with OFF slots and a non-Ramp Economy repetition case still need manual GUI confirmation.
 
 Recent Picking changes on `work` were investigated through manual screenshots and direct practice feedback.
 
