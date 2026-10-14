@@ -1,164 +1,105 @@
 <p align="center">
-  <img src="assets/readme_logo.png" width="160" alt="TittyTatter logo">
+  <img src="assets/readme_logo.png" width="160" alt="Логотип TittyTatter">
 </p>
 
-# TittyTatter
+<h1 align="center">TittyTatter</h1>
 
-> Current release: **0.0.4**
+<p align="center"><strong>Настраиваемый тренажёр гитарного ритма для Windows</strong></p>
 
-**TittyTatter** is a Windows-first desktop **guitar rhythm trainer** for building and practising custom TI / TA rhythm patterns.
+<p align="center">
+  <strong>Русский</strong> · <a href="README.en.md">English</a>
+</p>
 
-The same pattern can be trained in several ways: full repetition, progressive beat ramps, silent-gap exercises, sparse or displaced metronome practice, and optional tempo/timer modifiers. A secondary **Game** layer lets you practise the same exercise with keyboard or mouse input and timing grades when a guitar is not available.
+TittyTatter помогает отрабатывать ритм, точность ударов медиатором и чувство пульса. Создайте собственный ритмический рисунок, выберите способ тренировки и занимайтесь под звуковые и визуальные подсказки. Для упражнений без гитары предусмотрен дополнительный режим с оценкой точности нажатий.
 
-## Highlights
+## Возможности
 
-- Flexible meters: numerator **1–16**, denominator **2 / 4 / 8 / 16**.
-- Per-beat rhythm grids with straight subdivisions, triplets, dense subdivisions, rests, and long-note coverage.
-- Every subdivision can be **(ТИ)**, **ТА**, or silent.
-- Multiple guitar-training methods driven by the same pattern and timeline.
-- Count-in, tempo trainer, practice timer, stage progress, and ramp warnings.
-- Low-latency Windows audio with selectable output-device settings.
-- Independent TI, TA, metronome, and master levels.
-- Configurable visual metronome with scalable Focus view.
-- Optional **Штрих / Picking Guide** with economy and strict-alternate strategies.
-- Secondary **Game** layer with keyboard/mouse bindings, timing grades, score, graph, and configurable HIT/MISS feedback.
-- Session save/load and persistent local settings.
-- MIDI, Guitar Pro 5, and WAV export.
+- **Редактор ритма.** Размеры от 1 до 16 долей со знаменателями 2, 4, 8 или 16; индивидуальные деления для каждой доли, в том числе триоли, паузы и продолжительные ноты.
+- **Семь режимов тренировки.** Повторение, поэтапное усложнение рисунка, упражнения с пропусками звучания и разные варианты метронома.
+- **Темп и длительность.** Настройка BPM, отсчёт перед стартом, постепенное изменение темпа и таймер занятия.
+- **Звук и визуализация.** Независимые уровни звуков ритма и метронома, выбор аудиоустройства, настраиваемый визуальный метроном и увеличенный режим «Фокус».
+- **Подсказки для медиатора.** Переменный и экономный штрих, настройки направления смены струн, отображение следующих ударов и связей при свипе.
+- **Проверка ритма.** Дополнительный режим «Игра» с назначаемыми клавишами или кнопками мыши, оценкой попаданий и статистикой.
+- **Работа с упражнениями.** Сохранение и загрузка занятий, сохранение настроек и экспорт рисунка в MIDI, Guitar Pro 5 и WAV.
 
-## Training modes
+## Начало работы
 
-TittyTatter separates **what you play** from **how you train it**. The pattern editor defines the rhythm; the selected Training Mode defines how that pattern behaves over time.
-
-Current modes:
-
-- **Повтор** — repeat the complete pattern continuously.
-- **Разгон с 1 доли** — expand from the first beat to the full bar.
-- **Разгон с 2 долей** — start from two beats (or one in a one-beat meter), then expand to the full bar.
-- **Пропуски** — alternate configurable audible and silent bar blocks while the internal timeline continues.
-- **Нарастающие пропуски** — keep the audible block fixed while the silent block grows progressively.
-- **Редкий метроном** — reduce metronome guidance to selected beats or bars.
-- **Смещённый метроном** — move the click onto off-beat/eighth/sixteenth positions independently of the pattern subdivision.
-
-When **Игра** is selected, the current Training Mode still controls the exercise. Game mode does not have a separate progression system.
-
-## Focus mode
-
-**Фокус режим [F]** turns the application into a distraction-free practice display:
-
-- configuration tabs and editable beat cards are hidden;
-- the visual metronome expands;
-- the current effective rhythm appears as a read-only strip;
-- ramp stages and silent-gap behaviour remain visible correctly;
-- Game statistics stay compact when Game is active.
-
-## Штрих / Picking Guide
-
-The Picking Guide is an optional guitar-practice aid, not a separate training mode.
-
-It can show:
-
-- economy-picking suggestions;
-- strict alternating down/up strokes;
-- the current stroke and string;
-- several upcoming strokes;
-- current-beat highlighting.
-
-TI is modelled as the 5th string reference and TA as the muted 6th-string reference used by the current trainer design.
-
-## Game layer
-
-Game is a secondary way to execute the same training exercise through computer input.
-
-Features include:
-
-- assignable TI / TA keyboard bindings;
-- physical-key handling that is independent of the active keyboard layout where scan-code information is available;
-- mouse-button bindings;
-- lane-specific TI/TA target matching;
-- PERFECT / GREAT / GOOD / HIT timing grades;
-- score, accuracy, recent-quality graph, and last-game summary;
-- optional separate TI/TA HIT sounds and MISS sounds;
-- optional diagnostic logging.
-
-The currently accepted timing grades are:
-
-| Grade | Timing distance | Points |
-|---|---:|---:|
-| PERFECT | up to 30 ms | 100 |
-| GREAT | up to 70 ms | 75 |
-| GOOD | up to 120 ms | 50 |
-| HIT | other accepted timing | 25 |
-
-## Run from source on Windows
-
-Requirements:
+### Требования
 
 - Windows;
-- a current Python 3 installation;
-- an audio output device supported by PortAudio/sounddevice.
+- установленный Python 3 с возможностью создания виртуального окружения;
+- устройство вывода звука.
 
-Clone or download the repository, then run:
+Приложение запускается из исходного кода. Клонируйте репозиторий или скачайте его содержимое, откройте папку проекта и запустите:
 
 ```bat
 run.bat
 ```
 
-On first launch, `run.bat` creates a local `.venv`, installs `requirements.txt`, and starts TittyTatter.
+При первом запуске скрипт создаст виртуальное окружение `.venv`, установит зависимости из `requirements.txt` и откроет программу. Для последующих запусков используйте тот же `run.bat`.
 
-Manual equivalent:
+**Ручная установка**, если вы предпочитаете выполнять команды самостоятельно:
 
 ```bat
 py -m venv .venv
-.venv\Scripts\python.exe -m pip install --upgrade pip
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe app.py
 ```
 
-## Optional diagnostics
+[История версий и публикации](https://github.com/TheColdVoid1337/TittyTatter/releases) · [Исходный код](https://github.com/TheColdVoid1337/TittyTatter)
 
-Game logging is opt-in. Launch with:
+## Как пользоваться
 
-```bat
-.venv\Scripts\python.exe app.py -log
-```
+1. **Создайте рисунок.** Выберите музыкальный размер, затем задайте деления и удары для каждой доли. В редакторе используются обозначения **(ТИ)**, **ТА** и пауза.
+2. **Выберите режим тренировки.** Один и тот же рисунок можно повторять, постепенно расширять или исполнять с ослабленными подсказками метронома.
+3. **Настройте темп и звук.** Установите BPM, при необходимости включите отсчёт, изменение темпа или таймер.
+4. **Начните занятие.** Используйте «Тренировка» для работы с гитарой. Для практики с клавиатурой или мышью выберите «Игра» — упражнение останется тем же.
+5. **При необходимости включите «Штрих» или «Фокус».** Первый показывает рекомендуемые движения медиатора, второй увеличивает рабочую область.
 
-or use `--log`. Normal runs do not create game diagnostic logs.
+## Режимы тренировки
 
-## Export
+| Режим | Назначение |
+|---|---|
+| **Повтор** | Непрерывное повторение всего ритмического рисунка |
+| **Разгон с 1 доли** | Постепенное добавление долей, начиная с первой |
+| **Разгон с 2 долей** | Постепенное расширение рисунка, начиная с двух долей |
+| **Пропуски** | Чередование тактов со звуковыми подсказками и без них |
+| **Нарастающие пропуски** | Последовательное увеличение количества тактов без звуковых подсказок |
+| **Редкий метроном** | Уменьшение частоты щелчков для тренировки внутреннего пульса |
+| **Смещённый метроном** | Перенос щелчка на слабые доли и промежуточные позиции |
 
-TittyTatter can export the current pattern to:
+В упражнениях с пропусками внутренний отсчёт **не останавливается**: играть нужно и во время тишины. Если включена «Игра», проверка попаданий продолжается по тому же ритму.
 
-- **MIDI**
-- **Guitar Pro 5**
-- **WAV**
+## Подсказки для медиатора
 
-Export uses the same rhythm model as realtime playback.
+Вкладка **«Штрих»** помогает выбрать способ исполнения рисунка на гитаре. Подсказки необязательны и не меняют само упражнение.
 
-## Documentation
+- **Строго переменный:** удары вниз и вверх чередуются на звучащих атаках. Можно выбрать начальное направление.
+- **Экономный:** программа учитывает переходы между струнами, возможные свипы, повторы рисунка и стадии постепенного усложнения.
+- **Дополнительные настройки экономного штриха:** профили USX / DSX / DBX, предпочтение внутренних или внешних переходов и включаемые линии связи свипов.
 
-Detailed documentation lives under [`docs/`](docs/README.md):
+В текущей схеме **ТИ** соответствует пятой струне, а **ТА** — приглушённой шестой. Направления и профили служат учебными рекомендациями: они не определяют автоматически индивидуальную технику гитариста.
 
-- [User guide](docs/USER_GUIDE.md)
-- [Project state](docs/PROJECT_STATE.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Development workflow](docs/WORKFLOW.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Durable decisions](docs/DECISIONS.md)
-- [Test matrix](docs/TEST_MATRIX.md)
-- [Changelog](docs/CHANGELOG.md)
+## Режим «Игра» и «Фокус»
 
-## Project structure
+**«Игра»** позволяет проверить точность исполнения того же рисунка при помощи клавиатуры или мыши. Программа оценивает своевременность попаданий, показывает результат и историю качества. Это дополнительный способ заниматься ритмом, а не отдельный набор упражнений.
 
-- `app.py` — PySide6 GUI and application coordination.
-- `audio_engine.py` — realtime audio scheduling and synthesized sounds.
-- `model.py` / `presets.py` — rhythm model and built-in grid/pattern data.
-- `training_modes.py` — Training Mode definitions and timeline helpers.
-- `game_logic.py` / `input_binding.py` — Game timing and input bindings.
-- `picking_logic.py` — picking-direction logic.
-- `exports.py` — MIDI / GP5 / WAV export.
-- `game_logger.py` — optional diagnostic logging.
-- `docs/` — living project documentation.
+**«Фокус»** скрывает элементы редактирования и увеличивает визуальный метроном. На экране остаётся актуальный рисунок для исполнения. Переключение — клавишей **F**, если она не занята вводом в «Игре».
 
-## License
+## Экспорт и сохранение
 
-No explicit open-source license has been added yet. Repository visibility alone does not grant redistribution or modification rights beyond those provided by applicable law.
+- **MIDI** — для дальнейшей работы с ритмом в музыкальных программах.
+- **Guitar Pro 5 (.gp5)** — для просмотра и редактирования в совместимых приложениях.
+- **WAV** — звуковой файл упражнения.
+
+Можно сохранять и загружать занятия. Настройки программы хранятся локально.
+
+## Документация
+
+- [Подробное руководство пользователя (англ.)](docs/USER_GUIDE.md)
+- [История изменений (англ.)](docs/CHANGELOG.md)
+- [Техническая документация (англ.)](docs/README.md)
+
+## Лицензия
+
+В репозитории пока нет отдельного файла с лицензией на распространение и модификацию. Публичная доступность исходного кода сама по себе не означает разрешение на его свободное использование или перераспространение.
