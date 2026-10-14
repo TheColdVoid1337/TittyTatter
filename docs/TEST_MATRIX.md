@@ -12,9 +12,10 @@ The gate currently runs approximately:
 
 1. `test_core.py`;
 2. compile checks for the main Python modules;
-3. `test_exports.py`;
-4. `test_game_logger.py`;
-5. dependency imports.
+3. `picking_diagnostics.py --self-test`;
+4. `test_exports.py`;
+5. `test_game_logger.py`;
+6. dependency imports.
 
 Expected green ending:
 
@@ -22,6 +23,8 @@ Expected green ending:
 == core tests ==
 core tests OK
 == compile ==
+== picking diagnostics ==
+picking diagnostics OK
 == export tests ==
 export tests OK
 == game log tests ==
@@ -60,8 +63,8 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Picking v2 P6 | live app routes only v2 Alternate/Economy/Ramp solvers; Loop/Ramp/Alternate visual acceptance passed; transitional implementation removed in `debda3e`; post-cleanup `./tt check` passed on `0df6f88` |
 | Picking v2 P7a | PASS on `10ab611`: Strict Alternate Auto/DOWN/UP first-stroke control; Economy/Ramp hide/ignore the override and stay Auto; DOWN/UP flips whole Alternate polarity; full `./tt check` green; internal Economy constraint hook remains regression-tested |
 | Picking v2 P7b | PASS on `fab918b`: full `./tt check` green including Picking diagnostics; saved profile=`usx`; USX/DSX complete-solution divergence corpus; Ramp persistent identities stable; `./tt picking-log` ended with `SELF-TEST PASS` |
-| Picking v2 P7c | AUTOMATED/LOG PASS on `da166fe`: full check green; diagnostic AUTO/INSIDE=`D U` inside, OUTSIDE=`U D` outside; GUI controls and persistence await manual acceptance |
-| Picking v2 P7d | AUTOMATED/LOG PASS on `da166fe`: full check green; link_count=2, 0.0→0.1 DOWN and 0.2→0.3 UP; actual overlay readability/toggle behavior await manual acceptance |
+| Picking v2 P7c | ACCEPTED on `da166fe`: core/full local check and profile diagnostic PASS; AUTO/INSIDE=`D U` inside, OUTSIDE=`U D` outside; user-confirmed live GUI PASS |
+| Picking v2 P7d | ACCEPTED on `da166fe`: core/full local check and link diagnostic PASS; link_count=2, 0.0→0.1 DOWN and 0.2→0.3 UP; user-confirmed live GUI PASS |
 | Syntax | application modules compile |
 
 ## Automated export coverage
@@ -86,7 +89,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 
 ## Manual release acceptance
 
-Before tagging, verify the exact release commit locally.
+The 0.0.5 candidate was accepted in the GUI/audio smoke by the user. Before tagging, verify the **exact release commit** locally. Release preparation changed documentation and version metadata only; no later Picking/runtime behavior was modified.
 
 ### Startup / layout
 

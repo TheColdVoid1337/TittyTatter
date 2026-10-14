@@ -14,7 +14,8 @@ The root [README.md](../README.md) is the primary **Russian-language** product o
 - [ROADMAP.md](ROADMAP.md) — post-release guitar-training direction and later work.
 - [DECISIONS.md](DECISIONS.md) — durable project decisions and rationale.
 - [TEST_MATRIX.md](TEST_MATRIX.md) — canonical automated gate plus manual GUI/audio/Game/export acceptance.
-- [CHANGELOG.md](CHANGELOG.md) — published history and current Unreleased changes.
+- [CHANGELOG.md](CHANGELOG.md) — published release history and noteworthy changes.
+- [RELEASE_NOTES_0.0.5.md](RELEASE_NOTES_0.0.5.md) — full v0.0.5 release notes and source for the annotated tag message.
 
 ## Documentation rules
 

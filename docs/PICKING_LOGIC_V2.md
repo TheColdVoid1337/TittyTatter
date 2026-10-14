@@ -303,7 +303,7 @@ Examples:
 5 UP   -> 6 DOWN
 ```
 
-These remain valid. Their relative desirability may later depend on inside/outside geometry and escape profile.
+These remain valid. Their relative desirability now depends on the explicitly selected inside/outside and escape preferences.
 
 ---
 
@@ -1040,7 +1040,7 @@ The command writes `logs/picking_v2_YYYYMMDD_HHMMSS.txt` and prints the same rep
 
 For advanced Picking algorithm validation, this log is preferred evidence over screenshots.
 
-### P7c — inside / outside crossing preference — AUTOMATED/LOG PASS; GUI PENDING
+### P7c — inside / outside crossing preference — COMPLETE / ACCEPTED
 
 Economy now has a second independent mechanical preference:
 
@@ -1059,7 +1059,7 @@ The preference is soft. It only adjusts true alternate string crossings and does
 
 `PickDecision` records `crossing_geometry` for diagnostics. The live Economy UI persists Auto / Inside / Outside and hides the control for Strict Alternate.
 
-### P7d — sweep-link visualization — AUTOMATED/LOG PASS; GUI PENDING
+### P7d — sweep-link visualization — COMPLETE / ACCEPTED
 
 Directional sweeps are exposed as presentation metadata through `SweepLink` / `detect_sweep_links()`.
 
@@ -1067,20 +1067,20 @@ The live Picking overlay can draw a thin same-color connector between the two at
 
 The Economy UI includes **Показывать связи sweep**. The setting is persisted and hidden for Strict Alternate.
 
-`./tt picking-log` now contains a P7d sweep-link probe with exact source/target coordinates, so the algorithmic relation can be reviewed without screenshots. One quick GUI smoke is still required to confirm that the connector is readable and does not obscure the arrows.
+`./tt picking-log` now contains a P7d sweep-link probe with exact source/target coordinates, so the algorithmic relation can be reviewed without screenshots. The user confirmed the live GUI continues working as expected after deterministic link diagnostics passed.
 
 ### P7e — deferred
 
 Rhythmic / ghost-stroke Alternate remains explicitly deferred. Public Strict Alternate continues to mean attack-alternate.
 
-P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`. The clean working tree, full `./tt check`, and `./tt picking-log` passed on `da166fe` (2026-10-14), including the inside/outside sequence probe and exactly two P7d sweep links. P7c/P7d still need a brief verbal GUI/audio confirmation; command completion alone is not visual acceptance. Screenshots are not required.
+P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`. The clean working tree, full `./tt check`, and `./tt picking-log` passed on `da166fe` (2026-10-14), including the inside/outside sequence probe and exactly two P7d sweep links. The user subsequently confirmed live GUI/audio smoke PASS for the accepted release candidate. The exact 0.0.5 release commit still requires a final local gate before tagging.
 
 ---
 
 ## 23. Migration rules
 
-- Do not change root `VERSION` during the v2 development cycle.
-- Keep `main` and published `v0.0.4` immutable.
+- Change root `VERSION` only at explicit release checkpoints.
+- Preserve existing published tags and only fast-forward `main` after the final local gate.
 - Work on `work`.
 - Preserve the existing public UI unless a concrete v2 requirement demands change.
 - Prefer pure functions and deterministic tests.

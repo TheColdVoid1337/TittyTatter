@@ -10,6 +10,8 @@
   <a href="README.md">Русский</a> · <strong>English</strong>
 </p>
 
+**Version 0.0.5** · [What's new](docs/RELEASE_NOTES_0.0.5.md)
+
 TittyTatter helps guitarists practice rhythmic accuracy, picking consistency, and their internal sense of pulse. Create a rhythm pattern, choose a training method, and practice with audio and visual guidance. An optional input-based mode lets you practice timing without a guitar.
 
 ## Features

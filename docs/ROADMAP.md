@@ -8,9 +8,9 @@ The strongest product direction is:
 
 Game remains an optional input/scoring layer over the same training timeline. Picking Guide remains an optional informational layer for guitar practice.
 
-## Immediate post-0.0.4 focus — Picking Logic v2
+## Picking Logic v2 — 0.0.5 release scope
 
-The 0.0.4 release is complete. Picking Logic v2 P1-P6 is implemented, manually accepted, and the superseded transitional implementation has been removed and locally validated.
+The 0.0.5 release line contains Picking Logic v2 P1–P7d. The superseded transitional implementation has been removed; regression, diagnostic, and manual GUI acceptance have been completed on the release candidate.
 
 Implementation order:
 
@@ -23,13 +23,13 @@ Implementation order:
 7. **DONE — CLEANUP:** transitional Picking code/tests were removed in `debda3e`; the full local `./tt check` gate passed on `0df6f88`.
 8. **DONE — P7a:** Auto / DOWN / UP first-stroke control is scoped to Strict Alternate and persisted; Economy/Ramp stay on automatic start-polarity optimization. `./tt check` and live GUI acceptance passed on `10ab611`.
 9. **DONE — P7b:** explicit Auto / USX / DSX / DBX Economy profiles and `./tt picking-log` passed local validation on `fab918b`.
-10. **P7c AUTOMATED/LOG PASS; GUI PENDING:** Auto / Inside / Outside Economy crossing preference is implemented; `./tt check` and the inside/outside diagnostic passed on `da166fe`.
-11. **P7d AUTOMATED/LOG PASS; GUI PENDING:** optional sweep-link visualization is implemented; the diagnostic found two correctly directed links on `da166fe`. Readability and checkbox behavior still need manual confirmation.
+10. **DONE — P7c:** Auto / Inside / Outside Economy crossing preference passed automated/log testing and user-confirmed live GUI smoke on the 0.0.5 release candidate.
+11. **DONE — P7d:** optional sweep-link visualization passed automated/log testing (two correctly directed links) and user-confirmed live GUI smoke on the 0.0.5 release candidate.
 12. **DEFERRED — P7e:** rhythmic/ghost-stroke Alternate remains future work; public Strict Alternate stays attack-alternate.
 
 Do not add more screenshot-specific picking heuristics when the failure belongs to the v2 model. Convert new failures into regression cases first.
 
-The future Training Mode backlog remains valid, but Picking Logic v2 is the current practice-quality priority unless explicitly reprioritized.
+With Picking Logic v2 accepted, **Subdivision Ladder** becomes the next planned Training Mode. P7e remains deferred and is not a prerequisite.
 
 ## Priority post-release Training Modes
 

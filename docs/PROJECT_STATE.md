@@ -1,42 +1,28 @@
 # Project state
 
-## Baseline
+## Release baseline
 
 - Project: **TittyTatter**
-- Published application version: **0.0.4**
-- Published tag: **v0.0.4**
-- Published release commit: `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`
+- Application version: **0.0.5**
+- Release identifier: **v0.0.5**
+- Previous published tag: **v0.0.4**
+- Previous release commit: `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`
 - Active development branch: **work**
-- Integration/release branch: **main**
+- Release/integration branch: **main**
 - Primary platform: Windows desktop
-- Language: Python
-- GUI: PySide6
-- Audio: callback-driven realtime playback through python-sounddevice / PortAudio
-- Preferred Windows backend: WASAPI
+- Runtime: Python / PySide6 / sounddevice and PortAudio (WASAPI preferred)
 - Development workflow: **vFLOW**
 
-The 0.0.4 release is complete and immutable.
+### 0.0.5 acceptance evidence
 
-At release close:
+The 0.0.5 release introduces Picking Logic v2 (P1–P7d) and bilingual public README documentation. On 2026-10-14, the user confirmed a clean working tree, a green `./tt check`, and a `./tt picking-log` with `SELF-TEST PASS` on candidate `da166fe`. The diagnostic demonstrated distinct Inside/Outside sequences, two valid sweep connections, differing USX/DSX solutions, and consistent Ramp-stage output. The user subsequently confirmed the live application/GUI/audio smoke passed.
 
-```text
-main -> 1722c0a Release TittyTatter 0.0.4
-work -> 1722c0a Release TittyTatter 0.0.4
-tag  -> v0.0.4 (annotated) -> 1722c0a
-```
+The exact 0.0.5 release-metadata commit is subject to a final local `./tt check` **before** publication of the annotated tag. See [release notes](RELEASE_NOTES_0.0.5.md) for the full release scope and acceptance record.
 
-The project owner confirmed both:
+### Release history
 
-```text
-./tt check
-TittyTatter checks OK
-```
-
-and the manual GUI/audio smoke for that exact release commit.
-
-Post-0.0.4 development continues on `work`. Root `VERSION` remains `0.0.4` until a future explicit release checkpoint.
-
-The next release checkpoint is being prepared as **0.0.5**, centered on Picking Logic v2 plus P7a-P7d advanced Picking controls and diagnostics. On `da166fe` (2026-10-14), the local working tree was clean and both `./tt check` and `./tt picking-log` passed. The final manual GUI/audio acceptance, release metadata commit, and exact-final-commit check are still required before `VERSION`, `main`, or an annotated tag advance.
+- **0.0.4:** published 2026-10-04, annotated `v0.0.4`, commit `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`.
+- **0.0.5:** Picking Logic v2 release, with the release tag assigned to the final accepted commit after its local validation.
 
 ## Current product definition
 
@@ -125,7 +111,7 @@ Opposite-lane fallback and adaptive timing bias remain intentionally absent.
 
 ### Picking Guide / Штрих
 
-The published 0.0.4 baseline includes:
+The preceding 0.0.4 release included:
 
 - economy strategy;
 - strict alternate strategy;
@@ -135,7 +121,7 @@ The published 0.0.4 baseline includes:
 - cyclic repeated-beat period preservation;
 - cyclic Ramp-stage behavior.
 
-Post-0.0.4 `work` now uses **Picking Logic v2** as the only live Picking Guide implementation.
+Version 0.0.5 uses **Picking Logic v2** as the only live Picking Guide implementation.
 
 Canonical design:
 
@@ -183,28 +169,19 @@ The public README uses a dedicated transparent repository asset so GitHub does n
 
 ## Current development focus
 
-Immediate focus after 0.0.4:
+Picking Logic v2 P1–P7d is the accepted Picking Guide architecture for the 0.0.5 release. The next planned product feature is **Subdivision Ladder**, followed by additional Training Modes. Rhythmic/ghost-stroke Alternate (P7e) is deliberately deferred and must not silently change current attack-alternate semantics.
 
-> **Picking Logic v2**
-
-The purpose is to replace accumulating pattern-specific Picking heuristics with one coherent, testable optimizer.
-
-The accepted design direction includes:
-
-- Alternate = attack-alternate;
-- Economy = practical directional economy, not maximum sweeping;
-- stable repeated motor motifs;
-- explicit continuity rather than OFF-always-reset behavior;
-- start-polarity search;
-- parity and loop-boundary awareness;
-- transition classification including real directional sweeps;
-- future escape-profile hook without pretending to infer user biomechanics;
-- joint Ramp-stage optimization with persistent real attacks and stage-local placeholders;
-- deterministic explanations/regression cases.
-
-See `docs/PICKING_LOGIC_V2.md` for the complete state model, scoring priorities, 42-case regression matrix, and phased implementation plan.
+See [ROADMAP.md](ROADMAP.md) for upcoming features and [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md) for the current Picking architecture.
 
 ## Validation state
+
+### 0.0.5 candidate
+
+- `git status --short`: clean on `da166fe`.
+- `./tt check`: PASS on `da166fe`.
+- `./tt picking-log`: `SELF-TEST PASS` on `da166fe`.
+- Local GUI/audio smoke: user-confirmed PASS.
+- Exact release commit: must pass the final local check before an annotated tag is created.
 
 ### Published 0.0.4
 
@@ -246,9 +223,9 @@ main
 work
 ```
 
-Published `main` remains on the immutable 0.0.4 release commit.
+Previously published tags remain immutable. Release integration fast-forwards `main` to the verified 0.0.5 commit only after the exact-commit local gate.
 
-`work` is a clean descendant of `main` and contains post-release Picking experiments plus the Picking Logic v2 specification/documentation.
+`work` is the development source for 0.0.5 and remains a clean descendant of the previous published baseline.
 
 Obsolete remote branches `dev/0.0.2` and `release/0.0.1` were removed only after containment verification showed no unique commits.
 
@@ -258,7 +235,7 @@ Do not delete `work` by default.
 
 Current canonical project documents include:
 
-- public root README for end users;
+- Russian public root README and English `README.en.md`;
 - current User Guide;
 - current Architecture;
 - vFLOW Workflow;
@@ -298,8 +275,8 @@ Documentation is updated in place.
 11. **P7a complete and locally/manual validated:** Auto / DOWN / UP first-stroke control is available only for Strict Alternate; Economy and joint Ramp keep automatic global start-polarity optimization. `./tt check` passed on `10ab611`, and the GUI correctly hides the row for Economy and flips Alternate polarity for DOWN/UP.
 12. **P7b complete and locally/log validated:** Auto / USX / DSX / DBX Economy profiles influence alternate string-crossing escape compatibility and one-way sweep direction (USX downstroke sweep, DSX upstroke sweep) while keeping the opposite sweep direction as a soft fallback. On `fab918b`, `./tt check` passed including Picking diagnostics, the saved GUI profile was reported as `usx`, USX/DSX produced discriminating complete solutions, Ramp persistent strokes stayed stable, and the diagnostic ended with `SELF-TEST PASS`.
 13. `./tt picking-log` is the canonical advanced-Picking evidence path: it records Git HEAD, saved Picking preferences, escape-profile and inside/outside probes, sweep-link metadata, Ramp output, and PASS/FAIL self-tests in an ignored text log.
-14. **P7c automated/log acceptance PASS on `da166fe`:** Economy has Auto / Inside / Outside alternate-crossing preference. The diagnostic verified `AUTO D U`, `INSIDE D U`, and `OUTSIDE U D` with the expected inside/outside geometry. Manual UI acceptance remains pending.
-15. **P7d automated/log acceptance PASS on `da166fe`:** sweep-link diagnostics detected exactly two valid connections (0.0→0.1 DOWN and 0.2→0.3 UP). Manual overlay readability, toggle behavior, and broader GUI/audio acceptance remain pending.
+14. **P7c ACCEPTED on `da166fe`:** Economy has Auto / Inside / Outside alternate-crossing preference. The diagnostic verified `AUTO D U`, `INSIDE D U`, and `OUTSIDE U D` with the expected inside/outside geometry. User-confirmed GUI smoke PASS.
+15. **P7d ACCEPTED on `da166fe`:** sweep-link diagnostics detected exactly two valid connections (0.0→0.1 DOWN and 0.2→0.3 UP). User-confirmed GUI/audio smoke PASS.
 16. **P7e deferred:** rhythmic/ghost-stroke Alternate remains future work; Strict Alternate continues to mean attack-alternate.
 
 ## Durable repository rules

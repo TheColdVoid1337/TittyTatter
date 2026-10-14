@@ -5,7 +5,10 @@ All notable TittyTatter changes are recorded here.
 Numeric headings are added when a release version is chosen. Future development remains under **Unreleased** until its release checkpoint.
 
 
-## Unreleased
+## 0.0.5 — 2026-10-14
+
+TittyTatter 0.0.5 delivers Picking Logic v2, new advanced Picking Guide settings, text diagnostics, and bilingual public READMEs. See [full release notes](RELEASE_NOTES_0.0.5.md).
+
 
 ### Added
 
@@ -42,7 +45,7 @@ Numeric headings are added when a release version is chosen. Future development 
 - Picking Logic v2 P1-P6 and cleanup passed their local automated/manual gates.
 - P7a Strict Alternate first-stroke control passed `./tt check` and live GUI acceptance on `10ab611`.
 - P7b escape profiles passed `./tt check` and `./tt picking-log` acceptance on `fab918b`.
-- P7c/P7d passed the automated and deterministic diagnostic gate on `da166fe` (2026-10-14), with a clean local working tree, `./tt check` green, inside/outside sequence differentiation, and two valid sweep links. Focused manual GUI/audio acceptance remains pending before the 0.0.5 release commit and tag.
+- P7c/P7d passed the deterministic diagnostic gate on `da166fe` (2026-10-14): clean working tree, full `./tt check`, inside/outside sequence differences, and two valid sweep links. The user subsequently confirmed live GUI/audio smoke PASS. The final release commit must be checked locally again before tagging.
 
 ## 0.0.4 — 2026-10-04
 
