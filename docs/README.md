@@ -16,6 +16,7 @@ The root [README.md](../README.md) is the primary **Russian-language** product o
 - [TEST_MATRIX.md](TEST_MATRIX.md) — canonical automated gate plus manual GUI/audio/Game/export acceptance.
 - [CHANGELOG.md](CHANGELOG.md) — published release history and noteworthy changes.
 - [RELEASE_NOTES_0.0.5.md](RELEASE_NOTES_0.0.5.md) — full v0.0.5 release notes and source for the annotated tag message.
+- [dev/HANDOFF_TITTYTATTER_2026-10-14_v0.0.5.md](dev/HANDOFF_TITTYTATTER_2026-10-14_v0.0.5.md) — post-release engineering chat handoff: machine paths, GitHub/WSL workflow, validation, accepted Picking v2 and next feature.
 
 ## Documentation rules
 

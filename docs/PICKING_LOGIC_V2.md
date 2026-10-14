@@ -1073,7 +1073,7 @@ The Economy UI includes **Показывать связи sweep**. The setting i
 
 Rhythmic / ghost-stroke Alternate remains explicitly deferred. Public Strict Alternate continues to mean attack-alternate.
 
-P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`. The clean working tree, full `./tt check`, and `./tt picking-log` passed on `da166fe` (2026-10-14), including the inside/outside sequence probe and exactly two P7d sweep links. The user subsequently confirmed live GUI/audio smoke PASS for the accepted release candidate. The exact 0.0.5 release commit still requires a final local gate before tagging.
+P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`. The clean working tree, full `./tt check`, and `./tt picking-log` passed on `da166fe` (2026-10-14), including the inside/outside sequence probe and exactly two P7d sweep links. The user subsequently confirmed live GUI/audio smoke PASS for the accepted release candidate. The exact release commit `21c33aa` subsequently passed the user-confirmed full local gate; the complete annotated `v0.0.5` tag and GitHub Release were then published and verified.
 
 ---
 

@@ -17,12 +17,12 @@
 
 The 0.0.5 release introduces Picking Logic v2 (P1–P7d) and bilingual public README documentation. On 2026-10-14, the user confirmed a clean working tree, a green `./tt check`, and a `./tt picking-log` with `SELF-TEST PASS` on candidate `da166fe`. The diagnostic demonstrated distinct Inside/Outside sequences, two valid sweep connections, differing USX/DSX solutions, and consistent Ramp-stage output. The user subsequently confirmed the live application/GUI/audio smoke passed.
 
-The exact 0.0.5 release-metadata commit is subject to a final local `./tt check` **before** publication of the annotated tag. See [release notes](RELEASE_NOTES_0.0.5.md) for the full release scope and acceptance record.
+The exact 0.0.5 release commit `21c33aa2680c8c25fafccde90bf292cb1390440a` subsequently passed the user's complete local `./tt check` with a clean working tree. `main` was fast-forwarded to that SHA; the full annotated tag `v0.0.5` was published and independently verified to peel to it. The GitHub Release is published. See [release notes](RELEASE_NOTES_0.0.5.md) for the complete record.
 
 ### Release history
 
 - **0.0.4:** published 2026-10-04, annotated `v0.0.4`, commit `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`.
-- **0.0.5:** Picking Logic v2 release, with the release tag assigned to the final accepted commit after its local validation.
+- **0.0.5:** published 2026-10-14, annotated `v0.0.5` (full release notes), commit `21c33aa2680c8c25fafccde90bf292cb1390440a`. [GitHub Release](https://github.com/TheColdVoid1337/TittyTatter/releases/tag/v0.0.5).
 
 ## Current product definition
 
@@ -175,13 +175,13 @@ See [ROADMAP.md](ROADMAP.md) for upcoming features and [PICKING_LOGIC_V2.md](PIC
 
 ## Validation state
 
-### 0.0.5 candidate
+### Published 0.0.5
 
 - `git status --short`: clean on `da166fe`.
 - `./tt check`: PASS on `da166fe`.
 - `./tt picking-log`: `SELF-TEST PASS` on `da166fe`.
 - Local GUI/audio smoke: user-confirmed PASS.
-- Exact release commit: must pass the final local check before an annotated tag is created.
+- Exact release commit `21c33aa`: `./tt check` PASS, clean working tree; user confirmed. Annotated `v0.0.5` tag/peel and published GitHub Release verified.
 
 ### Published 0.0.4
 
@@ -223,9 +223,9 @@ main
 work
 ```
 
-Previously published tags remain immutable. Release integration fast-forwards `main` to the verified 0.0.5 commit only after the exact-commit local gate.
+Published `main` and `v0.0.5` remain frozen at release commit `21c33aa`. All earlier tags also remain immutable.
 
-`work` is the development source for 0.0.5 and remains a clean descendant of the previous published baseline.
+`work` initially matched published `main` on `21c33aa`. Post-release engineering-only documentation commits (including the chat handoff) advance `work` independently; they do not change the released application version.
 
 Obsolete remote branches `dev/0.0.2` and `release/0.0.1` were removed only after containment verification showed no unique commits.
 
@@ -244,7 +244,8 @@ Current canonical project documents include:
 - durable Decisions;
 - Test Matrix;
 - Changelog;
-- this Project State.
+- this Project State;
+- the post-v0.0.5 engineering handoff at `docs/dev/HANDOFF_TITTYTATTER_2026-10-14_v0.0.5.md`.
 
 Documentation is updated in place.
 
