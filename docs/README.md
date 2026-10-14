@@ -2,7 +2,7 @@
 
 This directory contains the living technical and product documentation for TittyTatter.
 
-The root `README.md` is the public user-facing project entry point. Detailed implementation, development, validation, and release knowledge belongs here.
+The root [README.md](../README.md) is the primary **Russian-language** product overview. [README.en.md](../README.en.md) is its English-language counterpart. Both target GitHub visitors and application users; detailed engineering, validation, and release knowledge belongs here.
 
 ## Canonical documents
 
@@ -22,6 +22,6 @@ Documentation is updated in place. New releases extend the existing documents ra
 
 The repository is the source of truth. When implementation and documentation disagree, inspect the current code/history and resolve the mismatch explicitly.
 
-The public root README must remain suitable for a user who downloads or clones the project. Personal machine paths and private development layout do not belong there.
+Both public READMEs must remain suitable for someone who downloads or clones the application. The default `README.md` is Russian to match the application interface; `README.en.md` provides equivalent English product documentation. Keep the language links reciprocal and both documents consistent with actual shipped functionality. Exclude personal details, project-owner-specific conventions, machine paths, internal planning terminology, and private development layout.
 
 Numeric release versions are not guessed during ordinary development. Unreleased work remains marked **Unreleased** until the release checkpoint chooses the version. Annotated release tags carry a full release summary rather than a one-line version label.

@@ -21,7 +21,7 @@ The rules are:
 9. Do not redesign stable architecture or UI without a concrete reason.
 10. Do not change the numeric application version during ordinary development.
 11. Do not delete branches or uncertain files silently.
-12. Technical documentation, commit messages, identifiers, and release notes are written in English. The application GUI is primarily Russian.
+12. Technical documentation, commit messages, identifiers, and release notes are written in English. Public product `README.md` is Russian to match the application GUI, and `README.en.md` is its English counterpart.
 13. Conversation with the project owner is in Russian.
 14. Do not suggest or introduce Codex unless explicitly requested.
 
@@ -320,14 +320,16 @@ Tracked repository cleanup and local working-tree cleanup are separate tasks.
 
 ## 12. Documentation rules
 
-The root `README.md` is the **public user-facing entry point**.
+The root `README.md` is the **default Russian-language public product entry point**. `README.en.md` is the equivalent English public product entry point; each must link to the other.
 
 It must:
 
 - describe the application for someone who downloaded or cloned it;
-- explain the product and current features;
+- explain current, implemented product features with language understandable to end users;
 - contain generic installation/run instructions;
-- avoid machine-specific paths, personal development layout, or private local workflow details.
+- use the actual Russian UI labels where practical, including English explanations when needed;
+- avoid personal information, owner-specific terminology, machine paths, private workflows, and internal development-phase identifiers;
+- stay synchronized across both languages, especially during release preparation.
 
 Detailed project documentation belongs in `docs/`.
 
