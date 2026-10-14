@@ -15,9 +15,13 @@ from presets import OFF, TA, TI
 from training_modes import (
     GAP_MODES,
     RAMP_MODES,
+    TEMPO_MODES,
     displaced_click_spec,
     gap_phase,
+    ladder_effective_pattern,
     ramp_stages,
+    tempo_for_bar,
+    training_phase,
     sparse_click_matches,
 )
 
@@ -90,6 +94,19 @@ class EngineConfig:
     progressive_gap_max_silent_bars: int = 4
     sparse_click_pattern: str = "beat_1"
     displaced_click: str = "eighth_and"
+    ladder_bars: int = 2
+    burst_base_bars: int = 4
+    burst_fast_bars: int = 1
+    burst_fast_bpm: int = 120
+    accent_bars: int = 1
+    tempo_min_bpm: int = 80
+    tempo_max_bpm: int = 120
+    tempo_block_bars: int = 2
+    random_seed: int = 7
+    endurance_work_bars: int = 4
+    endurance_rest_bars: int = 1
+    blind_learn_bars: int = 4
+    blind_memory_bars: int = 2
 
 
 class AudioEngine:
@@ -114,6 +131,8 @@ class AudioEngine:
         self._pattern = BarPattern()
         self._pattern.normalize()
         self._coverage = self._pattern.coverage()
+        self._effective_pattern = self._pattern
+        self._effective_bpm = self._config.bpm
         self._running = False
 
         self._sample_cursor = 0
@@ -321,12 +340,54 @@ class AudioEngine:
         new_pattern.normalize()
         self._pattern = new_pattern
         self._coverage = new_pattern.coverage()
+        self._update_effective_pattern()
+
+    def _phase(self):
+        cfg = self._config
+        return training_phase(
+            cfg.practice_mode, self._bar_number, self._pattern.numerator,
+            ladder_bars=cfg.ladder_bars,
+            burst_base_bars=cfg.burst_base_bars,
+            burst_fast_bars=cfg.burst_fast_bars,
+            accent_bars=cfg.accent_bars,
+            tempo_block_bars=cfg.tempo_block_bars,
+            endurance_work_bars=cfg.endurance_work_bars,
+            endurance_rest_bars=cfg.endurance_rest_bars,
+            blind_learn_bars=cfg.blind_learn_bars,
+            blind_memory_bars=cfg.blind_memory_bars,
+        )
+
+    def _update_effective_pattern(self) -> None:
+        if self._config.practice_mode == "subdivision_ladder":
+            self._effective_pattern = ladder_effective_pattern(
+                self._pattern, self._phase().stage_index
+            )
+        else:
+            self._effective_pattern = self._pattern
+        self._coverage = self._effective_pattern.coverage()
+
+    def _update_effective_bpm(self) -> None:
+        cfg = self._config
+        self._effective_bpm = tempo_for_bar(
+            cfg.practice_mode, self._bar_number, cfg.bpm,
+            burst_base_bars=cfg.burst_base_bars,
+            burst_fast_bars=cfg.burst_fast_bars,
+            burst_fast_bpm=cfg.burst_fast_bpm,
+            tempo_min_bpm=cfg.tempo_min_bpm,
+            tempo_max_bpm=cfg.tempo_max_bpm,
+            tempo_block_bars=cfg.tempo_block_bars,
+            random_seed=cfg.random_seed,
+        )
 
     def set_config(self, **kwargs: Any) -> None:
         valid = {k: v for k, v in kwargs.items() if hasattr(self._config, k)}
         if "bpm" in valid:
             valid["bpm"] = float(max(20.0, min(320.0, valid["bpm"])))
         self._config = replace(self._config, **valid)
+        if "practice_mode" in valid or "ladder_bars" in valid:
+            self._update_effective_pattern()
+        if not self._running or "practice_mode" in valid:
+            self._update_effective_bpm()
 
     def get_config(self) -> EngineConfig:
         return self._config
@@ -354,6 +415,8 @@ class AudioEngine:
         self._active_voices.clear()
         self._notification_queue.clear()
         self._last_error = ""
+        self._update_effective_pattern()
+        self._update_effective_bpm()
 
         extra_settings = None
         if self.exclusive_mode and "WASAPI" in self.host_api_name.upper():
