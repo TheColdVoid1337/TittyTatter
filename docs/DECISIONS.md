@@ -259,3 +259,11 @@ Public Strict Alternate continues to alternate attacks only. OFF slots still do 
 
 **Reason:** ghost-stroke semantics describe a materially different arm-motion exercise and should not be introduced implicitly while advanced Economy mechanics are being stabilized.
 
+## D-044 — Release tags carry full release notes
+
+**Decision:** every published TittyTatter release tag is annotated and its annotation contains a complete release description, not only `TittyTatter vX.Y.Z`.
+
+The annotation must summarize the release purpose, user-visible highlights, meaningful technical changes, exact release validation, and intentionally deferred follow-up when relevant.
+
+**Reason:** tags are durable release artifacts. A useful annotation lets the release history explain itself without requiring a reader to reconstruct context from dozens of commits or chat history.
+
