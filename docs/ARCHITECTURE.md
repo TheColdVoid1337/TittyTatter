@@ -193,17 +193,17 @@ The canonical design is [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md).
 
 **P5 is implemented:** Ramp stages are optimized as one exercise. Persistent real attacks use one shared stroke across every stage where they exist, P4 motif equality remains active, each stage contributes a cyclic boundary factor, and temporary TA placeholders remain stage-local bridge attacks.
 
-**P6 runtime cutover is implemented:** `app.py` now routes Alternate to the v2 attack-alternate adapter, normal Economy to the event-based v2 Economy adapter, and Ramp Economy to the P5 joint-stage solver. The public UI shape is unchanged.
+**P6 runtime cutover is implemented:** `app.py` now routes Alternate to the v2 attack-alternate adapter, normal Economy to the event-based v2 Economy adapter, and Ramp Economy to the P5 joint-stage solver. The v2 runtime now keeps the same two public strategies while exposing strategy-specific advanced Picking controls.
 
 Manual acceptance of the live v2 path is complete. Transitional legacy picking functions were removed in `debda3e`, and the post-cleanup `./tt check` gate passed on `0df6f88`.
 
 **P7a is implemented on `work`:** Strict Alternate exposes an optional first-stroke control (Auto / DOWN / UP). The row is hidden for Economy, and the live Economy/joint-Ramp paths always use automatic start-polarity optimization. The internal Economy start-direction API remains only as a test/debug/future special-exercise hook. The Alternate value is persisted in Picking settings. P7a was locally validated on `10ab611`: automated checks passed, the control is hidden for Economy, and Strict Alternate DOWN/UP changes the whole attack-alternate polarity as intended.
 
-**P7b is implemented on `work`:** Economy exposes an explicit escape profile (Auto / USX / DSX / DBX). USX rewards alternate string changes after UP and downstroke sweeps; DSX rewards alternate string changes after DOWN and upstroke sweeps; DBX accepts either alternate escape and keeps sweep direction neutral; Auto preserves neutral scoring. Opposite-direction sweeps remain possible but are penalized rather than forbidden. The profile propagates through normal Economy, motif constraints, joint Ramp, and placeholder bridges. `picking_diagnostics.py` plus `./tt picking-log` provides terminal/log evidence without screenshots.
+**P7b is complete and locally/log validated on `fab918b`:** Economy exposes an explicit escape profile (Auto / USX / DSX / DBX). USX rewards alternate string changes after UP and downstroke sweeps; DSX rewards alternate string changes after DOWN and upstroke sweeps; DBX accepts either alternate escape and keeps sweep direction neutral; Auto preserves neutral scoring. Opposite-direction sweeps remain possible but are penalized rather than forbidden. The profile propagates through normal Economy, motif constraints, joint Ramp, and placeholder bridges. `picking_diagnostics.py` plus `./tt picking-log` provides terminal/log evidence without screenshots.
 
-**P7c is implemented on `work`:** Economy has an independent `CrossingPreference` (Auto / Inside / Outside). `classify_alternate_crossing_geometry()` classifies only true alternating string changes, and `crossing_preference_adjustment()` contributes a soft additive score. `PickDecision.crossing_geometry` keeps the result explainable. The preference propagates through normal Economy, joint Ramp, and placeholder bridges.
+**P7c is implemented and awaiting the release-candidate local gate:** Economy has an independent `CrossingPreference` (Auto / Inside / Outside). `classify_alternate_crossing_geometry()` classifies only true alternating string changes, and `crossing_preference_adjustment()` contributes a soft additive score. `PickDecision.crossing_geometry` keeps the result explainable. The preference propagates through normal Economy, joint Ramp, and placeholder bridges.
 
-**P7d is implemented on `work`:** `SweepLink` and `detect_sweep_links()` convert solved directional sweeps into presentation-safe beat/subdivision coordinates. `MetronomeVisual` draws optional connectors without feeding anything back into the optimizer, so visualization cannot change stroke decisions.
+**P7d is implemented and awaiting the release-candidate local GUI/log gate:** `SweepLink` and `detect_sweep_links()` convert solved directional sweeps into presentation-safe beat/subdivision coordinates. `MetronomeVisual` draws optional connectors without feeding anything back into the optimizer, so visualization cannot change stroke decisions.
 
 
 Picking Logic v2 changes the abstraction from "flatten states and assign arrows" to:
@@ -221,15 +221,16 @@ Target behavior includes:
 
 - **Alternate** = deterministic attack-alternate; rests do not consume a stroke;
 - **Economy** = practical directional economy, not maximum sweeping;
-- explicit same-string, alternate-crossing, sweep, reset, and future escape-aware transition types;
+- explicit same-string, alternate-crossing, directional-sweep, reset, escape-profile, and inside/outside crossing semantics;
 - start DOWN/UP evaluated as real candidates;
 - parity and loop-boundary awareness;
 - repeated motor motifs constrained during optimization rather than rewritten afterward;
 - Ramp stages solved jointly, with persistent real attacks and stage-local placeholder attacks;
 - explicit AUTO/USX/DSX/DBX Economy scoring without inferring the player's mechanics;
-- machine-readable decision reasons for regression/debug work.
+- explicit Auto/Inside/Outside alternate-crossing preference;
+- machine-readable decision reasons and sweep-link metadata for regression/debug/presentation work.
 
-The UI may continue to show only arrows initially. Internal sweep links and transition reasons are model data, not a requirement for a new user-facing control.
+The UI shows arrows as the primary cue and may optionally visualize valid directional sweeps with presentation-only connectors. Transition reasons and crossing metadata remain diagnostic/model data.
 
 ### `game_logger.py`
 
