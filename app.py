@@ -88,9 +88,11 @@ from training_modes import (
     DISPLACED_CLICK_OPTIONS,
     GAP_MODES,
     RAMP_MODES,
+    TEMPO_MODES,
     SPARSE_CLICK_OPTIONS,
     TRAINING_MODES,
     displaced_click_label,
+    ladder_effective_pattern,
     ramp_stages,
     sparse_click_label,
 )
@@ -1359,6 +1361,25 @@ class AudioExportDialog(QDialog):
         return duration, int(sample_rate), int(bits)
 
 
+# Each new mode owns a small set of controls; all other rows stay hidden.
+# (setting key, caption, minimum, maximum, default, suffix, mode)
+NEW_TRAINING_SETTINGS = (
+    ("ladder_bars", "Тактов / деление:", 1, 32, 2, " такт.", "subdivision_ladder"),
+    ("burst_base_bars", "База, тактов:", 1, 32, 4, "", "burst"),
+    ("burst_fast_bars", "Рывок, тактов:", 1, 16, 1, "", "burst"),
+    ("burst_fast_bpm", "Рывок, BPM:", 20, 320, 120, "", "burst"),
+    ("accent_bars", "Тактов / акцент:", 1, 32, 1, "", "accent_shift"),
+    ("tempo_min_bpm", "Мин. BPM:", 20, 320, 80, "", "tempo_wave random_tempo"),
+    ("tempo_max_bpm", "Макс. BPM:", 20, 320, 120, "", "tempo_wave random_tempo"),
+    ("tempo_block_bars", "Тактов / блок:", 1, 32, 2, "", "tempo_wave random_tempo"),
+    ("random_seed", "Seed:", 0, 999999, 7, "", "random_tempo"),
+    ("endurance_work_bars", "Работа, тактов:", 1, 64, 4, "", "endurance"),
+    ("endurance_rest_bars", "Отдых, тактов:", 1, 32, 1, "", "endurance"),
+    ("blind_learn_bars", "Подсказки, тактов:", 1, 64, 4, "", "blind_pattern"),
+    ("blind_memory_bars", "Память, тактов:", 1, 32, 2, "", "blind_pattern"),
+)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, game_log_enabled: bool = False) -> None:
         super().__init__()
@@ -1563,6 +1584,8 @@ class MainWindow(QMainWindow):
         self.progressive_gap_max.valueChanged.connect(self._update_training_help)
         self.sparse_click.currentIndexChanged.connect(self._update_training_help)
         self.displaced_click.currentIndexChanged.connect(self._update_training_help)
+        for spin in self.new_training_spins.values():
+            spin.valueChanged.connect(self._update_training_help)
         self.tempo_train.toggled.connect(self._refresh_dependent_controls)
         self.practice_timer.toggled.connect(self._refresh_dependent_controls)
         self.ramp_warning.toggled.connect(self._refresh_dependent_controls)
@@ -1583,6 +1606,7 @@ class MainWindow(QMainWindow):
             self.progressive_gap_max,
             self.sparse_click,
             self.displaced_click,
+            *self.new_training_spins.values(),
             self.tempo_train,
             self.tempo_step,
             self.tempo_every,
@@ -1693,6 +1717,16 @@ class MainWindow(QMainWindow):
         for key, label in DISPLACED_CLICK_OPTIONS:
             self.displaced_click.addItem(label, key)
         form.addRow("Позиция клика:", self.displaced_click)
+
+        self.new_training_spins: dict[str, QSpinBox] = {}
+        for key, caption, minimum, maximum, default, suffix, _modes in NEW_TRAINING_SETTINGS:
+            spin = QSpinBox()
+            spin.setRange(minimum, maximum)
+            spin.setValue(default)
+            if suffix:
+                spin.setSuffix(suffix)
+            form.addRow(caption, spin)
+            self.new_training_spins[key] = spin
 
         random_button = QPushButton("🎲 Случайный такт")
         random_button.clicked.connect(self.randomize_beats)
@@ -2402,6 +2436,13 @@ class MainWindow(QMainWindow):
         )
 
     def _mode_changed(self, *_args) -> None:
+        if self.engine.is_running:
+            if self.game_active:
+                self.stop_game("Игра остановлена: смена режима")
+            else:
+                self._stop_playback("Готов")
+        if self.mode.currentData() in TEMPO_MODES:
+            self.tempo_train.setChecked(False)
         ramp = self.mode.currentData() in RAMP_MODES
         for editor in self.editors:
             editor.set_mute_allowed(not ramp)
@@ -2419,6 +2460,13 @@ class MainWindow(QMainWindow):
         sparse = mode == "sparse_click"
         displaced = mode == "displaced_click"
 
+        for key, _caption, _min, _max, _default, _suffix, modes in NEW_TRAINING_SETTINGS:
+            spin = self.new_training_spins[key]
+            visible = mode in modes.split()
+            spin.setEnabled(visible)
+            self.training_form.setRowVisible(spin, visible)
+
+        self.tempo_train.setEnabled(mode not in TEMPO_MODES)
         self.bars.setEnabled(ramp)
         self.inactive.setEnabled(ramp)
         self.ramp_warning.setEnabled(ramp)
@@ -2435,7 +2483,7 @@ class MainWindow(QMainWindow):
 
         tempo_enabled = self.tempo_train.isChecked()
         for widget in (self.tempo_step, self.tempo_every, self.tempo_target):
-            widget.setEnabled(tempo_enabled)
+            widget.setEnabled(tempo_enabled and mode not in TEMPO_MODES)
 
         timer_enabled = self.practice_timer.isChecked()
         self.timer_minutes.setEnabled(timer_enabled)
@@ -2545,6 +2593,7 @@ class MainWindow(QMainWindow):
             progressive_gap_max_silent_bars=self.progressive_gap_max.value(),
             sparse_click_pattern=self.sparse_click.currentData(),
             displaced_click=self.displaced_click.currentData(),
+            **{key: spin.value() for key, spin in self.new_training_spins.items()},
             ti_enabled=self.ti_on.isChecked(),
             ti_sound=self.ti_sound.currentText(),
             ti_volume=self.ti_vol.value() / 100.0,
