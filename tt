@@ -102,8 +102,10 @@ case "$cmd" in
     ensure_venv
     echo "== core tests =="
     "$PY" "$(winpath "$TEST")"
+    echo "== training modes =="
+    "$PY" "$(winpath "$ROOT/test_training_modes.py")"
     echo "== compile =="
-    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/picking_diagnostics.py")" "$(winpath "$ROOT/game_logger.py")" "$(winpath "$ROOT/input_binding.py")" "$(winpath "$ROOT/training_modes.py")"
+    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/picking_diagnostics.py")" "$(winpath "$ROOT/game_logger.py")" "$(winpath "$ROOT/input_binding.py")" "$(winpath "$ROOT/training_modes.py")" "$(winpath "$ROOT/test_training_modes.py")"
     echo "== picking diagnostics =="
     "$PY" "$(winpath "$ROOT/picking_diagnostics.py")" --self-test
     echo "== export tests =="
