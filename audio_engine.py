@@ -386,7 +386,11 @@ class AudioEngine:
         self._config = replace(self._config, **valid)
         if "practice_mode" in valid or "ladder_bars" in valid:
             self._update_effective_pattern()
-        if not self._running or "practice_mode" in valid:
+        if (
+            not self._running
+            or "practice_mode" in valid
+            or ("bpm" in valid and self._config.practice_mode not in TEMPO_MODES)
+        ):
             self._update_effective_bpm()
 
     def get_config(self) -> EngineConfig:

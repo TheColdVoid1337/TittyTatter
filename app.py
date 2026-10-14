@@ -2705,6 +2705,11 @@ class MainWindow(QMainWindow):
     def _bpm_from_spin(self, value: int) -> None:
         self.engine.set_config(bpm=value)
 
+    def _base_bpm(self) -> int:
+        if self.engine.is_running and self.mode.currentData() in TEMPO_MODES:
+            return round(self.engine.get_config().bpm)
+        return self.bpm.value()
+
     def _timer_limit(self) -> int:
         return self.timer_minutes.value() * 60 + self.timer_seconds.value()
 
@@ -3998,7 +4003,7 @@ class MainWindow(QMainWindow):
         if not path:
             return
         try:
-            export_midi(path, self.current_pattern(), self.bpm.value(), repeats, labels)
+            export_midi(path, self.current_pattern(), self._base_bpm(), repeats, labels)
             self.status.setText(f"MIDI: {Path(path).name}")
         except Exception as exc:
             QMessageBox.warning(self, "MIDI", str(exc))
@@ -4013,7 +4018,7 @@ class MainWindow(QMainWindow):
         if not path:
             return
         try:
-            export_gp5(path, self.current_pattern(), self.bpm.value(), repeats, labels)
+            export_gp5(path, self.current_pattern(), self._base_bpm(), repeats, labels)
             self.status.setText(f"GP5: {Path(path).name}")
         except Exception as exc:
             QMessageBox.warning(self, "Guitar Pro", str(exc))
@@ -4048,7 +4053,7 @@ class MainWindow(QMainWindow):
     def session(self) -> dict:
         return {
             "version": 5,
-            "bpm": self.bpm.value(),
+            "bpm": self._base_bpm(),
             "pattern": self.current_pattern().to_dict(),
             "practice": {
                 "mode": self.mode.currentData(),
@@ -4195,7 +4200,7 @@ class MainWindow(QMainWindow):
             "geometry": geometry,
             "last_tab": self.tabs.currentIndex(),
             "focus_mode": self.tabs_toggle.isChecked(),
-            "bpm": self.bpm.value(),
+            "bpm": self._base_bpm(),
             "meter": {
                 "numerator": self.meter_num.value(),
                 "denominator": int(self.meter_den.currentData()),
