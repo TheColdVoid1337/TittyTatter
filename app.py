@@ -1585,6 +1585,7 @@ class MainWindow(QMainWindow):
         self.sparse_click.currentIndexChanged.connect(self._update_training_help)
         self.displaced_click.currentIndexChanged.connect(self._update_training_help)
         for spin in self.new_training_spins.values():
+            spin.valueChanged.connect(self._stop_for_training_parameter_change)
             spin.valueChanged.connect(self._update_training_help)
         self.tempo_train.toggled.connect(self._refresh_dependent_controls)
         self.practice_timer.toggled.connect(self._refresh_dependent_controls)
@@ -2505,6 +2506,14 @@ class MainWindow(QMainWindow):
             f"<b>Как лучше использовать:</b> {tip}<br><br>"
             f"<b>Что тренируется:</b> {benefit}"
         )
+
+    def _stop_for_training_parameter_change(self, *_args) -> None:
+        # Phase lengths/targets must not change in the middle of a bar.
+        if self.engine.is_running:
+            if self.game_active:
+                self.stop_game("Игра остановлена: настройки тренировки")
+            else:
+                self._stop_playback("Настройки тренировки изменены")
 
     def _mode_changed(self, *_args) -> None:
         if self.engine.is_running:
