@@ -8,6 +8,8 @@ The strongest product direction is:
 
 Game remains an optional input/scoring layer over the same training timeline. Picking Guide remains an optional informational layer for guitar practice.
 
+Illustrated **proposed** Training Mode exercises and open decisions are collected in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md).
+
 ## Picking Logic v2 — 0.0.5 release scope
 
 The 0.0.5 release line contains Picking Logic v2 P1–P7d. The superseded transitional implementation has been removed; regression, diagnostic, and manual GUI acceptance have been completed on the release candidate.
