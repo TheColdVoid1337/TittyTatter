@@ -2596,12 +2596,26 @@ class MainWindow(QMainWindow):
         numerator, denominator = self._meter()
         return BarPattern([editor.pattern() for editor in self.editors], numerator, denominator)
 
+    def _visual_training_pattern(self) -> BarPattern:
+        pattern = self.current_pattern()
+        if self.mode.currentData() == "subdivision_ladder" and self.engine.is_running:
+            st = self.engine.status()
+            if not st["count_in"]:
+                return ladder_effective_pattern(pattern, int(st["mode_stage_index"]))
+        return pattern
+
+    def _hide_exercise_visuals(self) -> bool:
+        if not self.engine.is_running:
+            return False
+        st = self.engine.status()
+        return not st["count_in"] and (bool(st["blind_hidden"]) or bool(st["mode_rest"]))
+
     def _update_focus_pattern(self, active_beats: int | None = None) -> None:
-        if not self.editors:
+        if not self.editors or self._hide_exercise_visuals():
             self.visual.set_focus_pattern([])
             return
 
-        pattern = self.current_pattern()
+        pattern = self._visual_training_pattern()
         if active_beats is None:
             if self.mode.currentData() == "ramp_1_4":
                 active = min(1, pattern.numerator)
@@ -2729,6 +2743,12 @@ class MainWindow(QMainWindow):
     def _stop_playback(self, message: str, timer_finished: bool = False) -> None:
         self.engine.stop()
         self.engine.stop_game_tracking()
+        if self.mode.currentData() in TEMPO_MODES:
+            self.bpm.blockSignals(True)
+            self.bpm.setValue(round(self.engine.get_config().bpm))
+            self.bpm.blockSignals(False)
+        self.beat_scroll.setVisible(not self.tabs_toggle.isChecked())
+        self._update_focus_pattern()
         self.play.setText("▶ Старт")
         self.clear_playhead()
         self._set_ramp_visual(self.meter_num.value())
@@ -3453,11 +3473,14 @@ class MainWindow(QMainWindow):
         self._update_picking_pattern()
 
     def _update_picking_pattern(self, active_beats: int | None = None) -> None:
+        if self._hide_exercise_visuals():
+            self.visual.set_picking_pattern(False)
+            return
         if not hasattr(self, "picking_enabled") or not self.picking_enabled.isChecked():
             self.visual.set_picking_pattern(False)
             return
 
-        pattern = self.current_pattern()
+        pattern = self._visual_training_pattern()
         if active_beats is None:
             if self.mode.currentData() == "ramp_1_4":
                 active = min(1, pattern.numerator)
@@ -3709,7 +3732,10 @@ class MainWindow(QMainWindow):
 
         bpm = round(st["bpm"])
         if bpm != self.bpm.value():
+            # Effective stage BPM must not overwrite the base tempo.
+            self.bpm.blockSignals(True)
             self.bpm.setValue(bpm)
+            self.bpm.blockSignals(False)
 
         numerator = int(st["numerator"])
         denominator = int(st["denominator"])
@@ -3771,6 +3797,12 @@ class MainWindow(QMainWindow):
         self._maybe_warn_ramp(st)
 
         mode = self.mode.currentData()
+        hidden_editor = (
+            bool(st["blind_hidden"])
+            or bool(st["mode_rest"])
+            or mode == "subdivision_ladder"
+        )
+        self.beat_scroll.setVisible(not self.tabs_toggle.isChecked() and not hidden_editor)
         if mode in RAMP_MODES:
             stage_bar = int(st["stage_bar"])
             bars_per_stage = int(st["bars_per_stage"])
@@ -3816,6 +3848,15 @@ class MainWindow(QMainWindow):
                 f"Смещённый метроном · {displaced_click_label(str(st['displaced_click']))} · "
                 f"доля {beat + 1} · {bpm} BPM"
             )
+        elif mode in (
+            "subdivision_ladder", "burst", "accent_shift", "blind_pattern",
+            "endurance", "tempo_wave", "random_tempo",
+        ):
+            status_text = (
+                f"{self.mode.currentText()} · {st['mode_stage_label']} · "
+                f"{int(st['mode_stage_bar'])}/{int(st['mode_stage_bars'])} такт. · "
+                f"доля {beat + 1} · {bpm} BPM"
+            )
         else:
             status_text = f"Повтор · доля {beat + 1} · {bpm} BPM"
 
@@ -3829,7 +3870,9 @@ class MainWindow(QMainWindow):
         # Hide the yellow TI/TA playhead together with the audio, then restore
         # it automatically when the audible phase returns.
         focus_playhead_visible = not (
-            mode in GAP_MODES and bool(st["training_silent"])
+            (mode in GAP_MODES and bool(st["training_silent"]))
+            or bool(st["blind_hidden"])
+            or bool(st["mode_rest"])
         )
         self.visual.set_focus_playhead_visible(focus_playhead_visible)
         if not focus_playhead_visible:
