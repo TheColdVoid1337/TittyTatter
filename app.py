@@ -2758,13 +2758,24 @@ class MainWindow(QMainWindow):
             self.play.setText("▶ Старт")
             QMessageBox.critical(self, "Ошибка аудио", str(exc))
 
+    def _restore_base_bpm_after_playback(self) -> None:
+        # The mode selector may already show the *next* mode when its change
+        # handler stops the previous playback. Inspect the engine's previous
+        # mode instead, so a transient burst/wave/random BPM never replaces
+        # the transport's configured base BPM.
+        cfg = self.engine.get_config()
+        if cfg.practice_mode not in TEMPO_MODES:
+            return
+        previously_blocked = self.bpm.blockSignals(True)
+        try:
+            self.bpm.setValue(round(cfg.bpm))
+        finally:
+            self.bpm.blockSignals(previously_blocked)
+
     def _stop_playback(self, message: str, timer_finished: bool = False) -> None:
         self.engine.stop()
         self.engine.stop_game_tracking()
-        if self.mode.currentData() in TEMPO_MODES:
-            self.bpm.blockSignals(True)
-            self.bpm.setValue(round(self.engine.get_config().bpm))
-            self.bpm.blockSignals(False)
+        self._restore_base_bpm_after_playback()
         self.beat_scroll.setVisible(not self.tabs_toggle.isChecked())
         self._update_focus_pattern()
         self.play.setText("▶ Старт")

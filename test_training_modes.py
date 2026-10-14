@@ -166,4 +166,51 @@ assert len(targets) == 2 and all(math.isclose(x, 24000.0) for x in intervals)
 assert burst._effective_bpm == 60
 assert burst._config.bpm == 60.0
 
+# GUI transport regression without a QApplication or physical audio stream:
+# changing the combo before stop must restore the mode which WAS playing.
+from types import SimpleNamespace
+
+from app import MainWindow
+
+
+class _FakeBpmSpin:
+    def __init__(self, value: int) -> None:
+        self.current = value
+        self.signals_blocked = False
+        self.emissions = []
+
+    def blockSignals(self, block: bool) -> bool:
+        previous = self.signals_blocked
+        self.signals_blocked = bool(block)
+        return previous
+
+    def setValue(self, value: int) -> None:
+        self.current = value
+        if not self.signals_blocked:
+            self.emissions.append(value)
+
+
+for active_mode in ("burst", "tempo_wave", "random_tempo"):
+    spin = _FakeBpmSpin(120)
+    stub = SimpleNamespace(
+        engine=SimpleNamespace(
+            get_config=lambda mode=active_mode: EngineConfig(practice_mode=mode, bpm=80),
+        ),
+        bpm=spin,
+        # The already-changed combo is intentionally irrelevant to restore.
+        mode=SimpleNamespace(currentData=lambda: "loop"),
+    )
+    MainWindow._restore_base_bpm_after_playback(stub)
+    assert spin.current == 80 and not spin.signals_blocked and not spin.emissions
+
+spin = _FakeBpmSpin(90)
+stub = SimpleNamespace(
+    engine=SimpleNamespace(
+        get_config=lambda: EngineConfig(practice_mode="loop", bpm=80),
+    ),
+    bpm=spin,
+)
+MainWindow._restore_base_bpm_after_playback(stub)
+assert spin.current == 90 and not spin.signals_blocked and not spin.emissions
+
 print("training modes OK")
