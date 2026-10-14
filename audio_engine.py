@@ -383,13 +383,17 @@ class AudioEngine:
         valid = {k: v for k, v in kwargs.items() if hasattr(self._config, k)}
         if "bpm" in valid:
             valid["bpm"] = float(max(20.0, min(320.0, valid["bpm"])))
-        self._config = replace(self._config, **valid)
-        if "practice_mode" in valid or "ladder_bars" in valid:
+        prior = self._config
+        self._config = replace(prior, **valid)
+        mode_changed = self._config.practice_mode != prior.practice_mode
+        ladder_changed = self._config.ladder_bars != prior.ladder_bars
+        bpm_changed = self._config.bpm != prior.bpm
+        if mode_changed or ladder_changed:
             self._update_effective_pattern()
         if (
             not self._running
-            or "practice_mode" in valid
-            or ("bpm" in valid and self._config.practice_mode not in TEMPO_MODES)
+            or mode_changed
+            or (bpm_changed and self._config.practice_mode not in TEMPO_MODES)
         ):
             self._update_effective_bpm()
 
