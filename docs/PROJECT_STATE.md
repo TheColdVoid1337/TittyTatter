@@ -36,6 +36,8 @@ and the manual GUI/audio smoke for that exact release commit.
 
 Post-0.0.4 development continues on `work`. Root `VERSION` remains `0.0.4` until a future explicit release checkpoint.
 
+The next release checkpoint is being prepared as **0.0.5**, centered on the completed Picking Logic v2 rollout plus P7a-P7d advanced Picking controls/diagnostics. It is not published yet: P7c/P7d still require the canonical local release-candidate gate before `VERSION`, `main`, and the annotated tag are advanced.
+
 ## Current product definition
 
 TittyTatter is first and foremost a **guitar rhythm training tool**.
@@ -295,7 +297,7 @@ Documentation is updated in place.
 10. Picking Logic v2 core rollout is complete.
 11. **P7a complete and locally/manual validated:** Auto / DOWN / UP first-stroke control is available only for Strict Alternate; Economy and joint Ramp keep automatic global start-polarity optimization. `./tt check` passed on `10ab611`, and the GUI correctly hides the row for Economy and flips Alternate polarity for DOWN/UP.
 12. **P7b complete and locally/log validated:** Auto / USX / DSX / DBX Economy profiles influence alternate string-crossing escape compatibility and one-way sweep direction (USX downstroke sweep, DSX upstroke sweep) while keeping the opposite sweep direction as a soft fallback. On `fab918b`, `./tt check` passed including Picking diagnostics, the saved GUI profile was reported as `usx`, USX/DSX produced discriminating complete solutions, Ramp persistent strokes stayed stable, and the diagnostic ended with `SELF-TEST PASS`.
-13. `./tt picking-log` is the canonical P7b evidence path: it records saved profile state, discriminating pattern outputs, Ramp output, and PASS/FAIL self-tests in an ignored text log.
+13. `./tt picking-log` is the canonical advanced-Picking evidence path: it records Git HEAD, saved Picking preferences, escape-profile and inside/outside probes, sweep-link metadata, Ramp output, and PASS/FAIL self-tests in an ignored text log.
 14. **P7c implemented / local validation pending:** Economy has Auto / Inside / Outside alternate-crossing preference, persisted in settings and included in solver diagnostics.
 15. **P7d implemented / local validation pending:** valid directional sweeps can be rendered as linked motions in the Picking overlay; `./tt picking-log` records exact sweep-link coordinates.
 16. **P7e deferred:** rhythmic/ghost-stroke Alternate remains future work; Strict Alternate continues to mean attack-alternate.
