@@ -2664,7 +2664,11 @@ class MainWindow(QMainWindow):
             self._ensure_unique_sound("ti")
             return
         self.engine.set_config(
-            bpm=self.bpm.value(),
+            bpm=(
+                self.engine.get_config().bpm
+                if self.engine.is_running and self.mode.currentData() in TEMPO_MODES
+                else self.bpm.value()
+            ),
             practice_mode=self.mode.currentData(),
             bars_per_stage=self.bars.value(),
             count_in_bars=self.count.value(),
@@ -4057,6 +4061,7 @@ class MainWindow(QMainWindow):
                 "progressive_gap_max": self.progressive_gap_max.value(),
                 "sparse_click": self.sparse_click.currentData(),
                 "displaced_click": self.displaced_click.currentData(),
+                **{key: spin.value() for key, spin in self.new_training_spins.items()},
                 "trainer": self.tempo_train.isChecked(),
                 "step": self.tempo_step.value(),
                 "every": self.tempo_every.value(),
@@ -4127,6 +4132,8 @@ class MainWindow(QMainWindow):
         self.progressive_gap_max.setValue(int(practice.get("progressive_gap_max", 4)))
         self._combo_data(self.sparse_click, practice.get("sparse_click", "beat_1"))
         self._combo_data(self.displaced_click, practice.get("displaced_click", "eighth_and"))
+        for key, _caption, _min, _max, default, _suffix, _modes in NEW_TRAINING_SETTINGS:
+            self.new_training_spins[key].setValue(int(practice.get(key, default)))
         self.tempo_train.setChecked(bool(practice.get("trainer", False)))
         self.tempo_step.setValue(int(practice.get("step", 2)))
         self.tempo_every.setValue(int(practice.get("every", 4)))
@@ -4204,6 +4211,7 @@ class MainWindow(QMainWindow):
                 "progressive_gap_max": self.progressive_gap_max.value(),
                 "sparse_click": self.sparse_click.currentData(),
                 "displaced_click": self.displaced_click.currentData(),
+                **{key: spin.value() for key, spin in self.new_training_spins.items()},
                 "tempo_train": self.tempo_train.isChecked(),
                 "tempo_step": self.tempo_step.value(),
                 "tempo_every": self.tempo_every.value(),
@@ -4315,6 +4323,8 @@ class MainWindow(QMainWindow):
         self.progressive_gap_max.setValue(int(practice.get("progressive_gap_max", 4)))
         self._combo_data(self.sparse_click, practice.get("sparse_click", "beat_1"))
         self._combo_data(self.displaced_click, practice.get("displaced_click", "eighth_and"))
+        for key, _caption, _min, _max, default, _suffix, _modes in NEW_TRAINING_SETTINGS:
+            self.new_training_spins[key].setValue(int(practice.get(key, default)))
         self.tempo_train.setChecked(bool(practice.get("tempo_train", False)))
         self.tempo_step.setValue(int(practice.get("tempo_step", 2)))
         self.tempo_every.setValue(int(practice.get("tempo_every", 4)))
@@ -4458,6 +4468,8 @@ class MainWindow(QMainWindow):
         self.progressive_gap_max.setValue(4)
         self._combo_data(self.sparse_click, "beat_1")
         self._combo_data(self.displaced_click, "eighth_and")
+        for key, _caption, _min, _max, default, _suffix, _modes in NEW_TRAINING_SETTINGS:
+            self.new_training_spins[key].setValue(default)
         self.tempo_train.setChecked(False)
         self.tempo_step.setValue(2)
         self.tempo_every.setValue(4)
