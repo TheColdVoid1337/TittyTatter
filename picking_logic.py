@@ -1088,15 +1088,14 @@ def economy_pick_events(
 ) -> list[PickDecision]:
     """Solve practical directional Economy on normalized PickingEvent data.
 
-    P3 handles transition mechanics only. Motif equality and joint Ramp-stage
-    constraints are deliberately deferred to P4/P5.
-
     OFF/COVERED slots do not break continuity. Only explicit `reset_before`
     boundaries split phrases. If there is no explicit reset, `cyclic=True`
     scores the real last->first loop transition.
 
-    P4 whole-beat motif equality is applied before optimization, so repeated
+    Whole-beat motif equality is applied before optimization, so repeated
     motif attacks share stroke variables instead of being rewritten afterward.
+    Escape profile and inside/outside preference contribute soft transition
+    scores without replacing sweep, motif, parity, or loop constraints.
     """
     events = annotate_whole_beat_motifs(events)
     decisions = [
@@ -1295,7 +1294,7 @@ def economy_pick_beats_v2(
     escape_profile: EscapeProfile | str | None = EscapeProfile.AUTO,
     crossing_preference: CrossingPreference | str | None = CrossingPreference.AUTO,
 ) -> list[list[str | None]]:
-    """Compatibility projection for the P3 event-based Economy engine."""
+    """Project the current event-based Economy decisions back to beat rows."""
     events = normalize_picking_events(
         full_beats,
         effective_beats,
