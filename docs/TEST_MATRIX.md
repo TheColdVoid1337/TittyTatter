@@ -60,8 +60,8 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 | Picking v2 P6 | live app routes only v2 Alternate/Economy/Ramp solvers; Loop/Ramp/Alternate visual acceptance passed; transitional implementation removed in `debda3e`; post-cleanup `./tt check` passed on `0df6f88` |
 | Picking v2 P7a | PASS on `10ab611`: Strict Alternate Auto/DOWN/UP first-stroke control; Economy/Ramp hide/ignore the override and stay Auto; DOWN/UP flips whole Alternate polarity; full `./tt check` green; internal Economy constraint hook remains regression-tested |
 | Picking v2 P7b | PASS on `fab918b`: full `./tt check` green including Picking diagnostics; saved profile=`usx`; USX/DSX complete-solution divergence corpus; Ramp persistent identities stable; `./tt picking-log` ended with `SELF-TEST PASS` |
-| Picking v2 P7c | inside/outside classifier in both travel directions; Auto/Inside/Outside cyclic solution probe; soft preference composition with escape profile; Ramp propagation; saved UI preference/log field |
-| Picking v2 P7d | two-link DDUU sweep fixture; strict-alternate no-link fixture; presentation-safe source/target coordinates; optional UI connector; diagnostic link-count/coordinate report |
+| Picking v2 P7c | AUTOMATED/LOG PASS on `da166fe`: full check green; diagnostic AUTO/INSIDE=`D U` inside, OUTSIDE=`U D` outside; GUI controls and persistence await manual acceptance |
+| Picking v2 P7d | AUTOMATED/LOG PASS on `da166fe`: full check green; link_count=2, 0.0→0.1 DOWN and 0.2→0.3 UP; actual overlay readability/toggle behavior await manual acceptance |
 | Syntax | application modules compile |
 
 ## Automated export coverage

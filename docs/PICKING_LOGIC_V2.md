@@ -1040,7 +1040,7 @@ The command writes `logs/picking_v2_YYYYMMDD_HHMMSS.txt` and prints the same rep
 
 For advanced Picking algorithm validation, this log is preferred evidence over screenshots.
 
-### P7c — inside / outside crossing preference — IMPLEMENTED / LOCAL LOG PENDING
+### P7c — inside / outside crossing preference — AUTOMATED/LOG PASS; GUI PENDING
 
 Economy now has a second independent mechanical preference:
 
@@ -1059,7 +1059,7 @@ The preference is soft. It only adjusts true alternate string crossings and does
 
 `PickDecision` records `crossing_geometry` for diagnostics. The live Economy UI persists Auto / Inside / Outside and hides the control for Strict Alternate.
 
-### P7d — sweep-link visualization — IMPLEMENTED / LOCAL GUI+LOG PENDING
+### P7d — sweep-link visualization — AUTOMATED/LOG PASS; GUI PENDING
 
 Directional sweeps are exposed as presentation metadata through `SweepLink` / `detect_sweep_links()`.
 
@@ -1073,7 +1073,7 @@ The Economy UI includes **Показывать связи sweep**. The setting i
 
 Rhythmic / ghost-stroke Alternate remains explicitly deferred. Public Strict Alternate continues to mean attack-alternate.
 
-P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`. P7c/P7d require the normal `./tt check`, one `./tt picking-log`, and a brief verbal GUI confirmation; screenshots are not required.
+P7a passed the normal local and GUI gate on `10ab611`. P7b passed the full local gate and diagnostic acceptance on `fab918b`. The clean working tree, full `./tt check`, and `./tt picking-log` passed on `da166fe` (2026-10-14), including the inside/outside sequence probe and exactly two P7d sweep links. P7c/P7d still need a brief verbal GUI/audio confirmation; command completion alone is not visual acceptance. Screenshots are not required.
 
 ---
 

@@ -42,7 +42,7 @@ Numeric headings are added when a release version is chosen. Future development 
 - Picking Logic v2 P1-P6 and cleanup passed their local automated/manual gates.
 - P7a Strict Alternate first-stroke control passed `./tt check` and live GUI acceptance on `10ab611`.
 - P7b escape profiles passed `./tt check` and `./tt picking-log` acceptance on `fab918b`.
-- P7c/P7d are implemented and are the remaining release-candidate local gate before the next tag.
+- P7c/P7d passed the automated and deterministic diagnostic gate on `da166fe` (2026-10-14), with a clean local working tree, `./tt check` green, inside/outside sequence differentiation, and two valid sweep links. Focused manual GUI/audio acceptance remains pending before the 0.0.5 release commit and tag.
 
 ## 0.0.4 — 2026-10-04
 
