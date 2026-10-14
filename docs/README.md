@@ -8,7 +8,7 @@ The root `README.md` is the public user-facing project entry point. Detailed imp
 
 - [PROJECT_STATE.md](PROJECT_STATE.md) — current implementation, release baseline, and active development state.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — module boundaries, rhythm/training model, realtime timing, Game timing, Picking Guide, Focus view, export, and settings.
-- [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md) — canonical design for the next Picking Guide engine: event/state model, Alternate/Economy semantics, Ramp constraints, scoring priorities, migration phases, and regression matrix.
+- [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md) — canonical design and implementation reference for the live Picking Logic v2 engine: event/state model, Alternate/Economy semantics, escape/crossing preferences, Ramp constraints, sweep links, diagnostics, and regression matrix.
 - [WORKFLOW.md](WORKFLOW.md) — canonical vFLOW development, GitHub write, validation, reporting, release, and handoff procedure.
 - [USER_GUIDE.md](USER_GUIDE.md) — current application workflow and controls.
 - [ROADMAP.md](ROADMAP.md) — post-release guitar-training direction and later work.
@@ -24,4 +24,4 @@ The repository is the source of truth. When implementation and documentation dis
 
 The public root README must remain suitable for a user who downloads or clones the project. Personal machine paths and private development layout do not belong there.
 
-Numeric release versions are not guessed during ordinary development. Unreleased work remains marked **Unreleased** until the release checkpoint chooses the version.
+Numeric release versions are not guessed during ordinary development. Unreleased work remains marked **Unreleased** until the release checkpoint chooses the version. Annotated release tags carry a full release summary rather than a one-line version label.
