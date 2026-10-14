@@ -235,7 +235,7 @@ PickDecision
   reason
 ```
 
-The UI can continue to show only arrows initially, but this richer result prevents the algorithm from confusing a linked sweep with two unrelated same-direction strokes.
+The UI keeps arrows as the primary cue. P7d may also render a connector for a real directional sweep, while transition/crossing metadata remains available for diagnostics.
 
 ---
 
@@ -1028,7 +1028,7 @@ Scoring is intentionally **soft**, not a hard ban. A trapped-stroke alternate cr
 
 P7b propagates through normal Economy, joint Ramp Economy, motif-constrained optimization, placeholder bridge scoring, and saved Picking settings. Strict Alternate hides the mechanics-profile row.
 
-### P7b diagnostic log
+### Picking Logic v2 diagnostic log
 
 Run:
 
@@ -1036,9 +1036,9 @@ Run:
 ./tt picking-log
 ```
 
-The command writes `logs/picking_p7b_YYYYMMDD_HHMMSS.txt` and prints the same report to the terminal. It includes Git HEAD, saved profile, scoring probes, automatically discovered patterns where USX and DSX differ, Auto/USX/DSX/DBX output, Ramp output, and PASS/FAIL self-tests.
+The command writes `logs/picking_v2_YYYYMMDD_HHMMSS.txt` and prints the same report to the terminal. It includes Git HEAD, persisted Picking preferences, escape-profile scoring probes, profile-discriminating patterns, inside/outside crossing probes, sweep-link probes, Ramp output, and PASS/FAIL self-tests.
 
-For P7b algorithm validation, this log is preferred evidence over screenshots.
+For advanced Picking algorithm validation, this log is preferred evidence over screenshots.
 
 ### P7c — inside / outside crossing preference — IMPLEMENTED / LOCAL LOG PENDING
 
