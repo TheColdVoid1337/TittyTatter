@@ -12,7 +12,7 @@ The root [README.md](../README.md) is the primary **Russian-language** product o
 - [WORKFLOW.md](WORKFLOW.md) — canonical vFLOW development, GitHub write, validation, reporting, release, and handoff procedure.
 - [USER_GUIDE.md](USER_GUIDE.md) — current application workflow and controls.
 - [ROADMAP.md](ROADMAP.md) — post-release guitar-training direction and later work.
-- [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md) — illustrated proposed Training Mode exercises, training value, and unresolved design questions (not yet implemented).
+- [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md) — illustrated seven-mode work candidate, actual draft semantics, practice guidance and local acceptance gate.
 - [DECISIONS.md](DECISIONS.md) — durable project decisions and rationale.
 - [TEST_MATRIX.md](TEST_MATRIX.md) — canonical automated gate plus manual GUI/audio/Game/export acceptance.
 - [CHANGELOG.md](CHANGELOG.md) — published release history and noteworthy changes.

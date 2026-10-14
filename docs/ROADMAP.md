@@ -8,7 +8,7 @@ The strongest product direction is:
 
 Game remains an optional input/scoring layer over the same training timeline. Picking Guide remains an optional informational layer for guitar practice.
 
-Illustrated **proposed** Training Mode exercises and open decisions are collected in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md).
+Illustrated exercises, current **work-branch candidates (local acceptance pending)** and design limits are collected in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md).
 
 ## Picking Logic v2 — 0.0.5 release scope
 
@@ -31,9 +31,12 @@ Implementation order:
 
 Do not add more screenshot-specific picking heuristics when the failure belongs to the v2 model. Convert new failures into regression cases first.
 
-With Picking Logic v2 accepted, **Subdivision Ladder** becomes the next planned Training Mode. P7e remains deferred and is not a prerequisite.
+With Picking Logic v2 accepted, the seven additional Training Modes were implemented as one work-branch candidate at the owner's request. **Native Windows acceptance is pending**, and P7e remains deferred.
 
 ## Priority post-release Training Modes
+
+**Work-branch status (not published):** All seven modes below have a first candidate implementation and dedicated regression tests, but their GUI/audio behavior has not yet been accepted locally. Examples remain practice illustrations; exact first-candidate semantics are in the design document.
+
 
 ### Лестница делений — Subdivision Ladder
 

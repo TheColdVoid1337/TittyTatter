@@ -11,17 +11,20 @@ Normal automated validation is local:
 The gate currently runs approximately:
 
 1. `test_core.py`;
-2. compile checks for the main Python modules;
-3. `picking_diagnostics.py --self-test`;
-4. `test_exports.py`;
-5. `test_game_logger.py`;
-6. dependency imports.
+2. `test_training_modes.py` (new work-branch candidate);
+3. compile checks for the main Python modules;
+4. `picking_diagnostics.py --self-test`;
+5. `test_exports.py`;
+6. `test_game_logger.py`;
+7. dependency imports.
 
 Expected green ending:
 
 ```text
 == core tests ==
 core tests OK
+== training modes ==
+training modes OK
 == compile ==
 == picking diagnostics ==
 picking diagnostics OK
@@ -86,6 +89,26 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 - finish/stop creates a `.tar.gz`;
 - raw JSONL is deleted after successful archival;
 - archived content reads back correctly.
+
+## Unreleased seven-mode acceptance — PENDING
+
+The following checks apply to the work-branch candidate and **are not yet confirmed**:
+
+- Startup succeeds and all 14 Training Modes are selectable; only mode-relevant controls appear.
+- Ladder: use a 4/4 or 7/8 Pattern containing both TI and TA. At one bar per stage, confirm 1 -> 2 -> 3 -> 4 attacks per metric beat; Focus displays stage-effective grid and no stored Pattern is modified.
+- Ladder: confirm silent beats, muted beats and long-note spans remain free of invented extra attacks.
+- Burst: 4 base bars and 1 fast bar; verify clean bar boundaries, return to base tempo and same Pattern/Game targets.
+- Accent: first attack in successive beats is louder, never earlier/later; blank beats do not gain a new attack.
+- Blind: memory phase hides editable pattern and Focus/Picking cue, silences TI/TA but **preserves Game targets and metronome**.
+- Endurance: recovery phase removes TI/TA audio and **Game targets** while the metronome keeps time; return to work starts cleanly.
+- Wave: seven-step up/down staircase with exact min/max values and steady timing at boundaries.
+- Random: repeatable BPM blocks with identical seed and settings; no per-note jitter.
+- Count-in, Timer, Game, Focus, Picking Guide and sound controls continue to function; ordinary v0.0.5 modes retain their behavior.
+- Save/load a new-mode session and restore the ignored settings; load an older v0.0.5 session without new keys.
+- Changing a new mode's phase parameters during playback stops safely; Tempo Trainer is disabled for tempo modes.
+- Existing MIDI/GP5/WAV exports continue to use stored Pattern/base BPM, not the active generated stage; no export regressions.
+
+**Acceptance gate:** User pastes `./tt check` and confirms focused `./tt run` GUI/audio behavior. Do not mark this section passed from a GitHub commit alone.
 
 ## Manual release acceptance
 

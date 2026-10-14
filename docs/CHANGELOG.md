@@ -5,6 +5,19 @@ All notable TittyTatter changes are recorded here.
 Numeric headings are added when a release version is chosen. Future development remains under **Unreleased** until its release checkpoint.
 
 
+## Unreleased (work branch; local validation pending)
+
+### Added
+- First candidates for seven additional Training Modes: Subdivision Ladder, Burst Trainer, Accent Trainer, Blind Pattern, Endurance Intervals, Tempo Wave and Random Tempo Blocks.
+- Mode-specific Russian controls, practical in-app diagrams, callback-driven phase scheduling and shared Training/Game target handling.
+- Stable seeded tempo-block generation, ladder effective-pattern projection, independent tempo-stage BPM, and new session/settings fields with legacy defaults.
+- `test_training_modes.py` wired into the canonical `./tt check` gate.
+
+### Compatibility / pending
+- Published v0.0.5 remains untouched; this work has not yet passed native Windows `./tt check` or `./tt run`.
+- MIDI/GP5/WAV exports still represent the stored Pattern at base BPM; they do not export stage progressions.
+- Public READMEs and end-user guide are not yet promoted to claim this unaccepted feature set.
+
 ## 0.0.5 — 2026-10-14
 
 TittyTatter 0.0.5 delivers Picking Logic v2, new advanced Picking Guide settings, text diagnostics, and bilingual public READMEs. See [full release notes](RELEASE_NOTES_0.0.5.md).

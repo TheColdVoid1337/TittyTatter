@@ -92,6 +92,15 @@ Current Training Modes:
 - `sparse_click` — Редкий метроном;
 - `displaced_click` — Смещённый метроном.
 
+**Work-branch candidate, not yet locally accepted:** Seven additional Training Modes use pure `training_phase(...)` and `tempo_for_bar(...)` helpers, plus `ladder_effective_pattern(...)`. Their runtime controls are in `EngineConfig` and the Training form. Callback `_on_bar_boundary` advances the effective pattern and BPM without creating a second clock. Status exposes `mode_stage_*`, `mode_rest`, `blind_hidden` and `accent_beat`; Game targets originate in the same `_event` path.
+
+- Ladder projects each beat's performed TI/TA attack sequence onto a 1/2/3/4-step grid at 2-bar stages by default. Empty/muted/covered spans stay silent; original stored Pattern remains unchanged.
+- Burst uses base/fast bar blocks; Wave uses seven stepwise BPM values; Random uses a deterministic seed and bar blocks. These are mode-owned effective BPMs separate from saved base BPM. The independent Tempo Trainer is disabled for those modes.
+- Accent increases gain on the first performed attack of a rotating beat (not the metronome), without altering timestamps or Game targets.
+- Blind hides note guidance while still publishing Game targets; Endurance's rest suppresses targets and notes. Both preserve a reference metronome and continuous clock.
+- Focus and Picking are derived from the Ladder stage-effective pattern, and are hidden during the Blind/recovery guidance-free phases. Original editable beat cards remain the source model.
+- Session/settings restore new controls with defaults for legacy snapshots. Export remains intentionally pattern-only at the base BPM; it does not encode Training Mode progressions.
+
 The old internal ramp names are retained for compatibility, but ramp semantics are meter-aware rather than hard-coded to 4/4.
 
 For numerator `N`:

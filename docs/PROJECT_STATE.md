@@ -167,6 +167,12 @@ The application has:
 
 The public README uses a dedicated transparent repository asset so GitHub does not depend on Qt runtime image conversion.
 
+## Unreleased development candidate — seven Training Modes
+
+A post-v0.0.5 work-branch candidate now implements Subdivision Ladder, Burst Trainer, Accent Trainer, Blind Pattern, Endurance Intervals, Tempo Wave and Random Tempo Blocks. The engine uses pure bar-phase helpers from `training_modes.py` and the same PortAudio callback/Game target timeline. The GUI exposes mode-specific Russian controls, phase status and practical exercise diagrams; sessions/settings store the new parameters.
+
+**Status: repository changes made, local validation PENDING.** The new `test_training_modes.py` is wired into `./tt check`. Neither a green native Windows test run nor manual GUI/audio acceptance has yet been received for this work candidate. The 0.0.5 published release is unchanged. Exact semantics/limits are recorded in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md); in particular, exports still operate on the stored Pattern at base BPM.
+
 ## Current development focus
 
 Picking Logic v2 P1–P7d is the accepted Picking Guide architecture for the 0.0.5 release. The next planned product feature is **Subdivision Ladder**, followed by additional Training Modes. Rhythmic/ghost-stroke Alternate (P7e) is deliberately deferred and must not silently change current attack-alternate semantics.

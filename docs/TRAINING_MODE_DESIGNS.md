@@ -1,8 +1,8 @@
 # Illustrated Training Mode designs
 
-**Status: DESIGN STUDIES / NOT IMPLEMENTED.** This document covers seven planned post-v0.0.5 Training Modes. Nothing on this page is currently a selectable mode in TittyTatter. All diagrams, BPM values, block lengths and implementation ideas are illustrative, **not** finalized requirements, default values or promises of shipped behavior.
+**Status: ENGINEERING CANDIDATE ON work / LOCAL ACCEPTANCE PENDING.** All seven post-v0.0.5 Training Modes have source implementations in the work branch. The code and new automated gate have **not yet been run/accepted in the owner's native Windows environment**. Diagrams remain illustrative; actual candidate behavior is specified below, and the published v0.0.5 build does not contain these features.
 
-The first three modes are explored in more detail as the near-term candidates. The last four are preliminary practice cards. See [ROADMAP.md](ROADMAP.md) for priorities and [ARCHITECTURE.md](ARCHITECTURE.md) for current application contracts.
+The first three design studies are intentionally more detailed; the remaining four have compact practice cards. See [ROADMAP.md](ROADMAP.md) for priorities and [ARCHITECTURE.md](ARCHITECTURE.md) for current application contracts.
 
 ## Reading the diagrams
 
@@ -18,7 +18,7 @@ The first three modes are explored in more detail as the near-term candidates. T
 
 ## 1. Лестница делений — Subdivision Ladder
 
-**Status:** Next planned design subject. No chosen mapping or stage model yet.
+**Status:** First implementation candidate; stage mapping selected provisionally, pending native validation.
 
 **Purpose:** Shift between rhythmic subdivisions while the metric pulse remains steady.
 
@@ -66,7 +66,7 @@ STAGE:       QUARTERS  -> EIGHTHS   -> TRIPLETS    -> SIXTEENTHS
 
 ## 2. Рывки темпа — Burst Trainer
 
-**Status:** Planned; tempo and boundary options undecided.
+**Status:** First implementation candidate; bar-aligned base/fast phases.
 
 **Purpose:** Keep the same rhythmic Pattern but introduce short faster sections between comfortable-tempo blocks.
 
@@ -99,7 +99,7 @@ OUTLINE:      ▁    ▁    ▁    ▁   █   ▁    ▁    ▁    ▁   █
 
 ## 3. Сдвиг акцента — Accent Trainer
 
-**Status:** Planned; even the accent **channel** (played attack / click / visual) is not decided.
+**Status:** First implementation candidate; only the first existing attack of a selected beat is louder.
 
 **Purpose:** Shift emphasis through successive rhythmic positions without changing the underlying attack placement.
 
@@ -147,7 +147,7 @@ PHASE C:     |.  .  !  .  .  .  .  .|
 
 ## 4. Волна темпа — Tempo Wave
 
-**Status:** Preliminary planned concept.
+**Status:** First implementation candidate; native validation pending.
 
 **Purpose:** Predictably increase and decrease tempo through a larger cycle, rather than jumping straight to a short burst.
 
@@ -168,7 +168,7 @@ SHAPE:    ▁   ▃   ▆    █    ▆   ▃   ▁
 
 ## 5. Случайный темп — Random Tempo Blocks
 
-**Status:** Preliminary planned concept.
+**Status:** First implementation candidate; native validation pending.
 
 **Purpose:** Change tempo unpredictably between **stable blocks**, not on arbitrary individual attacks.
 
@@ -188,7 +188,7 @@ PATTERN:   |----------- same rhythmic Pattern throughout ------|
 
 ## 6. Интервалы — Endurance Intervals
 
-**Status:** Preliminary planned concept.
+**Status:** First implementation candidate; native validation pending.
 
 **Purpose:** Alternate defined work and recovery periods in a longer practice session.
 
@@ -208,7 +208,7 @@ EFFORT:     |   PLAY     |recover|   PLAY     |recover|
 
 ## 7. По памяти — Blind Pattern
 
-**Status:** Preliminary planned concept.
+**Status:** First implementation candidate; native validation pending.
 
 **Purpose:** Withdraw selected guidance after an initial learning phase while the player retains the rhythm from memory.
 
@@ -231,10 +231,37 @@ MUSICAL CLOCK:  |   ON  |   ON   |   ON   |   ON    |
 
 ---
 
+## Implemented candidate semantics and acceptance gate
+
+The first work-branch implementation intentionally chooses a small, repeatable exercise contract:
+
+| Mode | Work-branch behavior |
+|---|---|
+| Subdivision Ladder | 1/2/3/4 attacks per metric beat, in that order. A sounding beat cycles its TI/TA *attack sequence*, ignoring within-beat OFF gaps; completely silent/muted beats and sustained long-note spans are preserved. `ladder_bars` controls stage duration, default 2. This is a **generated exercise**, not a lossless resampling of arbitrary mixed-grid note/rest timing. |
+| Burst Trainer | Base BPM from transport for 4 bars, fast BPM (default 120) for 1 bar, repeat; configurable stage lengths. Same Pattern at both tempos. |
+| Accent Trainer | Move across metric beats each `accent_bars` bars (default 1). First existing attack in selected beat is 1.45× louder; no attack is created on a rest. Original metronome emphasis remains unchanged. |
+| Blind Pattern | 4 guided bars / 2 memory bars by default. Hide editor/Focus pattern and Picking overlay and silence TI/TA guidance during memory; retain metronome and **Game targets**. |
+| Endurance Intervals | 4 work bars / 1 rest bar by default. Rest mutes TI/TA guidance and removes Game targets but keeps metronome/callback timeline. |
+| Tempo Wave | 7-step triangle, 2 bars per step by default, between selected min and max BPM. This is **stepwise**, not continuous interpolation. |
+| Random Tempo Blocks | Deterministic seeded BPM within min/max bounds, default 2 bars per block; no per-note jitter. |
+
+All settings persist in both session snapshots and ignored application settings with backward-compatible defaults. New tempo modes disable the independent Tempo Trainer modifier. Current MIDI/GP5/WAV exports deliberately continue to export the **stored Pattern at base BPM** rather than render variable Training Mode stages. They remain pattern exports, not whole-session exercise renders. A later export-mode feature would require its own specification and tests. Existing v0.0.5 release/version remain unchanged.
+
+**Important visual distinction:** The normal editable beat cards represent the *stored* Pattern. Ladder hides those cards during playback because its effective beat grids differ; Focus renders the generated stage. Blind and recovery phases hide their note guidance; the visible pulse/phase label continues.
+
+### Validation requirements
+
+- `./tt check` must include `test_training_modes.py` and pass without local errors.
+- `./tt run` needs native Windows smoke across all seven modes, stage boundaries, meters, Game and Focus.
+- Round-trip save/load of new settings and old sessions must work, including when modes are switched while stopped.
+- User must explicitly confirm native acceptance before moving the modes into the published-product sections of `USER_GUIDE.md` or the bilingual READMEs, or attempting a new release.
+
+The implementation choices above are testable initial behavior, **not** evidence of local acceptance. Earlier open questions in the design studies remain future extension considerations rather than blockers to testing this first candidate.
+
 ## Implementation order and specification gate
 
-The current priority is **Subdivision Ladder -> Burst Trainer -> Accent Trainer**, followed by Blind Pattern, Endurance Intervals, Tempo Wave and Random Tempo Blocks as appropriate. This is a *design sequence*, not approval to implement any mode.
+The seven modes were implemented together at the owner's request. The next phase is local verification and narrowly scoped fixes; no additional Training Mode implementation should be assumed accepted yet.
 
 Before implementation, agree on: intended guitar-learning outcome; exact phase/state and transition rules; stored vs effective Pattern semantics; meter and mixed-grid edge cases; callback-clock scheduling and click behavior; Game targets; Focus; Picking Guide; settings/session migration; MIDI/GP5/WAV export; deterministic tests and user-local Windows GUI/audio acceptance.
 
-**Documentation promotion:** Keep proposed features **out of** the public `README.md`, `README.en.md` and actual-operation `USER_GUIDE.md` until implemented and locally accepted. Update those documents only when the shipped behavior exists. This study may be revised in place as decisions are made.
+**Documentation promotion:** Do not describe the seven candidate modes as already shipped in `README.md`, `README.en.md` or `USER_GUIDE.md` until the native Windows gate is accepted. Revise this engineering study in place as actual behavior changes.
