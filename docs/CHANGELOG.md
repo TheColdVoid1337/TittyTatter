@@ -9,29 +9,40 @@ Numeric headings are added when a release version is chosen. Future development 
 
 ### Added
 
-- Picking Logic v2 P7c Auto / Inside / Outside Economy crossing preference with explicit crossing-geometry metadata and additive soft scoring alongside USX/DSX/DBX.
-- Picking Logic v2 P7d optional sweep-link visualization. Valid directional sweeps expose presentation-safe coordinates and the metronome overlay can draw a connector without modifying optimizer output.
-- `./tt picking-log` now reports saved crossing/sweep settings plus P7c crossing and P7d sweep-link probes; new logs use the generic `logs/picking_v2_*.txt` filename.
-- Picking Logic v2 P7a first-stroke control is now scoped to Strict Alternate only. Economy always keeps automatic start-polarity optimization; the internal Economy start-direction parameter remains available only as a test/debug/future special-exercise hook.
-- Picking Logic v2 P7b explicit Economy mechanics profiles: Auto, USX (alternate string changes prefer an escaped upstroke), DSX (prefer an escaped downstroke), and DBX (either stroke). Profiles influence Economy scoring without disabling directional sweeps or guessing the user's mechanics.
-- Added `./tt picking-log`, a deterministic terminal diagnostic that writes `logs/picking_v2_*.txt` with profile-discriminating patterns, Ramp output, saved-profile metadata, and a PASS/FAIL self-test so Picking validation can be shared as text instead of screenshots.
-- Picking Logic v2 P1 normalized event model with explicit real-pattern vs Ramp-placeholder sources, persistent real-attack identities across stages, explicit covered slots, exact rhythmic phase, and caller-controlled phrase-reset boundaries.
-- Picking Logic v2 P2 deterministic attack-alternate engine on normalized events. OFF/COVERED slots do not consume parity, string changes do not interrupt alternation, Ramp placeholders count as attacks, and explicit phrase-reset markers do not restart the public Alternate strategy. Runtime UI cutover remains deferred until the v2 integration phase.
-- Picking Logic v2 P3 event-based Economy transition engine with directional-sweep classification, wrong-direction crossing detection, full start-polarity search, attack parity, explicit reset handling, cyclic last-to-first scoring, linked sweep-group ids, and machine-readable decision reasons. Runtime UI cutover remains deferred.
-- Picking Logic v2 P4 whole-beat motif constraints. Repeated A/A/A and A/B/A/B beat identities now share stroke variables during the Economy optimization itself, including cyclic end/start repetitions, so motif stability no longer depends on post-hoc rewriting and can coexist with valid sweeps. Subdivision-level motif detection remains future work.
-- Picking Logic v2 P5 joint Ramp solver. All configured Ramp stages now contribute to one optimization: real attacks use shared persistent stroke variables across stages, whole-beat motif constraints remain active, every stage scores its cyclic boundary, and temporary inactive-beat TA placeholders remain stage-local and are optimized as their own bridge stream. Runtime UI cutover remains deferred to P6.
-- Picking Logic v2 P6 runtime cutover: the Picking Guide now uses event-based Alternate v2 and Economy v2 in normal training, and Ramp Economy uses the joint P5 solver. The public two-strategy UI is unchanged; legacy transitional picking functions remain in the module only until manual acceptance confirms the v2 path.
+- Picking Logic v2 normalized event model with explicit real-pattern vs Ramp-placeholder identity, covered slots, exact rhythmic phase, persistent real-attack ids, and explicit reset boundaries.
+- Deterministic attack-alternate engine where OFF/COVERED slots do not consume stroke parity.
+- Practical directional Economy optimizer with start-polarity search, cyclic loop scoring, directional-sweep classification, attack parity, machine-readable reasons, and linked sweep groups.
+- Whole-beat motif constraints inside the optimizer so repeated motor patterns remain stable without post-hoc rewriting.
+- Joint Ramp optimization: real attacks keep one stroke identity across stages while inactive-beat TA placeholders remain stage-local bridge attacks.
+- Strict Alternate first-stroke control: Auto / Down / Up.
+- Explicit Economy escape profiles: Auto / USX / DSX / DBX, without inferring player biomechanics.
+- Explicit Economy alternate-crossing preference: Auto / Inside / Outside.
+- Optional sweep-link visualization driven only by solved directional sweeps.
+- `./tt picking-log` diagnostic report with Git HEAD, persisted Picking settings, profile-discriminating patterns, crossing probes, sweep-link probes, Ramp output, and PASS/FAIL self-tests. Logs are written as `logs/picking_v2_*.txt`.
+
+### Changed
+
+- The live Picking Guide now uses Picking Logic v2 only; the previous transitional picking implementation is no longer part of runtime behavior.
+- Economy treats OFF slots as continuity rather than implicit phrase resets unless an explicit reset boundary is supplied.
+- Ramp stages are solved as one constrained exercise, preserving already-learned real strokes as later beats open.
+- Economy prioritizes stable repeated motor motifs over tiny local boundary savings.
+- USX/DSX influence both alternate-crossing escape compatibility and one-way economy sweep direction; DBX accepts either escape direction and keeps sweep direction neutral.
+- Advanced Picking controls are strategy-specific: first-stroke control is Strict Alternate-only; escape/crossing/sweep controls are Economy-only.
 
 ### Fixed
 
-- Corrected P7b one-way Economy profile scoring after the first local gate exposed that USX/DSX changed transition scores but could not change any complete two-string solution. USX now prefers downstroke sweeps and DSX upstroke sweeps, matching their respective one-way economy mechanics while keeping opposite-direction sweeps as soft fallbacks.
-- Removed the superseded transitional Picking Guide implementation and its legacy heuristic tests after Picking Logic v2 P6 runtime/manual acceptance; the live module now retains only the v2 event, Alternate, Economy, motif, and joint Ramp paths.
-- Ramp v2 equal-cost placeholder bridges now prefer alternating cleanly from the last active same-string stroke, moving an unavoidable odd-cycle repeat to the loop boundary instead of placing it at the active-to-placeholder transition.
-- Picking Guide now preserves the same whole-beat picking pattern for repeated active motifs separated by fully silent beats, including motifs that cross the bar boundary.
-- Economy picking keeps consecutive identical beats as one stable motor pattern instead of flipping a later repetition for a small boundary-transition advantage; looping runs also stay consistent across the bar boundary.
-- Ramp modes now keep one learned economy-picking scheme across stages without forcing the fully-open bar to define it: the latest incomplete stage anchors the pattern, preserving useful sweeps into temporary inactive TA pulses while earlier and later stages keep already-learned stroke directions stable.
-- Repeated-beat stabilization now chooses the sweep-rich phrase-level Economy variant already found in context instead of re-optimizing the repeated beat as an isolated cycle, preventing common ramp patterns from degenerating into strict alternate picking.
-- Generated TA pulses on still-inactive Ramp beats now preserve the first context-dependent transition and then alternate down/up across subsequent same-string pulses instead of restarting every pulse with a downstroke.
+- Repeated identical and periodic beat patterns no longer receive inconsistent Economy arrows from linear flattening or isolated re-optimization.
+- Ramp-stage boundaries retain cyclic continuity and persistent real-attack strokes.
+- Equal-cost placeholder bridges prefer a clean alternating temporary TA stream and move unavoidable odd-cycle repeats to the loop boundary.
+- Corrected the first USX/DSX scoring model after diagnostics showed score differences without complete-solution differences.
+- Removed superseded transitional Picking Guide functions and legacy heuristic tests after P6 acceptance.
+
+### Validation
+
+- Picking Logic v2 P1-P6 and cleanup passed their local automated/manual gates.
+- P7a Strict Alternate first-stroke control passed `./tt check` and live GUI acceptance on `10ab611`.
+- P7b escape profiles passed `./tt check` and `./tt picking-log` acceptance on `fab918b`.
+- P7c/P7d are implemented and are the remaining release-candidate local gate before the next tag.
 
 ## 0.0.4 — 2026-10-04
 
