@@ -435,7 +435,7 @@ Pull the exact release commit locally and run the required final checks.
 
 Do not tag until the final release commit is accepted.
 
-### Phase G — annotated tag
+### Phase G — annotated tag with full release description
 
 Release tags are annotated:
 
@@ -443,19 +443,49 @@ Release tags are annotated:
 vX.Y.Z
 ```
 
-with message:
+The annotation is a real release note, not only a version label. It must include:
+
+- one-sentence release purpose;
+- headline user-visible changes;
+- important technical/architecture changes;
+- validation performed on the exact release commit;
+- intentionally deferred or known follow-up items when relevant.
+
+Recommended structure:
 
 ```text
 TittyTatter vX.Y.Z
+
+Summary
+<what this release is about>
+
+Highlights
+- ...
+- ...
+
+Technical
+- ...
+- ...
+
+Validation
+- ./tt check: PASS
+- manual GUI/audio acceptance: PASS
+- additional diagnostics: ...
+
+Deferred / follow-up
+- ...
 ```
 
-If the available GitHub tooling cannot safely create an annotated tag, provide exact local commands instead of pretending the tag was created.
+Keep the message useful on its own when viewed through `git show vX.Y.Z`.
+
+If the available GitHub tooling cannot safely create an annotated tag, provide exact local commands that create the tag with this complete message instead of pretending the tag was created.
 
 After pushing the tag, verify:
 
 - `main` points to the release commit;
 - the tag exists;
-- the annotated tag peels to exactly that same release commit.
+- the annotated tag peels to exactly that same release commit;
+- the full annotation is readable from the tag object.
 
 ### Phase H — post-release branch state
 
