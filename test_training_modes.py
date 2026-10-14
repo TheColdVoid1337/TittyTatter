@@ -59,7 +59,7 @@ def fixture_engine(mode: str, pattern: BarPattern, **overrides: object) -> Audio
     engine._sample_cursor = 0
     engine._sounds = {
         k: np.ones(4, dtype=np.float32)
-        for k in ("Wood", "Low tick", "metro", "metro_accent")
+        for k in ("wood", "low_tick", "metro", "metro_accent")
     }
     engine._update_effective_pattern()
     engine._update_effective_bpm()
