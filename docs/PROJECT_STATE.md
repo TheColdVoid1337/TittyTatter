@@ -3,15 +3,21 @@
 ## Release baseline
 
 - Project: **TittyTatter**
-- Application version: **0.0.5**
-- Release identifier: **v0.0.5**
-- Previous published tag: **v0.0.4**
+- Application version in this release source: **0.0.6**
+- Release identifier: **v0.0.6** (annotated tag + GitHub Release are separate publishing steps)
+- Previous published tag: **v0.0.5**
 - Previous release commit: `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`
 - Active development branch: **work**
 - Release/integration branch: **main**
 - Primary platform: Windows desktop
 - Runtime: Python / PySide6 / sounddevice and PortAudio (WASAPI preferred)
 - Development workflow: **vFLOW**
+
+### 0.0.6 release candidate acceptance evidence
+
+On 2026-10-23 the owner reported a green `./tt check` (including Training Modes tests), a green `./tt burst-smoke`, and confirmed Custom Burst working in the live Windows GUI. These checks were on the feature candidate before release documentation changes. Seven newly added Training Modes are included in the 0.0.6 source; separate manual audition of each new mode was not individually reported. The final exact-release-commit gate must be run before tagging.
+
+The Custom per-metric-beat «Рывок» option was **requested by Fulton97**. It switches between base and alternate BPM for selected beats, retaining the original A–B–A–B whole-bar schedule. See [release notes](RELEASE_NOTES_0.0.6.md).
 
 ### 0.0.5 acceptance evidence
 
@@ -23,6 +29,7 @@ The exact 0.0.5 release commit `21c33aa2680c8c25fafccde90bf292cb1390440a` subseq
 
 - **0.0.4:** published 2026-10-04, annotated `v0.0.4`, commit `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`.
 - **0.0.5:** published 2026-10-14, annotated `v0.0.5` (full release notes), commit `21c33aa2680c8c25fafccde90bf292cb1390440a`. [GitHub Release](https://github.com/TheColdVoid1337/TittyTatter/releases/tag/v0.0.5).
+- **0.0.6:** release source prepared 2026-10-23. Includes seven new Training Modes and Fulton97's Custom Burst. The `v0.0.6` annotated tag and GitHub Release must be verified separately after the exact commit local gate.
 
 ## Current product definition
 
@@ -83,6 +90,13 @@ Current first-class Training Modes:
 5. Нарастающие пропуски
 6. Редкий метроном
 7. Смещённый метроном
+8. Лестница делений
+9. Рывки темпа (A–B–A–B / Custom)
+10. Сдвиг акцента
+11. По памяти
+12. Интервалы
+13. Волна темпа
+14. Случайный темп
 
 The Training Mode is the source of truth in both normal Training and Game.
 
@@ -121,7 +135,7 @@ The preceding 0.0.4 release included:
 - cyclic repeated-beat period preservation;
 - cyclic Ramp-stage behavior.
 
-Version 0.0.5 uses **Picking Logic v2** as the only live Picking Guide implementation.
+Since version 0.0.5, **Picking Logic v2** is the only live Picking Guide implementation; v0.0.6 retains it.
 
 Canonical design:
 
@@ -167,23 +181,31 @@ The application has:
 
 The public README uses a dedicated transparent repository asset so GitHub does not depend on Qt runtime image conversion.
 
-## Unreleased development candidate — seven Training Modes
+## 0.0.6 Training Mode expansion
 
-A post-v0.0.5 work-branch candidate now implements Subdivision Ladder, Burst Trainer, Accent Trainer, Blind Pattern, Endurance Intervals, Tempo Wave and Random Tempo Blocks. The engine uses pure bar-phase helpers from `training_modes.py` and the same PortAudio callback/Game target timeline. The GUI exposes mode-specific Russian controls, phase status and practical exercise diagrams; sessions/settings store the new parameters.
+Seven post-v0.0.5 Training Modes are now included in the v0.0.6 source: Subdivision Ladder, Burst Trainer, Accent Shift, Blind Pattern, Endurance Intervals, Tempo Wave and Random Tempo Blocks. Pure training-phase helpers and the same PortAudio callback/Game timeline schedule all attacks; mode-specific controls, phase status, contextual advice, sessions/settings and regression tests are available. Detailed semantics and intentionally simplified Ladder behaviors are in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md).
 
-**Status: repository changes made, local validation PENDING.** The new `test_training_modes.py` is wired into `./tt check`. Neither a green native Windows test run nor manual GUI/audio acceptance has yet been received for this work candidate. The 0.0.5 published release is unchanged. Exact semantics/limits are recorded in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md); in particular, exports still operate on the stored Pattern at base BPM.
+### Fulton97 Custom Burst enhancement
 
-## Unreleased Burst Custom extension (work only)
+**Requested by Fulton97** and implemented as a second Burst variant. The default A–B–A–B continues switching between configurable **whole-bar** blocks. Custom uses a checkbox next to Mute on each «Доля N» card: an independent tempo flag for each metric beat (1–16, e.g. six in 6/4). Selected beats use «Рывок, BPM» and unmarked beats use base BPM, with no fixed multiplier. The mask repeats each bar. Flags and variant are persistent and independent of TI/TA/OFF/Mute. Count-in stays at base BPM; callback-boundary timing and Game target identity are covered by regression tests. User confirmed the feature works on Windows.
 
-The Burst Training Mode now has **A–B–A–B** (existing whole-bar blocks) and **Custom** (beat-card selection mask) variants. Custom selects alternative BPM at metric-beat boundaries via the original PortAudio callback; no new timebase or new Pattern is introduced. The checkbox is visible only in Burst + Custom, beside Mute; its count follows meter numerator 1–16. Base BPM is taken from transport, alternate BPM from the existing Burst spin. Session and app settings persist the variant and mask with old-file defaults. The A/B bar schedule is retained verbatim. Tests cover 6/4, subdivision-grid boundaries, Count-in, Game target identity and base BPM preservation; a separate optional offscreen Qt smoke covers widget state and session reload. **Local native `./tt check`, `./tt burst-smoke` and audible GUI acceptance remain PENDING.** Tk branch is unrelated and untouched.
+Exports still render the **stored Pattern at base BPM**, not the effective Training Mode timeline. The `GUI_tkinter` branch is an independent, unmerged GUI experiment and is **not** part of v0.0.6.
 
 ## Current development focus
 
-Picking Logic v2 P1–P7d is the accepted Picking Guide architecture for the 0.0.5 release. The next planned product feature is **Subdivision Ladder**, followed by additional Training Modes. Rhythmic/ghost-stroke Alternate (P7e) is deliberately deferred and must not silently change current attack-alternate semantics.
+Picking Logic v2 P1–P7d remains the accepted Picking Guide architecture. The next cycle should prioritize feedback-driven hardening of the fourteen Training Modes, review of richer practice-pattern workflows and focused timing regression tests rather than another GUI redesign. Rhythmic/ghost-stroke Alternate (P7e) remains deferred.
 
 See [ROADMAP.md](ROADMAP.md) for upcoming features and [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md) for the current Picking architecture.
 
 ## Validation state
+
+### 0.0.6 release candidate
+
+- Owner-confirmed `./tt check`: PASS on the post-0.0.5 feature candidate (2026-10-23).
+- Owner-confirmed `./tt burst-smoke`: PASS; per-card Custom controls, 6/4 selection, legacy session and persistence checks.
+- Owner-confirmed live Custom Burst: works on Windows.
+- Full fourteen-mode individual manual-audio pass: not separately recorded.
+- Exact release commit still requires the final local gate before the annotated tag and GitHub Release are published.
 
 ### Published 0.0.5
 
@@ -226,16 +248,17 @@ Cleanup commit `debda3e Remove transitional picking implementation` was pulled t
 
 Remote release cleanup is complete.
 
-Expected remote branches:
+Expected retained remote branches:
 
 ```text
 main
 work
+GUI_tkinter  # unmerged experimental GUI
 ```
 
-Published `main` and `v0.0.5` remain frozen at release commit `21c33aa`. All earlier tags also remain immutable.
+The `v0.0.5` annotated tag remains immutable at its historical commit `21c33aa`. The main branch is advanced to the 0.0.6 release source by fast-forward only after release preparation. Annotated `v0.0.6` tag / GitHub Release publication must be verified independently.
 
-`work` initially matched published `main` on `21c33aa`. Post-release engineering-only documentation commits (including the chat handoff) advance `work` independently; they do not change the released application version.
+`work` is the ongoing development branch; `GUI_tkinter` has unique experimental history and must not be deleted or merged as part of this release.
 
 Obsolete remote branches `dev/0.0.2` and `release/0.0.1` were removed only after containment verification showed no unique commits.
 
@@ -255,7 +278,8 @@ Current canonical project documents include:
 - Test Matrix;
 - Changelog;
 - this Project State;
-- the post-v0.0.5 engineering handoff at `docs/dev/HANDOFF_TITTYTATTER_2026-10-14_v0.0.5.md`.
+- the historical post-v0.0.5 handoff at `docs/dev/HANDOFF_TITTYTATTER_2026-10-14_v0.0.5.md` (retained as history, not current instructions);
+- complete v0.0.6 release notes at `docs/RELEASE_NOTES_0.0.6.md`.
 
 Documentation is updated in place.
 
