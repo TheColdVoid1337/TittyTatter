@@ -11,6 +11,7 @@ The root [README.md](../README.md) is the primary **Russian-language** product o
 - [PICKING_LOGIC_V2.md](PICKING_LOGIC_V2.md) — canonical design and implementation reference for the live Picking Logic v2 engine: event/state model, Alternate/Economy semantics, escape/crossing preferences, Ramp constraints, sweep links, diagnostics, and regression matrix.
 - [WORKFLOW.md](WORKFLOW.md) — canonical vFLOW development, GitHub write, validation, reporting, release, and handoff procedure.
 - [USER_GUIDE.md](USER_GUIDE.md) — current application workflow and controls.
+- [dev/TKINTER_GUI_EXPERIMENT.md](dev/TKINTER_GUI_EXPERIMENT.md) — experimental Tkinter GUI without PySide6 (branch GUI_tkinter).
 - [ROADMAP.md](ROADMAP.md) — post-release guitar-training direction and later work.
 - [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md) — illustrated seven-mode work candidate, actual draft semantics, practice guidance and local acceptance gate.
 - [DECISIONS.md](DECISIONS.md) — durable project decisions and rationale.
