@@ -329,6 +329,11 @@ class TkApp(SettingsTabsMixin, tk.Tk):
         if self._loading:
             return
         try:
+            if self.get("ti_sound") == self.get("ta_sound"):
+                self.set_option(
+                    "ta_sound",
+                    "Low tick" if self.get("ti_sound") != "Low tick" else "Wood",
+                )
             bpm = self._bpm()
             # A temporary mode-owned BPM must never replace base BPM.
             self.engine.set_pattern(self.current_pattern())

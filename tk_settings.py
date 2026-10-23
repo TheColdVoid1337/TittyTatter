@@ -136,13 +136,18 @@ class SettingsTabsMixin:
         self.tabs.add(page, text=name)
         canvas = tk.Canvas(page, background="#20232b", highlightthickness=0, bd=0)
         scroll = ttk.Scrollbar(page, orient="vertical", command=canvas.yview)
-        canvas.configure(yscrollcommand=scroll.set)
-        canvas.pack(side="left", fill="both", expand=True)
+        horizontal = ttk.Scrollbar(page, orient="horizontal", command=canvas.xview)
+        canvas.configure(yscrollcommand=scroll.set, xscrollcommand=horizontal.set)
+        horizontal.pack(side="bottom", fill="x")
         scroll.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
         body = ttk.Frame(canvas)
         win = canvas.create_window((0, 0), window=body, anchor="nw")
+        def resized(event, c=canvas, w=win, content=body):
+            c.itemconfigure(w, width=max(event.width, content.winfo_reqwidth()))
+            c.configure(scrollregion=c.bbox("all"))
         body.bind("<Configure>", lambda _e, c=canvas: c.configure(scrollregion=c.bbox("all")))
-        canvas.bind("<Configure>", lambda e, c=canvas, w=win: c.itemconfigure(w, width=e.width))
+        canvas.bind("<Configure>", resized)
         self._page_canvases.append(canvas)
         return body
 
