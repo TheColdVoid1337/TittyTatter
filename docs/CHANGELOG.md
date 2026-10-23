@@ -12,6 +12,8 @@ Numeric headings are added when a release version is chosen. Future development 
 - Mode-specific Russian controls, practical in-app diagrams, callback-driven phase scheduling and shared Training/Game target handling.
 - Stable seeded tempo-block generation, ladder effective-pattern projection, independent tempo-stage BPM, and new session/settings fields with legacy defaults.
 - `test_training_modes.py` wired into the canonical `./tt check` gate.
+- Burst Trainer on `work` now has two variants: **A–B–A–B** (unchanged whole-bar block schedule) and **Custom** (individual beat cards expose a «Рывок» checkbox). Custom repeats its meter-length selection mask every bar and uses the existing «Рывок, BPM» for marked beats; base BPM comes from the transport and can be higher or lower than the alternate tempo.
+- Custom Burst changes BPM on callback-controlled metric-beat boundaries without changing subdivisions or shared Game targets. Beat mask/variant persist in new and legacy-compatible sessions and settings. A separate `./tt burst-smoke` checks Qt controls and persistence.
 
 ### Compatibility / pending
 - Published v0.0.5 remains untouched; this work has not yet passed native Windows `./tt check` or `./tt run`.

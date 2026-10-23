@@ -54,7 +54,9 @@ The exact transition/configuration model still needs design.
 
 Normal-tempo blocks interrupted by short faster bursts.
 
-Goal: practise controlled acceleration without turning the whole exercise into a permanent high-tempo run.
+**Unreleased work-branch extension (native acceptance pending):** choose classic **A–B–A–B** whole-bar blocks, or **Custom** beat-card checkboxes. For example, 6/4 exposes six checkboxes and selected beats use a user-set alternate BPM. Custom is *intra-bar metric beat selection*, not a four-bar arrangement and not a fixed ×2 multiplier. The pattern, TI/TA and Game event identities are unchanged.
+
+Goal: practise controlled acceleration or deceleration without turning the whole exercise into a permanent tempo change.
 
 ### Волна темпа — Tempo Wave
 

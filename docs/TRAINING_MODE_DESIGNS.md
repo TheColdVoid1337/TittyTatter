@@ -238,12 +238,14 @@ The first work-branch implementation intentionally chooses a small, repeatable e
 | Mode | Work-branch behavior |
 |---|---|
 | Subdivision Ladder | 1/2/3/4 attacks per metric beat, in that order. A sounding beat cycles its TI/TA *attack sequence*, ignoring within-beat OFF gaps; completely silent/muted beats and sustained long-note spans are preserved. `ladder_bars` controls stage duration, default 2. This is a **generated exercise**, not a lossless resampling of arbitrary mixed-grid note/rest timing. |
-| Burst Trainer | Base BPM from transport for 4 bars, fast BPM (default 120) for 1 bar, repeat; configurable stage lengths. Same Pattern at both tempos. |
+| Burst Trainer | **A–B–A–B**: unchanged configurable 4 base bars / 1 alternative-BPM bar cycle. **Custom**: one «Рывок» checkbox per metric beat card, from 1–16 in the selected meter (e.g. six flags for 6/4). Each marked beat uses «Рывок, BPM», every other beat uses the base BPM. Mask repeats every bar. Both directions (fast or slow) allowed. Original Pattern is unchanged. |
 | Accent Trainer | Move across metric beats each `accent_bars` bars (default 1). First existing attack in selected beat is 1.45× louder; no attack is created on a rest. Original metronome emphasis remains unchanged. |
 | Blind Pattern | 4 guided bars / 2 memory bars by default. Hide editor/Focus pattern and Picking overlay and silence TI/TA guidance during memory; retain metronome and **Game targets**. |
 | Endurance Intervals | 4 work bars / 1 rest bar by default. Rest mutes TI/TA guidance and removes Game targets but keeps metronome/callback timeline. |
 | Tempo Wave | 7-step triangle, 2 bars per step by default, between selected min and max BPM. This is **stepwise**, not continuous interpolation. |
 | Random Tempo Blocks | Deterministic seeded BPM within min/max bounds, default 2 bars per block; no per-note jitter. |
+
+Custom Burst changes the duration of *a whole metric beat* at the beginning of that beat, not of a subdivision inside it. For example, 4/4 at base 50 and alternative 100 BPM with mask [off, on, off, on] lasts 1.2+0.6+1.2+0.6 seconds per bar. The next bar repeats the mask; 6/4 allows six independent tempo decisions. Mute and covered long-note beats may still have a tempo selection because beat duration remains musically meaningful. Count-in stays at base BPM. A/B blocks ignore any saved Custom flags, and switching back retains them. On playback, tempo-map edits stop the exercise rather than introducing an unsynchronized mid-beat change.
 
 All settings persist in both session snapshots and ignored application settings with backward-compatible defaults. New tempo modes disable the independent Tempo Trainer modifier. Current MIDI/GP5/WAV exports deliberately continue to export the **stored Pattern at base BPM** rather than render variable Training Mode stages. They remain pattern exports, not whole-session exercise renders. A later export-mode feature would require its own specification and tests. Existing v0.0.5 release/version remain unchanged.
 
@@ -252,6 +254,8 @@ All settings persist in both session snapshots and ignored application settings 
 ### Validation requirements
 
 - `./tt check` must include `test_training_modes.py` and pass without local errors.
+- `./tt burst-smoke` must verify original A/B default, Custom-only card checkboxes, 4/4→6/4 selection retention, JSON session and application-settings round-trip, legacy defaults, and reset; no audio device is opened by this offscreen Qt smoke.
+- Manual Custom checks: 4/4 mask 2+4, 50→100 BPM at beat boundaries; 6/4 mask 2+4+6, including triplet/eighth/sixteenth card subdivisions; 100→50 slowdown; Game timing; Focus rhythm; Stop restores base BPM. Confirm unchanged A/B bar schedule.
 - `./tt run` needs native Windows smoke across all seven modes, stage boundaries, meters, Game and Focus.
 - Round-trip save/load of new settings and old sessions must work, including when modes are switched while stopped.
 - User must explicitly confirm native acceptance before moving the modes into the published-product sections of `USER_GUIDE.md` or the bilingual READMEs, or attempting a new release.

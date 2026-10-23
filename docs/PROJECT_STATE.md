@@ -173,6 +173,10 @@ A post-v0.0.5 work-branch candidate now implements Subdivision Ladder, Burst Tra
 
 **Status: repository changes made, local validation PENDING.** The new `test_training_modes.py` is wired into `./tt check`. Neither a green native Windows test run nor manual GUI/audio acceptance has yet been received for this work candidate. The 0.0.5 published release is unchanged. Exact semantics/limits are recorded in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md); in particular, exports still operate on the stored Pattern at base BPM.
 
+## Unreleased Burst Custom extension (work only)
+
+The Burst Training Mode now has **A–B–A–B** (existing whole-bar blocks) and **Custom** (beat-card selection mask) variants. Custom selects alternative BPM at metric-beat boundaries via the original PortAudio callback; no new timebase or new Pattern is introduced. The checkbox is visible only in Burst + Custom, beside Mute; its count follows meter numerator 1–16. Base BPM is taken from transport, alternate BPM from the existing Burst spin. Session and app settings persist the variant and mask with old-file defaults. The A/B bar schedule is retained verbatim. Tests cover 6/4, subdivision-grid boundaries, Count-in, Game target identity and base BPM preservation; a separate optional offscreen Qt smoke covers widget state and session reload. **Local native `./tt check`, `./tt burst-smoke` and audible GUI acceptance remain PENDING.** Tk branch is unrelated and untouched.
+
 ## Current development focus
 
 Picking Logic v2 P1–P7d is the accepted Picking Guide architecture for the 0.0.5 release. The next planned product feature is **Subdivision Ladder**, followed by additional Training Modes. Rhythmic/ghost-stroke Alternate (P7e) is deliberately deferred and must not silently change current attack-alternate semantics.

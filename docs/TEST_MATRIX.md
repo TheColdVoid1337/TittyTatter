@@ -97,7 +97,9 @@ The following checks apply to the work-branch candidate and **are not yet confir
 - Startup succeeds and all 14 Training Modes are selectable; only mode-relevant controls appear.
 - Ladder: use a 4/4 or 7/8 Pattern containing both TI and TA. At one bar per stage, confirm 1 -> 2 -> 3 -> 4 attacks per metric beat; Focus displays stage-effective grid and no stored Pattern is modified.
 - Ladder: confirm silent beats, muted beats and long-note spans remain free of invented extra attacks.
-- Burst: 4 base bars and 1 fast bar; verify clean bar boundaries, return to base tempo and same Pattern/Game targets.
+- Burst **A–B–A–B**: 4 base bars and 1 alternate-BPM bar; verify clean *bar* boundaries, return to base tempo and unchanged Pattern/Game targets.
+- Burst **Custom**: only while selected, each «Доля N» displays a «Рывок» checkbox next to Mute; 6/4 has 6 selectors. Check 50→100→50→100 at marked **beat** boundaries with 4/4 flags 2+4; 6/4 flags 2+4+6; mixed beat grids and 100→50 slowdown. Unmarked/covered/muted beats retain correct duration; count-in stays at base BPM.
+- Custom mask must persist after meter resize, mode A/B↔Custom changes, JSON session save/load, app restart and old-session loading; the original A/B option must ignore saved Custom flags without deleting them. Changing mask or variant while running stops safely; Game target scheduling uses the same callback timeline. Run `./tt burst-smoke` for the offscreen widget gate and `./tt check` for full deterministic callback tests.
 - Accent: first attack in successive beats is louder, never earlier/later; blank beats do not gain a new attack.
 - Blind: memory phase hides editable pattern and Focus/Picking cue, silences TI/TA but **preserves Game targets and metronome**.
 - Endurance: recovery phase removes TI/TA audio and **Game targets** while the metronome keeps time; return to work starts cleanly.
