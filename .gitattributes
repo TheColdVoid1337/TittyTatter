@@ -3,3 +3,8 @@
 # A CRLF shebang makes ./tt fail with: env: 'bash\r': No such file.
 tt text eol=lf
 *.sh text eol=lf
+
+# Keep code and documentation predictable across Windows editors and WSL.
+*.py text eol=lf
+*.md text eol=lf
+VERSION text eol=lf
