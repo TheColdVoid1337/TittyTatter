@@ -154,6 +154,43 @@ Current positions:
 
 The displaced click is independent of the pattern subdivision and can coexist with triplets, eighths, sixteenths, and other grids.
 
+#### Лестница делений
+
+Uses four stage densities, 1 → 2 → 3 → 4 attacks per metric beat (quarter, eighth, triplet, sixteenth), changing each configured number of bars. This is a generated practice projection and may simplify within-beat rests. The saved Pattern itself is unchanged.
+
+#### Рывки темпа
+
+Two variants share the same base tempo (top BPM control) and the existing **Рывок, BPM** control. The alternative tempo may be faster or slower than the base.
+
+- **A–B–A–B** (default, including for saved sessions without the new option): play `База, тактов` consecutive full bars at base BPM, then `Рывок, тактов` consecutive full bars at the alternate BPM, and repeat the block cycle. These are bar-count parameters, not alternating individual beats.
+- **Custom**: check `Рывок` next to Mute in individual `Доля N` cards. The number of checkboxes equals the **time-signature numerator**: four in 4/4, six in 6/4, etc., up to 16. Marked *metric beats* use the alternate BPM; unmarked beats use base BPM. The same mask repeats within every bar. Changing the time signature retains the existing flags for retained beat positions. A beat's subdivisions (including triplets) all use that beat's BPM.
+
+For example, with base **50 BPM**, `Рывок, BPM` **100**, and marked beats **2 and 4** in **4/4**, one bar's BPM pattern is **50 → 100 → 50 → 100**; every following bar uses the same mask. These are metric-beat tempo changes, not four consecutive bars at different tempos, and they are **not** a mandatory ×2 effect.
+
+The `Рывок` checkbox is distinct from **Mute**: Mute controls sound; `Рывок` controls how long the beat lasts. Custom checkboxes are hidden outside Burst + Custom, but their saved values are retained while changing back to A–B–A–B. Changing the tempo mask/variant during playback stops safely. Count-in uses base BPM.
+
+**Attribution:** Custom Burst's per-beat tempo selection was added at the request of **Fulton97**.
+
+#### Сдвиг акцента
+
+Moves the emphasized attack from beat to beat over successive blocks. Adds no new attack; the first existing TI/TA event in that beat receives the accent.
+
+#### По памяти
+
+Alternates guided bars and bars in which TI/TA guidance and visible pattern cues disappear. Metronome timing and Game targets remain.
+
+#### Интервалы
+
+Alternates active practice bars with rest bars. In rest bars TI/TA guidance and Game targets are suppressed while metronome and callback time continue.
+
+#### Волна темпа
+
+Changes BPM in a deterministic seven-stage ascending/descending *step sequence* between the configured minimum and maximum, for a configured number of bars per stage.
+
+#### Случайный темп
+
+Chooses repeatable BPM values from a configured range using a numeric seed, with one value per configured block of bars. No per-attack randomized jitter.
+
 ### Опции
 
 These are modifiers, not Training Modes:
@@ -460,9 +497,9 @@ Text annotations are intentionally conservative for legacy GP5 encoding compatib
 
 ### WAV
 
-Renders the current exercise audio to WAV with selectable duration/quality.
+Renders the stored Pattern as audio with selectable duration/quality.
 
-Export uses the same rhythm model as realtime playback.
+**Important for the 0.0.6 tempo modes:** MIDI, GP5 and WAV currently export the saved Pattern at **base BPM**, not the bar-by-bar or beat-by-beat effective BPM used during Burst, Wave, Random Tempo or other training progression. These files are Pattern exports, not complete timeline captures. Real-time practice and Game continue to share the callback-owned variable-tempo timeline.
 
 ## Sessions and settings
 
@@ -470,7 +507,7 @@ Session files are explicit exercise snapshots saved/loaded from the UI.
 
 Application settings persist local preferences such as:
 
-- Training Mode and its parameters;
+- Training Mode and its parameters, including the Burst A–B–A–B / Custom variant and per-beat `Рывок` mask;
 - tempo trainer;
 - timer;
 - Game configuration;

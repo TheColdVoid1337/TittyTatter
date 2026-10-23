@@ -41,7 +41,7 @@ Owns the PySide6 application shell and cross-module coordination:
 - meter controls;
 - horizontally scrollable beat editor;
 - top-level Training/Game selector;
-- Training Mode configuration and help UI;
+- Training Mode configuration and help UI, including the Burst A–B–A–B / Custom variant and per-beat `Рывок` selectors in each `BeatEditor` header;
 - count-in, tempo-trainer, and timer options;
 - sound controls;
 - visual metronome;
@@ -325,6 +325,17 @@ During a silent phase:
 ### Sparse click
 
 The rhythm remains intact while metronome events are filtered to the selected beat/bar pattern.
+
+### Custom Burst tempo map
+
+Burst offers two paths inside the **same** Training Mode:
+
+- `burst_variant="ab"` (default): `tempo_for_bar` selects between base and alternate BPM on whole-bar block boundaries. The `burst_base_bars` and `burst_fast_bars` controls retain their previous behavior.
+- `burst_variant="custom"`: an immutable `burst_custom_beats: tuple[bool, ...]` in `EngineConfig` is indexed by current metric-beat position. The original PortAudio callback selects `burst_fast_bpm` (alternate tempo, not necessarily faster) for marked beats, `bpm` for unmarked beats; the mask repeats every bar. A tempo change is applied at the beat's first event and is held for all substeps inside that beat. Count-in runs at the base BPM.
+
+The mask is stored separately from `BeatPattern` steps and `BeatPattern.muted`; a silent/muted beat still occupies its selected duration. No extra audio scheduler or Game clock is involved, so Game targets and guidance operate against the same timings. The option is shown only on Burst + Custom; the number of selectors follows `BarPattern.numerator` and saved prefix flags survive a meter increase/decrease where possible. Other Training Modes ignore those flags.
+
+Session/settings keys: `practice.burst_variant` and `practice.burst_custom_beats`. Old files default to `"ab"` and an all-false mask. Switching variants preserves selections. Exports are still Pattern/base-BPM exports, **not** the effective tempo timeline.
 
 ### Displaced click
 

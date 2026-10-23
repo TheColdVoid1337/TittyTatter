@@ -267,3 +267,17 @@ The annotation must summarize the release purpose, user-visible highlights, mean
 
 **Reason:** tags are durable release artifacts. A useful annotation lets the release history explain itself without requiring a reader to reconstruct context from dozens of commits or chat history.
 
+
+## D-045 — Burst per-beat tempo selection is a Training Mode setting
+
+**Decision:** Preserve the existing Burst whole-bar A–B–A–B schedule. Add a mutually exclusive Custom variant that uses one checkable «Рывок» flag for each metric beat card, paired with the existing alternate «Рывок, BPM» value. Do not hardwire ×2. Flags are tempo metadata, independent of Mute and stored TI/TA/OFF steps.
+
+**Reason:** Requested by **Fulton97** for fast/slow changes at selected beats within a repeated bar without duplicating rhythm patterns or inventing a second clock. The standard Tempo Trainer and Ramp modes remain distinct. The PortAudio callback is the only timing authority, including for Game targets.
+
+**Persistence:** Defaults are A–B–A–B and all flags off in legacy files; selected Custom mask follows the meter numerator. Count-in stays at base BPM.
+
+## D-046 — Cleanup and release source of truth
+
+**Decision:** Maintain only one release-ready PySide6 application on `main`/`work`. The separate `GUI_tkinter` branch is explicitly an unmerged experiment and does not become a dependency or add files to the 0.0.6 release. Historical 0.0.5 engineering handoff and regression tests are retained; do not delete them as speculative clutter.
+
+**Reason:** Clean releases preserve reproducibility and working functionality. Root shell helpers are checked out with LF line endings via `.gitattributes`. Local editor/working-tree CRLF normalization is an independent checkout concern, not a reason to delete tracked project files.
