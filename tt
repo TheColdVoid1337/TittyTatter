@@ -60,6 +60,7 @@ Usage:
   ./tt run [-log]     Launch TittyTatter as a native Windows app; -log enables per-game diagnostics
   ./tt test           Run core tests with the Windows venv
   ./tt check          Run tests, compile checks, and dependency imports
+  ./tt burst-smoke    Qt offscreen test for Burst AB/Custom card state
   ./tt doctor         Show WSL/Windows/Python environment diagnostics
   ./tt audio-info     Show output devices and TittyTatter's selected backend
   ./tt picking-log    Generate a Picking Logic v2 diagnostic log
@@ -105,7 +106,7 @@ case "$cmd" in
     echo "== training modes =="
     "$PY" "$(winpath "$ROOT/test_training_modes.py")"
     echo "== compile =="
-    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/picking_diagnostics.py")" "$(winpath "$ROOT/game_logger.py")" "$(winpath "$ROOT/input_binding.py")" "$(winpath "$ROOT/training_modes.py")" "$(winpath "$ROOT/test_training_modes.py")"
+    "$PY" -m py_compile "$(winpath "$APP")" "$(winpath "$ROOT/audio_engine.py")" "$(winpath "$ROOT/model.py")" "$(winpath "$ROOT/presets.py")" "$(winpath "$ROOT/exports.py")" "$(winpath "$ROOT/settings_store.py")" "$(winpath "$ROOT/game_logic.py")" "$(winpath "$ROOT/picking_logic.py")" "$(winpath "$ROOT/picking_diagnostics.py")" "$(winpath "$ROOT/game_logger.py")" "$(winpath "$ROOT/input_binding.py")" "$(winpath "$ROOT/training_modes.py")" "$(winpath "$ROOT/test_training_modes.py")" "$(winpath "$ROOT/test_burst_gui.py")"
     echo "== picking diagnostics =="
     "$PY" "$(winpath "$ROOT/picking_diagnostics.py")" --self-test
     echo "== export tests =="
@@ -116,6 +117,11 @@ case "$cmd" in
     "$PY" -c "import PySide6, numpy, sounddevice, guitarpro; print('dependencies OK')"
     echo "== result =="
     echo "TittyTatter checks OK"
+    ;;
+
+  burst-smoke)
+    ensure_venv
+    "$PY" "$(winpath "$ROOT/test_burst_gui.py")"
     ;;
 
   doctor)
