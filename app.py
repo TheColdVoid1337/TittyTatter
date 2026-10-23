@@ -2463,13 +2463,26 @@ class MainWindow(QMainWindow):
             tip = "Начни с одной струны и медленного BPM; держи метроном неизменным при переходах через триоли."
             benefit = "Чувство пульса, ровность делений и независимость плотности атак от темпа."
         elif mode == "burst":
-            how = (
-                f"{self.new_training_spins['burst_base_bars'].value()} такт. в базовом BPM, затем "
-                f"{self.new_training_spins['burst_fast_bars'].value()} такт. при "
-                f"{self.new_training_spins['burst_fast_bpm'].value()} BPM. Рисунок неизменен."
-            )
-            tip = "Следи за чистотой одного короткого рывка и расслаблением при возвращении к базовому темпу."
-            benefit = "Скоростной контроль, точные границы ускорения и восстановление техники."
+            if self.burst_variant.currentData() == "custom":
+                how = (
+                    f"В каждой карточке «Доля N» отметь «Рывок». Выбранные доли каждого "
+                    f"такта звучат при {self.new_training_spins['burst_fast_bpm'].value()} BPM, "
+                    "остальные — в базовом темпе из верхнего поля BPM. "
+                    "Маска повторяется в каждом такте и может ускорять или замедлять. "
+                    "Mute и сам рисунок не изменяются."
+                )
+                tip = (
+                    "Например, для 6/4 можно выбрать доли 2, 4 и 6. "
+                    "Темп меняется точно на начале доли, не посреди подразделения."
+                )
+            else:
+                how = (
+                    f"{self.new_training_spins['burst_base_bars'].value()} такт. в базовом BPM, затем "
+                    f"{self.new_training_spins['burst_fast_bars'].value()} такт. при "
+                    f"{self.new_training_spins['burst_fast_bpm'].value()} BPM. Рисунок неизменен."
+                )
+                tip = "Следи за чистотой одного короткого рывка и расслаблением при возвращении к базовому темпу."
+            benefit = "Скоростной контроль, точные границы смены BPM и восстановление техники."
         elif mode == "accent_shift":
             how = (
                 f"Каждые {self.new_training_spins['accent_bars'].value()} такт. "
@@ -2527,6 +2540,9 @@ class MainWindow(QMainWindow):
             "random_tempo": "80 | 100 | 90 | 110 | ...",
         }
         diagram = diagrams.get(mode)
+        if mode == "burst" and self.burst_variant.currentData() == "custom":
+            flags = [editor.burst.isChecked() for editor in self.editors]
+            diagram = " | ".join("B" if selected else "A" for selected in flags) + " → повтор"
         self.training_help.setText(
             f"<b>{title}</b><br><br>"
             + (f"<b>Схема (пример):</b><br><code>{diagram}</code><br><br>" if diagram else "")
@@ -3927,6 +3943,9 @@ class MainWindow(QMainWindow):
                 f"Смещённый метроном · {displaced_click_label(str(st['displaced_click']))} · "
                 f"доля {beat + 1} · {bpm} BPM"
             )
+        elif mode == "burst" and self.burst_variant.currentData() == "custom":
+            state = "РЫВОК" if beat < len(self.editors) and self.editors[beat].burst.isChecked() else "БАЗА"
+            status_text = f"Рывки · Custom · доля {beat + 1}: {state} · {bpm} BPM"
         elif mode in (
             "subdivision_ladder", "burst", "accent_shift", "blind_pattern",
             "endurance", "tempo_wave", "random_tempo",
@@ -4136,6 +4155,8 @@ class MainWindow(QMainWindow):
                 "progressive_gap_max": self.progressive_gap_max.value(),
                 "sparse_click": self.sparse_click.currentData(),
                 "displaced_click": self.displaced_click.currentData(),
+                "burst_variant": self.burst_variant.currentData(),
+                "burst_custom_beats": [editor.burst.isChecked() for editor in self.editors],
                 **{key: spin.value() for key, spin in self.new_training_spins.items()},
                 "trainer": self.tempo_train.isChecked(),
                 "step": self.tempo_step.value(),
@@ -4194,10 +4215,10 @@ class MainWindow(QMainWindow):
         self.meter_den.setCurrentIndex(max(0, self.meter_den.findData(bar.denominator)))
         self.meter_num.blockSignals(False)
         self.meter_den.blockSignals(False)
-        self._rebuild_editors(bar.beats)
-
         practice = data.get("practice", {})
+        self._rebuild_editors(bar.beats, practice.get("burst_custom_beats", []))
         self.mode.setCurrentIndex(max(0, self.mode.findData(practice.get("mode", "loop"))))
+        self._combo_data(self.burst_variant, practice.get("burst_variant", "ab"))
         self.bars.setValue(int(practice.get("bars", 8)))
         self.count.setValue(int(practice.get("count", 1)))
         self.inactive.setChecked(bool(practice.get("inactive", True)))
@@ -4286,6 +4307,8 @@ class MainWindow(QMainWindow):
                 "progressive_gap_max": self.progressive_gap_max.value(),
                 "sparse_click": self.sparse_click.currentData(),
                 "displaced_click": self.displaced_click.currentData(),
+                "burst_variant": self.burst_variant.currentData(),
+                "burst_custom_beats": [editor.burst.isChecked() for editor in self.editors],
                 **{key: spin.value() for key, spin in self.new_training_spins.items()},
                 "tempo_train": self.tempo_train.isChecked(),
                 "tempo_step": self.tempo_step.value(),
@@ -4389,6 +4412,12 @@ class MainWindow(QMainWindow):
 
         practice = data.get("practice", {})
         self._combo_data(self.mode, practice.get("mode", "loop"))
+        self._combo_data(self.burst_variant, practice.get("burst_variant", "ab"))
+        flags = practice.get("burst_custom_beats", [])
+        for i, editor in enumerate(self.editors):
+            editor.set_custom_burst(
+                isinstance(flags, (list, tuple)) and i < len(flags) and bool(flags[i])
+            )
         self.bars.setValue(int(practice.get("bars", 8)))
         self.count.setValue(int(practice.get("count", 1)))
         self.inactive.setChecked(bool(practice.get("inactive", True)))
@@ -4534,6 +4563,7 @@ class MainWindow(QMainWindow):
         self._rebuild_editors()
 
         self.mode.setCurrentIndex(0)
+        self._combo_data(self.burst_variant, "ab")
         self.bars.setValue(8)
         self.count.setValue(1)
         self.inactive.setChecked(True)
