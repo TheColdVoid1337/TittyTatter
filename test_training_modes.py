@@ -20,6 +20,7 @@ from training_modes import (
     ladder_effective_pattern,
     tempo_for_bar,
     burst_beat_bpm,
+    resolved_burst_bpm,
     training_phase,
 )
 
@@ -179,6 +180,56 @@ assert burst_beat_bpm(0, 50, 100, ()) == 50
 assert burst_beat_bpm(99, 50, 100, (True,)) == 50
 assert burst_beat_bpm(0, 10, 1000, (True,)) == 320
 
+# x2 is an exact multiplier, not a rewrite of the saved manual 120 BPM.
+# A baseline above 160 BPM must not silently cap x2 at 320 BPM.
+assert resolved_burst_bpm(50, 120, True) == 100
+assert resolved_burst_bpm(200, 120, True) == 400
+assert resolved_burst_bpm(320, 120, True) == 640
+assert resolved_burst_bpm(200, 80, False) == 80
+assert [tempo_for_bar(
+    "burst", i, 200, burst_base_bars=1, burst_fast_bars=1,
+    burst_fast_bpm=80, burst_x2=True,
+) for i in range(4)] == [200, 400, 200, 400]
+assert [tempo_for_bar(
+    "burst", i, 200, burst_base_bars=1, burst_fast_bars=1,
+    burst_fast_bpm=80, burst_x2=False,
+) for i in range(4)] == [200, 80, 200, 80]
+assert [burst_beat_bpm(
+    i, 200, 80, (False, True, False, True), burst_x2=True,
+) for i in range(4)] == [200, 400, 200, 400]
+assert [burst_beat_bpm(
+    i, 200, 80, (False, True, False, True), burst_x2=False,
+) for i in range(4)] == [200, 80, 200, 80]
+
+# x2 callback intervals: AB changes tempo at bar boundaries.
+x2_ab = fixture_engine(
+    "burst", simple, burst_variant="ab", burst_base_bars=1,
+    burst_fast_bars=1, burst_fast_bpm=80, burst_x2=True,
+)
+sample, targets, _gains, intervals = run_bar(x2_ab)
+assert len(targets) == 2 and intervals == [48000.0, 48000.0]
+sample, targets, _gains, intervals = run_bar(x2_ab, sample)
+assert len(targets) == 2 and intervals == [24000.0, 24000.0]
+assert x2_ab._config.burst_fast_bpm == 80  # manual value remains stored
+assert x2_ab._config.bpm == 60
+
+# x2 callback intervals: Custom switches exactly on selected metric beats.
+x2_custom = fixture_engine(
+    "burst", simple, burst_variant="custom",
+    burst_custom_beats=(False, True), burst_fast_bpm=80, burst_x2=True,
+)
+sample, targets, _gains, intervals = run_bar(x2_custom)
+assert len(targets) == 2 and intervals == [48000.0, 24000.0]
+sample, targets, _gains, intervals = run_bar(x2_custom, sample)
+assert len(targets) == 2 and intervals == [48000.0, 24000.0]
+assert x2_custom._config.bpm == 60
+# Reconfiguring the base BPM while stopped updates computed x2 automatically.
+x2_custom.set_config(bpm=200)
+assert x2_custom.get_config().burst_fast_bpm == 80
+sample, targets, _gains, intervals = run_bar(x2_custom, sample)
+assert len(targets) == 2
+assert intervals == [14400.0, 7200.0]
+
 # Six-beat meter: exact callback intervals, continuous target timeline,
 # no repeated/missing attacks when tempo switches each metric beat.
 six_four = BarPattern([
@@ -232,6 +283,21 @@ sample, _targets, _gains, intervals = run_bar(legacy)
 assert all(math.isclose(x, 48000.0) for x in intervals)
 sample, _targets, _gains, intervals = run_bar(legacy, sample)
 assert all(math.isclose(x, 24000.0) for x in intervals)
+
+# x2 count-in at base 60 BPM regardless of a checked first beat.
+counted_x2 = fixture_engine(
+    "burst", simple, burst_variant="custom", burst_x2=True,
+    burst_custom_beats=(True, False), burst_fast_bpm=75,
+)
+counted_x2._count_in_total_beats = 2
+counted_x2._count_in_beats_left = 2
+counted_x2._update_effective_bpm()
+for _ in range(2):
+    _, interval, target = counted_x2._event(0.0)
+    assert math.isclose(interval, 48000.0) and target is None
+_, interval, target = counted_x2._event(96000.0)
+assert math.isclose(interval, 24000.0)
+assert target is not None and target[2] == 0
 
 # Count-in must use BASE BPM even if the first custom beat is selected.
 counted = fixture_engine(
