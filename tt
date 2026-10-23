@@ -5,9 +5,11 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 PY="$ROOT/.venv/Scripts/python.exe"
+TK_PY="$ROOT/.venv-tk/Scripts/python.exe"
 APP="$ROOT/app.py"
 TEST="$ROOT/test_core.py"
 REQ="$ROOT/requirements.txt"
+TK_REQ="$ROOT/requirements-tk.txt"
 REQ_DEV="$ROOT/requirements-dev.txt"
 
 winpath() { wslpath -w "$1"; }
@@ -39,6 +41,25 @@ ensure_venv() {
   [[ -x "$PY" ]] || die "Failed to create Windows venv at $ROOT/.venv"
 }
 
+ensure_tk_venv() {
+  require_wsl
+  if [[ -x "$TK_PY" ]]; then
+    return 0
+  fi
+
+  local target
+  target="$(winpath "$ROOT/.venv-tk")"
+  echo "Creating separate lean Tkinter Windows venv at .venv-tk..."
+  if command -v py.exe >/dev/null 2>&1; then
+    py.exe -3 -m venv "$target"
+  elif command -v python.exe >/dev/null 2>&1; then
+    python.exe -m venv "$target"
+  else
+    die "Windows Python launcher not found."
+  fi
+  [[ -x "$TK_PY" ]] || die "Failed to create Tkinter Windows venv."
+}
+
 install_runtime() {
   ensure_venv
   "$PY" -m pip install --upgrade pip
@@ -58,6 +79,9 @@ Usage:
   ./tt install        Create/update the Windows .venv and runtime deps
   ./tt install-dev    Install runtime + development/build deps
   ./tt run [-log]     Launch TittyTatter as a native Windows app; -log enables per-game diagnostics
+  ./tt tk-install     Install light Tk-only dependencies into separate .venv-tk
+  ./tt tk-run         Launch isolated Tkinter GUI experiment (no PySide6)
+  ./tt tk-smoke       Tk GUI structural test on native Windows
   ./tt test           Run core tests with the Windows venv
   ./tt check          Run tests, compile checks, and dependency imports
   ./tt doctor         Show WSL/Windows/Python environment diagnostics
@@ -91,6 +115,23 @@ case "$cmd" in
   run)
     ensure_venv
     exec "$PY" "$(winpath "$APP")" "$@"
+    ;;
+
+  tk-install)
+    ensure_tk_venv
+    "$TK_PY" -c "import tkinter; print('Tkinter OK', tkinter.TkVersion)"
+    "$TK_PY" -m pip install -r "$(winpath "$TK_REQ")"
+    ;;
+
+  tk-run)
+    ensure_tk_venv
+    "$TK_PY" -c "import tkinter, numpy, sounddevice, guitarpro; print('Tk dependencies OK')"
+    exec "$TK_PY" "$(winpath "$ROOT/tk_app.py")" "$@"
+    ;;
+
+  tk-smoke)
+    ensure_tk_venv
+    "$TK_PY" "$(winpath "$ROOT/test_tk_gui.py")" "$@"
     ;;
 
   test)

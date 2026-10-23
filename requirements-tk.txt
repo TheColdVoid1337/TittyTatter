@@ -1,0 +1,5 @@
+# Tkinter is bundled with the standard Windows CPython installer.
+# The alternative GUI must NOT install PySide6 or PyQt.
+numpy>=1.26,<3
+sounddevice>=0.5,<1
+PyGuitarPro>=0.11,<1

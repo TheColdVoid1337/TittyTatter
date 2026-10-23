@@ -9,6 +9,7 @@ __pycache__/
 
 # Virtual environments
 .venv/
+.venv-tk/
 venv/
 env/
 
@@ -20,6 +21,7 @@ dist/
 # Local user data
 logs/
 tittytatter.settings.json
+tittytatter.tk.settings.json
 *.session.json
 *.log
 
