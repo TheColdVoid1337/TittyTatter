@@ -17,7 +17,7 @@ On first use:
 
     clear
     cd /mnt/f/_PROJECT/TittyTatter
-    git fetch origin
+    git fetch origin refs/heads/GUI_tkinter:refs/remotes/origin/GUI_tkinter
     git switch --track origin/GUI_tkinter
     ./tt tk-install
     ./tt tk-smoke
@@ -65,8 +65,9 @@ The Qt version remains at ./tt run and uses its own .venv. If tkinter is missing
 3. Picking/Focus overlays are simplified; sweep links and several advanced visual cues need additional work.
 4. A few training presentation effects, including ramp-warning animation, are not yet reproduced.
 5. Native Windows smoke, interactive audio latency, DPI and mixed subdivision acceptance are **pending**.
-6. Canonical ./tt check remains unchanged (Qt/core). Run ./tt tk-smoke for the Tk GUI without Qt packages.
-7. Tk writes only tittytatter.tk.settings.json; JSON sessions interoperate between versions.
+6. Audio device selection is not yet restored across restarts; base Tk sound/practice/pattern options are saved separately.
+7. Canonical ./tt check remains unchanged (Qt/core). Run ./tt tk-smoke for the Tk GUI without Qt packages.
+8. Tk writes only tittytatter.tk.settings.json; JSON sessions interoperate between versions.
 
 ## Native acceptance checklist
 
