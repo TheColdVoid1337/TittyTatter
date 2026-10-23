@@ -145,7 +145,8 @@ def run() -> None:
             window.apply_session(old)
             assert window.burst_variant.currentData() == "ab"
             assert not window.burst_x2.isChecked()
-            assert window.new_training_spins["burst_fast_bpm"].isEnabled() is False
+            assert spin.isEnabled()
+            assert spin.value() == 135
             assert not any(e.burst.isChecked() for e in window.editors)
 
             # Reset clears flags, meter and variant, never touching audio.
