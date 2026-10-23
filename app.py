@@ -86,6 +86,7 @@ from presets import (
 from settings_store import SETTINGS_PATH, delete_settings, load_settings, save_settings
 from training_modes import (
     DISPLACED_CLICK_OPTIONS,
+    BURST_VARIANTS,
     GAP_MODES,
     RAMP_MODES,
     TEMPO_MODES,
@@ -1125,6 +1126,11 @@ class BeatEditor(QGroupBox):
         header.addWidget(self.title)
         header.addStretch()
 
+        self.burst = QCheckBox("Рывок")
+        self.burst.setToolTip("Использовать «Рывок, BPM» на этой доле; повторять каждый такт")
+        self.burst.setVisible(False)
+        header.addWidget(self.burst)
+
         self.mute = QToolButton()
         self.mute.setText("Mute")
         self.mute.setCheckable(True)
@@ -1166,6 +1172,14 @@ class BeatEditor(QGroupBox):
         self.grid.currentIndexChanged.connect(self._grid_changed)
         self.preset.activated.connect(self._preset_activated)
         self.set_pattern(BeatPattern())
+
+    def set_custom_burst(self, checked: bool) -> None:
+        blocked = self.burst.blockSignals(True)
+        self.burst.setChecked(bool(checked))
+        self.burst.blockSignals(blocked)
+
+    def set_custom_burst_visible(self, visible: bool) -> None:
+        self.burst.setVisible(bool(visible))
 
     def _populate_grid(self, preferred: str | None = None) -> None:
         self.grid.blockSignals(True)
@@ -1584,6 +1598,7 @@ class MainWindow(QMainWindow):
         self.progressive_gap_max.valueChanged.connect(self._update_training_help)
         self.sparse_click.currentIndexChanged.connect(self._update_training_help)
         self.displaced_click.currentIndexChanged.connect(self._update_training_help)
+        self.burst_variant.currentIndexChanged.connect(self._burst_variant_changed)
         for spin in self.new_training_spins.values():
             spin.valueChanged.connect(self._stop_for_training_parameter_change)
             spin.valueChanged.connect(self._update_training_help)
@@ -1718,6 +1733,11 @@ class MainWindow(QMainWindow):
         for key, label in DISPLACED_CLICK_OPTIONS:
             self.displaced_click.addItem(label, key)
         form.addRow("Позиция клика:", self.displaced_click)
+
+        self.burst_variant = QComboBox()
+        for key, label in BURST_VARIANTS:
+            self.burst_variant.addItem(label, key)
+        form.addRow("Режим рывка:", self.burst_variant)
 
         self.new_training_spins: dict[str, QSpinBox] = {}
         for key, caption, minimum, maximum, default, suffix, _modes in NEW_TRAINING_SETTINGS:
@@ -2284,7 +2304,11 @@ class MainWindow(QMainWindow):
     def _meter(self) -> tuple[int, int]:
         return self.meter_num.value(), int(self.meter_den.currentData())
 
-    def _rebuild_editors(self, patterns: list[BeatPattern] | None = None) -> None:
+    def _rebuild_editors(
+        self,
+        patterns: list[BeatPattern] | None = None,
+        burst_beats: list[bool] | tuple[bool, ...] | None = None,
+    ) -> None:
         while self.beats_layout.count():
             item = self.beats_layout.takeAt(0)
             widget = item.widget()
@@ -2293,12 +2317,15 @@ class MainWindow(QMainWindow):
 
         numerator, denominator = self._meter()
         patterns = list(patterns or [])
+        burst_beats = list(burst_beats or [])
         self.editors = []
         for i in range(numerator):
             editor = BeatEditor(i + 1, numerator, denominator)
             if i < len(patterns):
                 editor.set_pattern(patterns[i])
+            editor.set_custom_burst(i < len(burst_beats) and bool(burst_beats[i]))
             editor.changed.connect(self._pattern_changed)
+            editor.burst.toggled.connect(self._custom_burst_changed)
             self.beats_layout.addWidget(editor)
             self.editors.append(editor)
         self.beats_layout.addStretch()
@@ -2309,9 +2336,10 @@ class MainWindow(QMainWindow):
 
     def _meter_changed(self, *_args) -> None:
         old = [editor.pattern() for editor in self.editors]
+        burst_beats = [editor.burst.isChecked() for editor in self.editors]
         if self.engine.is_running:
             self._stop_playback("Готов")
-        self._rebuild_editors(old)
+        self._rebuild_editors(old, burst_beats)
 
     def _update_mode_labels(self) -> None:
         numerator, denominator = self._meter()
@@ -2515,6 +2543,18 @@ class MainWindow(QMainWindow):
             else:
                 self._stop_playback("Настройки тренировки изменены")
 
+    def _custom_burst_changed(self, *_args) -> None:
+        # A tempo map edit must not alter a beat already in progress.
+        self._stop_for_training_parameter_change()
+        self._config_changed()
+        self._update_training_help()
+
+    def _burst_variant_changed(self, *_args) -> None:
+        self._stop_for_training_parameter_change()
+        self._refresh_dependent_controls()
+        self._config_changed()
+        self._update_training_help()
+
     def _mode_changed(self, *_args) -> None:
         if self.engine.is_running:
             if self.game_active:
@@ -2524,8 +2564,10 @@ class MainWindow(QMainWindow):
         if self.mode.currentData() in TEMPO_MODES:
             self.tempo_train.setChecked(False)
         ramp = self.mode.currentData() in RAMP_MODES
+        custom_burst = self.mode.currentData() == "burst" and self.burst_variant.currentData() == "custom"
         for editor in self.editors:
             editor.set_mute_allowed(not ramp)
+            editor.set_custom_burst_visible(custom_burst)
         if not self.engine.is_running:
             self._set_ramp_visual(self.meter_num.value())
         self._refresh_dependent_controls()
@@ -2539,13 +2581,19 @@ class MainWindow(QMainWindow):
         progressive_gap = mode == "progressive_gap"
         sparse = mode == "sparse_click"
         displaced = mode == "displaced_click"
+        custom_burst = mode == "burst" and self.burst_variant.currentData() == "custom"
+        for editor in self.editors:
+            editor.set_custom_burst_visible(custom_burst)
 
         for key, _caption, _min, _max, _default, _suffix, modes in NEW_TRAINING_SETTINGS:
             spin = self.new_training_spins[key]
             visible = mode in modes.split()
+            if custom_burst and key in ("burst_base_bars", "burst_fast_bars"):
+                visible = False
             spin.setEnabled(visible)
             self.training_form.setRowVisible(spin, visible)
 
+        self.training_form.setRowVisible(self.burst_variant, mode == "burst")
         self.tempo_train.setEnabled(mode not in TEMPO_MODES)
         self.bars.setEnabled(ramp)
         self.inactive.setEnabled(ramp)
@@ -2692,6 +2740,8 @@ class MainWindow(QMainWindow):
             sparse_click_pattern=self.sparse_click.currentData(),
             displaced_click=self.displaced_click.currentData(),
             **{key: spin.value() for key, spin in self.new_training_spins.items()},
+            burst_variant=str(self.burst_variant.currentData()),
+            burst_custom_beats=tuple(editor.burst.isChecked() for editor in self.editors),
             ti_enabled=self.ti_on.isChecked(),
             ti_sound=self.ti_sound.currentText(),
             ti_volume=self.ti_vol.value() / 100.0,
