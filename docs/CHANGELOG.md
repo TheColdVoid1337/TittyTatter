@@ -5,6 +5,19 @@ All notable TittyTatter changes are recorded here.
 Numeric headings are added when a release version is chosen. Future development remains under **Unreleased** until its release checkpoint.
 
 
+## Unreleased (work branch; native validation pending)
+
+### Added
+
+- Burst Trainer now has a **×2** checkbox directly beside the manual «Рывок, BPM» spinbox. Available in both A–B–A–B and Custom. When checked, the manual spinbox becomes disabled (its value is retained) and the alternate tempo is calculated as exactly 2 × the *current transport BPM*. Unchecking returns to the previously entered manual value.
+- Manual «Рывок, BPM» retains its 20–320 range; automatic ×2 remains mathematically exact for base BPM up to 320 (therefore potentially 640 BPM).
+- The toggle is persisted in sessions and application settings as `practice.burst_x2` (default false in older files). Count-in and the original A–B–A–B/Custom timing boundaries are unchanged.
+- Deterministic regression tests exercise 50→100 and 200→400 BPM, alternating whole-bar/beat schedules, count-in, switching to manual, Qt row enable/disable and session defaults.
+
+### Validation
+
+- Tests and live Windows audio/UI checks for this post-0.0.6 change remain pending. The published v0.0.6 release is immutable.
+
 ## 0.0.6 — 2026-10-23
 
 Version 0.0.6 introduces seven additional guitar Training Modes and an enhanced

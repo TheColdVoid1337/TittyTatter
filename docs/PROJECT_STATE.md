@@ -4,9 +4,9 @@
 
 - Project: **TittyTatter**
 - Application version in this release source: **0.0.6**
-- Release identifier: **v0.0.6** (annotated tag + GitHub Release are separate publishing steps)
+- Release identifier: **v0.0.6** — published and verified 2026-10-23
 - Previous published tag: **v0.0.5**
-- Previous release commit: `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`
+- Previous release commit: `21c33aa2680c8c25fafccde90bf292cb1390440a`
 - Active development branch: **work**
 - Release/integration branch: **main**
 - Primary platform: Windows desktop
@@ -29,7 +29,7 @@ The exact 0.0.5 release commit `21c33aa2680c8c25fafccde90bf292cb1390440a` subseq
 
 - **0.0.4:** published 2026-10-04, annotated `v0.0.4`, commit `1722c0ac8ef9b73b88c2f3bf5aea7d4d6fa96015`.
 - **0.0.5:** published 2026-10-14, annotated `v0.0.5` (full release notes), commit `21c33aa2680c8c25fafccde90bf292cb1390440a`. [GitHub Release](https://github.com/TheColdVoid1337/TittyTatter/releases/tag/v0.0.5).
-- **0.0.6:** release source prepared 2026-10-23. Includes seven new Training Modes and Fulton97's Custom Burst. The `v0.0.6` annotated tag and GitHub Release must be verified separately after the exact commit local gate.
+- **0.0.6:** published 2026-10-23. Seven new Training Modes and Fulton97's Custom Burst. Annotated `v0.0.6` peels to `afc9edf2596ebc284e27fc09516b38cbd52324fb`; full release notes and [GitHub Release](https://github.com/TheColdVoid1337/TittyTatter/releases/tag/v0.0.6) confirmed.
 
 ## Current product definition
 
@@ -190,6 +190,10 @@ Seven post-v0.0.5 Training Modes are now included in the v0.0.6 source: Subdivis
 **Requested by Fulton97** and implemented as a second Burst variant. The default A–B–A–B continues switching between configurable **whole-bar** blocks. Custom uses a checkbox next to Mute on each «Доля N» card: an independent tempo flag for each metric beat (1–16, e.g. six in 6/4). Selected beats use «Рывок, BPM» and unmarked beats use base BPM, with no fixed multiplier. The mask repeats each bar. Flags and variant are persistent and independent of TI/TA/OFF/Mute. Count-in stays at base BPM; callback-boundary timing and Game target identity are covered by regression tests. User confirmed the feature works on Windows.
 
 Exports still render the **stored Pattern at base BPM**, not the effective Training Mode timeline. The `GUI_tkinter` branch is an independent, unmerged GUI experiment and is **not** part of v0.0.6.
+
+## Unreleased Burst ×2 follow-up (work only)
+
+The Burst A–B–A–B and Custom variants now share an optional inline «×2» control beside «Рывок, BPM». It computes the alternate tempo as exactly twice the current transport BPM; the manual 20–320 BPM value is preserved but disabled while checked. Automatic ×2 may reach 640 BPM when base BPM is 320, without rounding or capping at the manual limit. Count-in stays at base BPM, and the original whole-bar / per-beat switch boundaries remain authoritative. `practice.burst_x2` persists in JSON session and ignored app settings; old files default to false. **Tests and manual Windows acceptance are pending on this new post-release `work` change; `main` and `v0.0.6` remain unchanged.**
 
 ## Current development focus
 

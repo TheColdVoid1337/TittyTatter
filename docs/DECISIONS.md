@@ -281,3 +281,11 @@ The annotation must summarize the release purpose, user-visible highlights, mean
 **Decision:** Maintain only one release-ready PySide6 application on `main`/`work`. The separate `GUI_tkinter` branch is explicitly an unmerged experiment and does not become a dependency or add files to the 0.0.6 release. Historical 0.0.5 engineering handoff and regression tests are retained; do not delete them as speculative clutter.
 
 **Reason:** Clean releases preserve reproducibility and working functionality. Root shell helpers are checked out with LF line endings via `.gitattributes`. Local editor/working-tree CRLF normalization is an independent checkout concern, not a reason to delete tracked project files.
+
+## D-047 — Burst ×2 is an alternate-tempo source, not another training mode
+
+**Decision:** A–B–A–B and Custom Burst share a checkbox on the manual «Рывок, BPM» field row. Unchecked uses the stored manual BPM; checked computes exactly twice the current transport BPM, disables the manual spinbox and preserves the manual number unchanged. This is a post-0.0.6 work-branch enhancement, not a claim about the released 0.0.6 tag.
+
+**Reason:** A ratio option is convenient for repeated slow/fast guitar practice without forcing users to recalculate an absolute number every time the base BPM changes. It must keep the existing whole-bar and per-beat tempo timing unmodified.
+
+**Bounds and migration:** Base BPM is 20–320. Automatic ×2 is allowed to reach 640 (not silently clamped to manual 320). Persist `practice.burst_x2` with default `false` for older sessions/settings and restore the previous manual value on uncheck.

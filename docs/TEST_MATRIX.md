@@ -90,6 +90,13 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 - raw JSONL is deleted after successful archival;
 - archived content reads back correctly.
 
+## Unreleased Burst ×2 acceptance — PENDING
+
+- `./tt check`: exact base BPM ×2 in A–B–A–B and Custom; 200→400 must not saturate at 320; 320→640 remains an exact ratio; original manual BPM survives toggling; count-in stays at base BPM; Game events remain on the PortAudio callback timeline.
+- `./tt burst-smoke`: «×2» stays on the same «Рывок, BPM» line in both Burst variants. Manual spinbox is disabled when checked and enabled again when unchecked, retaining its value; hidden outside Burst; session/settings round-trips preserve flag; legacy files and reset set false.
+- `./tt run`: manually compare A–B–A–B and Custom with 50→100 BPM, change base BPM while ×2 is selected, return to the saved manual BPM after unchecking, try faster base tempos with caution.
+- This follow-up is development-only on `work`. Do not alter `main`, the 0.0.6 release/tag or the previous successful acceptance record.
+
 ## 0.0.6 Training Mode acceptance
 
 **Recorded evidence (2026-10-23):** the owner ran `./tt check` successfully (including the Training Modes tests) and `./tt burst-smoke` successfully, then confirmed live Custom Burst worked. These results apply to the pre-release feature candidate. A fresh exact-release-commit gate is required before creating `v0.0.6`. This checklist also documents manual scenarios not individually confirmed:

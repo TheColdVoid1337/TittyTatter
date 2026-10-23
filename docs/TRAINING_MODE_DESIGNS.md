@@ -231,6 +231,18 @@ MUSICAL CLOCK:  |   ON  |   ON   |   ON   |   ON    |
 
 ---
 
+## Unreleased (work): optional Burst ×2 multiplier
+
+Both Burst variants now offer a small `×2` checkbox on the **same row** as `Рывок, BPM`. Its state selects the source of the *alternate tempo* only; it does not change the mask or phase scheduling:
+
+- **Unchecked:** use the stored manual `burst_fast_bpm` (20–320 BPM). A–B–A–B continues selecting by whole-bar phase; Custom continues selecting by per-metric-beat flags.
+- **Checked:** disable the manual input without clearing it, and compute the alternate BPM as `2 × base BPM`. For example, 50→100, 110→220 and 200→400. The ratio is exact even when the alternative is above the manual field's 320-BPM limit (max 640 for base 320).
+- **Back to unchecked:** restore the same manual value. Updating base BPM while ×2 is active automatically changes the alternate target; no duplicate clock or GUI timer is created.
+- **Persistence:** `practice.burst_x2: bool` in sessions and settings, default `false` for earlier files.
+- **Count-in:** remains base BPM. The MIDI/GP5/WAV export restriction remains unchanged (stored Pattern and base BPM only).
+
+This follow-up is implemented **only in `work` after v0.0.6**. Automated and native Windows acceptance are still pending. Do not attribute this ×2 option to the published `v0.0.6` release notes.
+
 ## Shipped v0.0.6 semantics and acceptance coverage
 
 The v0.0.6 implementation uses a small, repeatable exercise contract:
