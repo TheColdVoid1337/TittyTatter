@@ -1,0 +1,5 @@
+# The WSL entrypoint must use Unix line endings even when Git for Windows
+# or Windows-native editors otherwise default to CRLF.
+# A CRLF shebang makes ./tt fail with: env: 'bash\r': No such file.
+tt text eol=lf
+*.sh text eol=lf
