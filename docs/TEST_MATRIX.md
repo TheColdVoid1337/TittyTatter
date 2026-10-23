@@ -117,7 +117,7 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 - Changing a new mode's phase parameters during playback stops safely; Tempo Trainer is disabled for tempo modes.
 - Existing MIDI/GP5/WAV exports continue to use stored Pattern/base BPM, not the active generated stage; no export regressions.
 
-**Final release gate:** Re-run `./tt check` and `./tt burst-smoke` on the exact release commit, ensure working tree is clean (ignoring verified local line-ending conversions only after normalization), and confirm live GUI/audio. Do not claim that all seven new modes received separate manual tests from a single Custom Burst confirmation.
+**v0.0.6 release gate completed (2026-10-23):** the owner ran `./tt check` and `./tt burst-smoke` successfully on exact release commit `afc9edf2596ebc284e27fc09516b38cbd52324fb`, and `v0.0.6` was tagged and published. This does **not** mean that every added mode received an independent manual-audio scenario. The subsequent `work`-only ×2 option remains unvalidated.
 
 ## Manual release acceptance
 

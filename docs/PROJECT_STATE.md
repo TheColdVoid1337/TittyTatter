@@ -15,7 +15,7 @@
 
 ### 0.0.6 release candidate acceptance evidence
 
-On 2026-10-23 the owner reported a green `./tt check` (including Training Modes tests), a green `./tt burst-smoke`, and confirmed Custom Burst working in the live Windows GUI. These checks were on the feature candidate before release documentation changes. Seven newly added Training Modes are included in the 0.0.6 source; separate manual audition of each new mode was not individually reported. The final exact-release-commit gate must be run before tagging.
+On 2026-10-23 the owner reported a green `./tt check` (including Training Modes tests), a green `./tt burst-smoke`, and confirmed Custom Burst working in the live Windows GUI. The feature candidate was accepted, and the owner then confirmed both tests on the exact release commit `afc9edf2596ebc284e27fc09516b38cbd52324fb` before the annotated v0.0.6 tag and GitHub Release were published. Seven additional Training Modes were included; separate manual audition of each new mode was not individually recorded.
 
 The Custom per-metric-beat «Рывок» option was **requested by Fulton97**. It switches between base and alternate BPM for selected beats, retaining the original A–B–A–B whole-bar schedule. See [release notes](RELEASE_NOTES_0.0.6.md).
 
@@ -209,7 +209,7 @@ See [ROADMAP.md](ROADMAP.md) for upcoming features and [PICKING_LOGIC_V2.md](PIC
 - Owner-confirmed `./tt burst-smoke`: PASS; per-card Custom controls, 6/4 selection, legacy session and persistence checks.
 - Owner-confirmed live Custom Burst: works on Windows.
 - Full fourteen-mode individual manual-audio pass: not separately recorded.
-- Exact release commit still requires the final local gate before the annotated tag and GitHub Release are published.
+- Exact v0.0.6 release commit `afc9edf`: owner-confirmed `./tt check` and `./tt burst-smoke` PASS; annotated `v0.0.6` tag peels to that commit, and GitHub Release is public.
 
 ### Published 0.0.5
 
@@ -260,7 +260,7 @@ work
 GUI_tkinter  # unmerged experimental GUI
 ```
 
-The `v0.0.5` annotated tag remains immutable at its historical commit `21c33aa`. The main branch is advanced to the 0.0.6 release source by fast-forward only after release preparation. Annotated `v0.0.6` tag / GitHub Release publication must be verified independently.
+The `v0.0.5` annotated tag remains immutable at its historical commit `21c33aa`. `main` was fast-forwarded to the 0.0.6 release commit `afc9edf2596ebc284e27fc09516b38cbd52324fb`; annotated `v0.0.6` tag and the public GitHub Release were independently verified. The `work` branch contains additional unreleased development changes.
 
 `work` is the ongoing development branch; `GUI_tkinter` has unique experimental history and must not be deleted or merged as part of this release.
 
