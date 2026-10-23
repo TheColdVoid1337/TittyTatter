@@ -2340,6 +2340,9 @@ class MainWindow(QMainWindow):
         if self.engine.is_running:
             self._stop_playback("Готов")
         self._rebuild_editors(old, burst_beats)
+        # The edit cards are also the Custom Burst tempo map. Re-sync after
+        # a meter resize, even when the previous selected flags were preserved.
+        self._config_changed()
 
     def _update_mode_labels(self) -> None:
         numerator, denominator = self._meter()
