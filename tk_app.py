@@ -64,6 +64,8 @@ class TkApp(SettingsTabsMixin, tk.Tk):
         self.game_targets: list[tuple[float, str]] = []
         self.game_early_inputs: list[tuple[float, str]] = []
         self._last_stage = None
+        self._picking_cache_key = None
+        self._picking_cache_value: list[list[str]] = []
         self._device_records: list[dict] = []
         self._closed = False
 
@@ -228,6 +230,8 @@ class TkApp(SettingsTabsMixin, tk.Tk):
             else:
                 matrix.append(list(beat.steps))
         self.visual.rhythm_states = matrix
+        self.visual.picking_show_next = bool(self.get("picking_show_next"))
+        self.visual.picking_next_count = self._safe_int("picking_next_count", 1, 8)
 
         if self.get("picking_enabled") and not self.game_selected.get() and not hidden:
             try:
@@ -237,26 +241,40 @@ class TkApp(SettingsTabsMixin, tk.Tk):
                     for i, beat in enumerate(pattern.beats)
                 ]
                 placeholders = {i for i in range(len(matrix)) if mode in RAMP_MODES and i >= active and full[i]}
-                if self.get("picking_strategy") == "alternate":
-                    v = self.get("picking_start_stroke")
-                    first = None if v == "auto" else DOWN if v == "down" else UP
-                    dirs = alternate_pick_beats_v2(full, matrix, TI, TA, OFF,
-                                                    placeholder_beats=placeholders, start_direction=first)
-                elif mode in RAMP_MODES:
-                    dirs = economy_pick_ramp_stages_v2(
-                        full, ramp_stages(mode, pattern.numerator), TI, TA, OFF,
-                        escape_profile=self.get("picking_escape_profile"),
-                        crossing_preference=self.get("picking_crossing_preference"),
-                    ).get(active, [])
-                else:
-                    dirs = economy_pick_beats_v2(
-                        full, matrix, TI, TA, OFF,
-                        escape_profile=self.get("picking_escape_profile"),
-                        crossing_preference=self.get("picking_crossing_preference"),
-                    )
-                self.visual.picking_tokens = [
-                    ["↓" if x == DOWN else "↑" if x == UP else "" for x in row] for row in dirs
-                ]
+                cache_key = (
+                    tuple(tuple(row) for row in full),
+                    tuple(tuple(row) for row in matrix),
+                    mode, active,
+                    self.get("picking_strategy"),
+                    self.get("picking_start_stroke"),
+                    self.get("picking_escape_profile"),
+                    self.get("picking_crossing_preference"),
+                )
+                if self._picking_cache_key != cache_key:
+                    if self.get("picking_strategy") == "alternate":
+                        v = self.get("picking_start_stroke")
+                        first = None if v == "auto" else DOWN if v == "down" else UP
+                        dirs = alternate_pick_beats_v2(
+                            full, matrix, TI, TA, OFF,
+                            placeholder_beats=placeholders, start_direction=first,
+                        )
+                    elif mode in RAMP_MODES:
+                        dirs = economy_pick_ramp_stages_v2(
+                            full, ramp_stages(mode, pattern.numerator), TI, TA, OFF,
+                            escape_profile=self.get("picking_escape_profile"),
+                            crossing_preference=self.get("picking_crossing_preference"),
+                        ).get(active, [])
+                    else:
+                        dirs = economy_pick_beats_v2(
+                            full, matrix, TI, TA, OFF,
+                            escape_profile=self.get("picking_escape_profile"),
+                            crossing_preference=self.get("picking_crossing_preference"),
+                        )
+                    self._picking_cache_value = [
+                        ["↓" if x == DOWN else "↑" if x == UP else "" for x in row] for row in dirs
+                    ]
+                    self._picking_cache_key = cache_key
+                self.visual.picking_tokens = self._picking_cache_value
             except Exception as exc:
                 self.visual.picking_tokens = []
                 self.status_text.set(f"Picking preview: {exc}")

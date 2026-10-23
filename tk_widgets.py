@@ -71,6 +71,8 @@ class MetronomeCanvas(tk.Canvas):
         self.show_lamps = True
         self.focus = False
         self.picking_tokens: list[list[str]] = []
+        self.picking_show_next = True
+        self.picking_next_count = 1
         self.rhythm_states: list[list[str]] = []
         self.timer_text = ""
         self.game_text = ""
@@ -141,6 +143,22 @@ class MetronomeCanvas(tk.Canvas):
             self.create_text(cx, h * 0.72, text=self.game_text, fill=ACCENT, font=("Segoe UI", 13, "bold"))
         elif self.focus and self.rhythm_states and visible and not silent:
             self._draw_focus_strip(w, h, beat)
+        if self.picking_tokens and visible and not silent and not self.game_text:
+            row = self.picking_tokens[beat] if beat < len(self.picking_tokens) else []
+            current = row[min(len(row) - 1, int(st.get("sub", 0)))] if row else ""
+            if current:
+                self.create_text(
+                    cx + min(135, w * 0.18), max(50, pivot - 35),
+                    text=current, fill=ACCENT, font=("Segoe UI", 31, "bold"),
+                )
+            if self.picking_show_next:
+                flat = [x for x in row if x]
+                if flat:
+                    self.create_text(
+                        cx + min(135, w * 0.18), pivot + 4,
+                        text=" ".join(flat[:self.picking_next_count]),
+                        fill=MUTED, font=("Segoe UI", 10),
+                    )
 
     def _draw_focus_strip(self, w: int, h: int, beat: int) -> None:
         if h < 240:
