@@ -1599,6 +1599,8 @@ class MainWindow(QMainWindow):
         self.sparse_click.currentIndexChanged.connect(self._update_training_help)
         self.displaced_click.currentIndexChanged.connect(self._update_training_help)
         self.burst_variant.currentIndexChanged.connect(self._burst_variant_changed)
+        self.burst_x2.toggled.connect(self._burst_x2_changed)
+        self.bpm.valueChanged.connect(self._update_training_help)
         for spin in self.new_training_spins.values():
             spin.valueChanged.connect(self._stop_for_training_parameter_change)
             spin.valueChanged.connect(self._update_training_help)
@@ -1746,7 +1748,23 @@ class MainWindow(QMainWindow):
             spin.setValue(default)
             if suffix:
                 spin.setSuffix(suffix)
-            form.addRow(caption, spin)
+            if key == "burst_fast_bpm":
+                # Keep the manual BPM and x2 toggle on the same existing row.
+                self.burst_x2 = QCheckBox("×2")
+                self.burst_x2.setToolTip(
+                    "Рывок = 2 × базовый BPM сверху. "
+                    "Ручной «Рывок, BPM» сохраняется, но временно не используется."
+                )
+                self.burst_bpm_field = QWidget()
+                burst_bpm_layout = QHBoxLayout(self.burst_bpm_field)
+                burst_bpm_layout.setContentsMargins(0, 0, 0, 0)
+                burst_bpm_layout.setSpacing(8)
+                burst_bpm_layout.addWidget(spin)
+                burst_bpm_layout.addWidget(self.burst_x2)
+                burst_bpm_layout.addStretch()
+                form.addRow(caption, self.burst_bpm_field)
+            else:
+                form.addRow(caption, spin)
             self.new_training_spins[key] = spin
 
         random_button = QPushButton("🎲 Случайный такт")
@@ -2466,12 +2484,17 @@ class MainWindow(QMainWindow):
             tip = "Начни с одной струны и медленного BPM; держи метроном неизменным при переходах через триоли."
             benefit = "Чувство пульса, ровность делений и независимость плотности атак от темпа."
         elif mode == "burst":
+            alternate = (
+                f"×2 от базового BPM ({self.bpm.value() * 2} BPM)"
+                if self.burst_x2.isChecked()
+                else f"{self.new_training_spins['burst_fast_bpm'].value()} BPM"
+            )
             if self.burst_variant.currentData() == "custom":
                 how = (
-                    f"В каждой карточке «Доля N» отметь «Рывок». Выбранные доли каждого "
-                    f"такта звучат при {self.new_training_spins['burst_fast_bpm'].value()} BPM, "
+                    "В каждой карточке «Доля N» отметь «Рывок». Выбранные доли "
+                    f"каждого такта звучат при {alternate}, "
                     "остальные — в базовом темпе из верхнего поля BPM. "
-                    "Маска повторяется в каждом такте и может ускорять или замедлять. "
+                    "Маска повторяется в каждом такте. "
                     "Mute и сам рисунок не изменяются."
                 )
                 tip = (
@@ -2482,7 +2505,7 @@ class MainWindow(QMainWindow):
                 how = (
                     f"{self.new_training_spins['burst_base_bars'].value()} такт. в базовом BPM, затем "
                     f"{self.new_training_spins['burst_fast_bars'].value()} такт. при "
-                    f"{self.new_training_spins['burst_fast_bpm'].value()} BPM. Рисунок неизменен."
+                    f"{alternate}. Рисунок неизменен."
                 )
                 tip = "Следи за чистотой одного короткого рывка и расслаблением при возвращении к базовому темпу."
             benefit = "Скоростной контроль, точные границы смены BPM и восстановление техники."
@@ -2574,6 +2597,12 @@ class MainWindow(QMainWindow):
         self._config_changed()
         self._update_training_help()
 
+    def _burst_x2_changed(self, *_args) -> None:
+        self._stop_for_training_parameter_change()
+        self._refresh_dependent_controls()
+        self._config_changed()
+        self._update_training_help()
+
     def _mode_changed(self, *_args) -> None:
         if self.engine.is_running:
             if self.game_active:
@@ -2609,8 +2638,11 @@ class MainWindow(QMainWindow):
             visible = mode in modes.split()
             if custom_burst and key in ("burst_base_bars", "burst_fast_bars"):
                 visible = False
-            spin.setEnabled(visible)
-            self.training_form.setRowVisible(spin, visible)
+            spin.setEnabled(
+                visible and not (key == "burst_fast_bpm" and self.burst_x2.isChecked())
+            )
+            row_widget = self.burst_bpm_field if key == "burst_fast_bpm" else spin
+            self.training_form.setRowVisible(row_widget, visible)
 
         self.training_form.setRowVisible(self.burst_variant, mode == "burst")
         self.tempo_train.setEnabled(mode not in TEMPO_MODES)
@@ -2760,6 +2792,7 @@ class MainWindow(QMainWindow):
             displaced_click=self.displaced_click.currentData(),
             **{key: spin.value() for key, spin in self.new_training_spins.items()},
             burst_variant=str(self.burst_variant.currentData()),
+            burst_x2=self.burst_x2.isChecked(),
             burst_custom_beats=tuple(editor.burst.isChecked() for editor in self.editors),
             ti_enabled=self.ti_on.isChecked(),
             ti_sound=self.ti_sound.currentText(),
@@ -4159,6 +4192,7 @@ class MainWindow(QMainWindow):
                 "sparse_click": self.sparse_click.currentData(),
                 "displaced_click": self.displaced_click.currentData(),
                 "burst_variant": self.burst_variant.currentData(),
+                "burst_x2": self.burst_x2.isChecked(),
                 "burst_custom_beats": [editor.burst.isChecked() for editor in self.editors],
                 **{key: spin.value() for key, spin in self.new_training_spins.items()},
                 "trainer": self.tempo_train.isChecked(),
@@ -4222,6 +4256,7 @@ class MainWindow(QMainWindow):
         self._rebuild_editors(bar.beats, practice.get("burst_custom_beats", []))
         self.mode.setCurrentIndex(max(0, self.mode.findData(practice.get("mode", "loop"))))
         self._combo_data(self.burst_variant, practice.get("burst_variant", "ab"))
+        self.burst_x2.setChecked(bool(practice.get("burst_x2", False)))
         self.bars.setValue(int(practice.get("bars", 8)))
         self.count.setValue(int(practice.get("count", 1)))
         self.inactive.setChecked(bool(practice.get("inactive", True)))
@@ -4311,6 +4346,7 @@ class MainWindow(QMainWindow):
                 "sparse_click": self.sparse_click.currentData(),
                 "displaced_click": self.displaced_click.currentData(),
                 "burst_variant": self.burst_variant.currentData(),
+                "burst_x2": self.burst_x2.isChecked(),
                 "burst_custom_beats": [editor.burst.isChecked() for editor in self.editors],
                 **{key: spin.value() for key, spin in self.new_training_spins.items()},
                 "tempo_train": self.tempo_train.isChecked(),
@@ -4416,6 +4452,7 @@ class MainWindow(QMainWindow):
         practice = data.get("practice", {})
         self._combo_data(self.mode, practice.get("mode", "loop"))
         self._combo_data(self.burst_variant, practice.get("burst_variant", "ab"))
+        self.burst_x2.setChecked(bool(practice.get("burst_x2", False)))
         flags = practice.get("burst_custom_beats", [])
         for i, editor in enumerate(self.editors):
             editor.set_custom_burst(
@@ -4567,6 +4604,7 @@ class MainWindow(QMainWindow):
 
         self.mode.setCurrentIndex(0)
         self._combo_data(self.burst_variant, "ab")
+        self.burst_x2.setChecked(False)
         self.bars.setValue(8)
         self.count.setValue(1)
         self.inactive.setChecked(True)
