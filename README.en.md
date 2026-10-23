@@ -10,14 +10,14 @@
   <a href="README.md">Русский</a> · <strong>English</strong>
 </p>
 
-**Version 0.0.5** · [What's new](docs/RELEASE_NOTES_0.0.5.md)
+**Version 0.0.6** · [What's new](docs/RELEASE_NOTES_0.0.6.md)
 
 TittyTatter helps guitarists practice rhythmic accuracy, picking consistency, and their internal sense of pulse. Create a rhythm pattern, choose a training method, and practice with audio and visual guidance. An optional input-based mode lets you practice timing without a guitar.
 
 ## Features
 
 - **Rhythm editor.** Time signatures with 1–16 beats and denominators of 2, 4, 8, or 16; per-beat subdivisions including triplets, rests, and sustained-note coverage.
-- **Seven training modes.** Full repetition, progressive pattern building, silent-bar exercises, and alternative metronome techniques.
+- **14 training modes.** Repetition, progressive pattern building, silent-bar exercises, metronome variations, subdivision ladder, endurance, blind practice and dynamic tempo exercises.
 - **Tempo and session tools.** Adjustable BPM, count-in, progressive tempo training, and a practice timer.
 - **Audio and display.** Independent rhythm and metronome levels, output-device selection, configurable visual metronome, and an expanded Focus view.
 - **Picking guidance.** Alternate and economy picking, string-crossing preferences, upcoming-stroke previews, and optional sweep connections.
@@ -71,8 +71,17 @@ The application interface is in Russian. Its current training modes are:
 | **Нарастающие пропуски** (Progressive gaps) | Progressively increases the number of silent bars |
 | **Редкий метроном** (Sparse metronome) | Reduces click frequency to develop an internal pulse |
 | **Смещённый метроном** (Displaced metronome) | Places clicks on offbeats or finer subdivisions |
+| **Лестница делений** (Subdivision Ladder) | Steps through quarter, eighth, triplet and sixteenth-note attacks |
+| **Рывки темпа** (Burst Trainer) | Alternates base/alternate BPM in whole-bar blocks or per selected metric beat (Custom) |
+| **Сдвиг акцента** (Accent Shift) | Highlights the first attack of successive beats |
+| **По памяти** (Blind Pattern) | Alternates guided and memory-only practice |
+| **Интервалы** (Endurance) | Alternates work and rest blocks |
+| **Волна темпа** (Tempo Wave) | Steps BPM up and down |
+| **Случайный темп** (Random Tempo) | Repeatable seeded tempo blocks |
 
 Silent-bar exercises **continue the internal timeline** even when audio guidance disappears. When Game mode is active, timing targets continue through the silent portions.
+
+**New in 0.0.6 — requested by Fulton97:** Burst Trainer now offers **Custom**. Check **Рывок** next to Mute in any «Доля N» beat card (six selectors in 6/4). Checked beats use «Рывок, BPM»; other beats retain the transport BPM, and the mask repeats every bar. The original **A–B–A–B** variant still alternates whole-bar blocks. The alternate BPM may be either faster or slower; no fixed ×2 multiplier is imposed.
 
 ## Picking Guide
 
@@ -94,9 +103,9 @@ For the current two-string exercise model, **ТИ** represents string 5 and **Т
 
 - **MIDI** — edit or arrange the rhythm in compatible music software.
 - **Guitar Pro 5 (.gp5)** — view and edit exercises in compatible applications.
-- **WAV** — render the exercise to an audio file.
+- **WAV** — render the stored rhythm pattern to an audio file.
 
-Sessions can be saved and reopened. Application preferences are stored locally.
+Exports use the stored pattern at base BPM, **not** the variable tempo of Training Modes. Sessions can be saved and reopened; preferences are stored locally.
 
 ## Documentation
 
