@@ -19,6 +19,7 @@ from training_modes import (
     TRAINING_MODES,
     ladder_effective_pattern,
     tempo_for_bar,
+    burst_beat_bpm,
     training_phase,
 )
 
@@ -165,6 +166,88 @@ sample, targets, gains, intervals = run_bar(burst, sample)
 assert len(targets) == 2 and all(math.isclose(x, 24000.0) for x in intervals)
 assert burst._effective_bpm == 60
 assert burst._config.bpm == 60.0
+
+# Custom Burst is tied to metric beat cards, not elapsed bar counts.
+# A selected beat can use any alternative BPM (including slower).
+assert [burst_beat_bpm(i, 50, 100, (False, True, False, True)) for i in range(4)] == [
+    50, 100, 50, 100,
+]
+assert [burst_beat_bpm(i, 100, 55, (True, False, True)) for i in range(4)] == [
+    55, 100, 55, 100,
+]
+assert burst_beat_bpm(0, 50, 100, ()) == 50
+assert burst_beat_bpm(99, 50, 100, (True,)) == 50
+assert burst_beat_bpm(0, 10, 1000, (True,)) == 320
+
+# Six-beat meter: exact callback intervals, continuous target timeline,
+# no repeated/missing attacks when tempo switches each metric beat.
+six_four = BarPattern([
+    BeatPattern("beat", [TI if i % 2 == 0 else TA]) for i in range(6)
+], 6, 4)
+custom = fixture_engine(
+    "burst", six_four, burst_variant="custom",
+    burst_custom_beats=(False, True, False, True, False, True),
+    burst_fast_bpm=120,
+)
+sample = 0.0
+for _ in range(3):
+    sample, targets, gains, intervals = run_bar(custom, sample)
+    assert [t[2] for t in targets] == list(range(6))
+    assert [t[0] for t in targets] == [TI, TA, TI, TA, TI, TA]
+    assert len(gains) == 6
+    assert all(math.isclose(actual, expected) for actual, expected in zip(
+        intervals, (48000, 24000, 48000, 24000, 48000, 24000),
+    )), intervals
+    assert len(intervals) == 6
+    assert math.isclose(sample, (_ + 1) * 216000.0)
+    assert custom._config.bpm == 60.0
+
+# Different subdivisions must share the beat's tempo, never jump inside it.
+multi = BarPattern([
+    BeatPattern("triplet", [TI, TA, OFF]),
+    BeatPattern("quad", [TA, TI, OFF, TI]),
+    BeatPattern("duplet", [TA, OFF]),
+], 3, 4)
+multi_engine = fixture_engine(
+    "burst", multi, burst_variant="custom",
+    burst_custom_beats=(True, False, True), burst_fast_bpm=120,
+)
+sample, targets, gains, intervals = run_bar(multi_engine)
+expected = [24000/3]*3 + [48000/4]*4 + [24000/2]*2
+assert len(intervals) == len(expected)
+assert all(math.isclose(a, b) for a, b in zip(intervals, expected)), intervals
+assert [t[2:] for t in targets] == [
+    (0, 0), (0, 1), (1, 0), (1, 1), (1, 3), (2, 0),
+]
+assert math.isclose(sample, 96000.0)
+assert multi_engine._config.bpm == 60.0
+
+# Old burst A/B semantics are unchanged even with saved custom checkboxes.
+legacy = fixture_engine(
+    "burst", six_four, burst_variant="ab",
+    burst_base_bars=1, burst_fast_bars=1, burst_fast_bpm=120,
+    burst_custom_beats=(True, True, True, True, True, True),
+)
+sample, _targets, _gains, intervals = run_bar(legacy)
+assert all(math.isclose(x, 48000.0) for x in intervals)
+sample, _targets, _gains, intervals = run_bar(legacy, sample)
+assert all(math.isclose(x, 24000.0) for x in intervals)
+
+# Count-in must use BASE BPM even if the first custom beat is selected.
+counted = fixture_engine(
+    "burst", simple, burst_variant="custom",
+    burst_custom_beats=(True, False), burst_fast_bpm=120,
+)
+counted._count_in_total_beats = 2
+counted._count_in_beats_left = 2
+counted._update_effective_bpm()
+for _ in range(2):
+    _, interval, target = counted._event(0.0)
+    assert math.isclose(interval, 48000.0)
+    assert target is None
+_, interval, target = counted._event(96000.0)
+assert math.isclose(interval, 24000.0)
+assert target is not None and target[2] == 0
 
 # GUI transport regression without a QApplication or physical audio stream:
 # changing the combo before stop must restore the mode which WAS playing.
