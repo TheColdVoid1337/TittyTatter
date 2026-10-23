@@ -11,7 +11,7 @@ Normal automated validation is local:
 The gate currently runs approximately:
 
 1. `test_core.py`;
-2. `test_training_modes.py` (new work-branch candidate);
+2. `test_training_modes.py` (all fourteen Training Modes, including Custom Burst callback timing);
 3. compile checks for the main Python modules;
 4. `picking_diagnostics.py --self-test`;
 5. `test_exports.py`;
@@ -90,9 +90,9 @@ A green automated gate does **not** replace manual GUI/audio acceptance.
 - raw JSONL is deleted after successful archival;
 - archived content reads back correctly.
 
-## Unreleased seven-mode acceptance — PENDING
+## 0.0.6 Training Mode acceptance
 
-The following checks apply to the work-branch candidate and **are not yet confirmed**:
+**Recorded evidence (2026-10-23):** the owner ran `./tt check` successfully (including the Training Modes tests) and `./tt burst-smoke` successfully, then confirmed live Custom Burst worked. These results apply to the pre-release feature candidate. A fresh exact-release-commit gate is required before creating `v0.0.6`. This checklist also documents manual scenarios not individually confirmed:
 
 - Startup succeeds and all 14 Training Modes are selectable; only mode-relevant controls appear.
 - Ladder: use a 4/4 or 7/8 Pattern containing both TI and TA. At one bar per stage, confirm 1 -> 2 -> 3 -> 4 attacks per metric beat; Focus displays stage-effective grid and no stored Pattern is modified.
@@ -110,7 +110,7 @@ The following checks apply to the work-branch candidate and **are not yet confir
 - Changing a new mode's phase parameters during playback stops safely; Tempo Trainer is disabled for tempo modes.
 - Existing MIDI/GP5/WAV exports continue to use stored Pattern/base BPM, not the active generated stage; no export regressions.
 
-**Acceptance gate:** User pastes `./tt check` and confirms focused `./tt run` GUI/audio behavior. Do not mark this section passed from a GitHub commit alone.
+**Final release gate:** Re-run `./tt check` and `./tt burst-smoke` on the exact release commit, ensure working tree is clean (ignoring verified local line-ending conversions only after normalization), and confirm live GUI/audio. Do not claim that all seven new modes received separate manual tests from a single Custom Burst confirmation.
 
 ## Manual release acceptance
 

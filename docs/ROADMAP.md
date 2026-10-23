@@ -8,7 +8,7 @@ The strongest product direction is:
 
 Game remains an optional input/scoring layer over the same training timeline. Picking Guide remains an optional informational layer for guitar practice.
 
-Illustrated exercises, current **work-branch candidates (local acceptance pending)** and design limits are collected in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md).
+Illustrated exercises, shipped v0.0.6 semantics and the remaining design questions are collected in [TRAINING_MODE_DESIGNS.md](TRAINING_MODE_DESIGNS.md).
 
 ## Picking Logic v2 — 0.0.5 release scope
 
@@ -31,11 +31,11 @@ Implementation order:
 
 Do not add more screenshot-specific picking heuristics when the failure belongs to the v2 model. Convert new failures into regression cases first.
 
-With Picking Logic v2 accepted, the seven additional Training Modes were implemented as one work-branch candidate at the owner's request. **Native Windows acceptance is pending**, and P7e remains deferred.
+With Picking Logic v2 accepted in v0.0.5, seven additional Training Modes were implemented for v0.0.6. The owner confirmed `./tt check`, the Custom Burst widget smoke and successful Custom Burst playback. Focused native listening for each of the other new modes remains valuable regression work; P7e remains deferred.
 
-## Priority post-release Training Modes
+## 0.0.6 Training Modes — implemented
 
-**Work-branch status (not published):** All seven modes below have a first candidate implementation and dedicated regression tests, but their GUI/audio behavior has not yet been accepted locally. Examples remain practice illustrations; exact first-candidate semantics are in the design document.
+The seven additions listed below are available in v0.0.6. Examples remain practice illustrations; exact behavior is documented in the design reference. Future extensions belong in a separate post-release roadmap cycle.
 
 
 ### Лестница делений — Subdivision Ladder
@@ -54,7 +54,7 @@ The exact transition/configuration model still needs design.
 
 Normal-tempo blocks interrupted by short faster bursts.
 
-**Unreleased work-branch extension (native acceptance pending):** choose classic **A–B–A–B** whole-bar blocks, or **Custom** beat-card checkboxes. For example, 6/4 exposes six checkboxes and selected beats use a user-set alternate BPM. Custom is *intra-bar metric beat selection*, not a four-bar arrangement and not a fixed ×2 multiplier. The pattern, TI/TA and Game event identities are unchanged.
+**v0.0.6 update (requested by Fulton97):** choose classic **A–B–A–B** whole-bar blocks, or **Custom** beat-card checkboxes. For example, 6/4 exposes six checkboxes and selected beats use a user-set alternate BPM. Custom is *intra-bar metric beat selection*, not a four-bar arrangement and not a fixed ×2 multiplier. The pattern, TI/TA and Game event identities are unchanged.
 
 Goal: practise controlled acceleration or deceleration without turning the whole exercise into a permanent tempo change.
 

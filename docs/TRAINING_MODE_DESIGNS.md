@@ -1,6 +1,6 @@
 # Illustrated Training Mode designs
 
-**Status: ENGINEERING CANDIDATE ON work / LOCAL ACCEPTANCE PENDING.** All seven post-v0.0.5 Training Modes have source implementations in the work branch. The code and new automated gate have **not yet been run/accepted in the owner's native Windows environment**. Diagrams remain illustrative; actual candidate behavior is specified below, and the published v0.0.5 build does not contain these features.
+**Status: included in the v0.0.6 release source.** The seven modes originally developed after v0.0.5 are now part of the shipped fourteen-mode menu. On 2026-10-23 the project owner confirmed the complete local `./tt check` suite and `./tt burst-smoke` passed and that Custom Burst worked in the live application. The illustrations below are pedagogical examples; not all modes received an individually recorded live-audio scenario before release. Exact current behavior is given in the implementation table below.
 
 The first three design studies are intentionally more detailed; the remaining four have compact practice cards. See [ROADMAP.md](ROADMAP.md) for priorities and [ARCHITECTURE.md](ARCHITECTURE.md) for current application contracts.
 
@@ -18,7 +18,7 @@ The first three design studies are intentionally more detailed; the remaining fo
 
 ## 1. Лестница делений — Subdivision Ladder
 
-**Status:** First implementation candidate; stage mapping selected provisionally, pending native validation.
+**Status:** Implemented in 0.0.6; transformation semantics below are the release behavior.
 
 **Purpose:** Shift between rhythmic subdivisions while the metric pulse remains steady.
 
@@ -66,7 +66,7 @@ STAGE:       QUARTERS  -> EIGHTHS   -> TRIPLETS    -> SIXTEENTHS
 
 ## 2. Рывки темпа — Burst Trainer
 
-**Status:** First implementation candidate; bar-aligned base/fast phases.
+**Status:** Implemented in 0.0.6 with both whole-bar A–B–A–B and per-beat Custom variants.
 
 **Purpose:** Keep the same rhythmic Pattern but introduce short faster sections between comfortable-tempo blocks.
 
@@ -99,7 +99,7 @@ OUTLINE:      ▁    ▁    ▁    ▁   █   ▁    ▁    ▁    ▁   █
 
 ## 3. Сдвиг акцента — Accent Trainer
 
-**Status:** First implementation candidate; only the first existing attack of a selected beat is louder.
+**Status:** Implemented in 0.0.6; only the first existing attack of a selected beat is louder.
 
 **Purpose:** Shift emphasis through successive rhythmic positions without changing the underlying attack placement.
 
@@ -147,7 +147,7 @@ PHASE C:     |.  .  !  .  .  .  .  .|
 
 ## 4. Волна темпа — Tempo Wave
 
-**Status:** First implementation candidate; native validation pending.
+**Status:** Implemented in 0.0.6; consult the Test Matrix for recorded validation coverage.
 
 **Purpose:** Predictably increase and decrease tempo through a larger cycle, rather than jumping straight to a short burst.
 
@@ -168,7 +168,7 @@ SHAPE:    ▁   ▃   ▆    █    ▆   ▃   ▁
 
 ## 5. Случайный темп — Random Tempo Blocks
 
-**Status:** First implementation candidate; native validation pending.
+**Status:** Implemented in 0.0.6; consult the Test Matrix for recorded validation coverage.
 
 **Purpose:** Change tempo unpredictably between **stable blocks**, not on arbitrary individual attacks.
 
@@ -188,7 +188,7 @@ PATTERN:   |----------- same rhythmic Pattern throughout ------|
 
 ## 6. Интервалы — Endurance Intervals
 
-**Status:** First implementation candidate; native validation pending.
+**Status:** Implemented in 0.0.6; consult the Test Matrix for recorded validation coverage.
 
 **Purpose:** Alternate defined work and recovery periods in a longer practice session.
 
@@ -208,7 +208,7 @@ EFFORT:     |   PLAY     |recover|   PLAY     |recover|
 
 ## 7. По памяти — Blind Pattern
 
-**Status:** First implementation candidate; native validation pending.
+**Status:** Implemented in 0.0.6; consult the Test Matrix for recorded validation coverage.
 
 **Purpose:** Withdraw selected guidance after an initial learning phase while the player retains the rhythm from memory.
 
@@ -231,11 +231,11 @@ MUSICAL CLOCK:  |   ON  |   ON   |   ON   |   ON    |
 
 ---
 
-## Implemented candidate semantics and acceptance gate
+## Shipped v0.0.6 semantics and acceptance coverage
 
-The first work-branch implementation intentionally chooses a small, repeatable exercise contract:
+The v0.0.6 implementation uses a small, repeatable exercise contract:
 
-| Mode | Work-branch behavior |
+| Mode | v0.0.6 behavior |
 |---|---|
 | Subdivision Ladder | 1/2/3/4 attacks per metric beat, in that order. A sounding beat cycles its TI/TA *attack sequence*, ignoring within-beat OFF gaps; completely silent/muted beats and sustained long-note spans are preserved. `ladder_bars` controls stage duration, default 2. This is a **generated exercise**, not a lossless resampling of arbitrary mixed-grid note/rest timing. |
 | Burst Trainer | **A–B–A–B**: unchanged configurable 4 base bars / 1 alternative-BPM bar cycle. **Custom**: one «Рывок» checkbox per metric beat card, from 1–16 in the selected meter (e.g. six flags for 6/4). Each marked beat uses «Рывок, BPM», every other beat uses the base BPM. Mask repeats every bar. Both directions (fast or slow) allowed. Original Pattern is unchanged. |
@@ -247,7 +247,7 @@ The first work-branch implementation intentionally chooses a small, repeatable e
 
 Custom Burst changes the duration of *a whole metric beat* at the beginning of that beat, not of a subdivision inside it. For example, 4/4 at base 50 and alternative 100 BPM with mask [off, on, off, on] lasts 1.2+0.6+1.2+0.6 seconds per bar. The next bar repeats the mask; 6/4 allows six independent tempo decisions. Mute and covered long-note beats may still have a tempo selection because beat duration remains musically meaningful. Count-in stays at base BPM. A/B blocks ignore any saved Custom flags, and switching back retains them. On playback, tempo-map edits stop the exercise rather than introducing an unsynchronized mid-beat change.
 
-All settings persist in both session snapshots and ignored application settings with backward-compatible defaults. New tempo modes disable the independent Tempo Trainer modifier. Current MIDI/GP5/WAV exports deliberately continue to export the **stored Pattern at base BPM** rather than render variable Training Mode stages. They remain pattern exports, not whole-session exercise renders. A later export-mode feature would require its own specification and tests. Existing v0.0.5 release/version remain unchanged.
+All settings persist in both session snapshots and ignored application settings with backward-compatible defaults. New tempo modes disable the independent Tempo Trainer modifier. Current MIDI/GP5/WAV exports deliberately continue to export the **stored Pattern at base BPM** rather than render variable Training Mode stages. They remain pattern exports, not whole-session exercise renders. A later export-mode feature would require its own specification and tests. Previous v0.0.5 tags remain immutable; v0.0.6 advances the release baseline.
 
 **Important visual distinction:** The normal editable beat cards represent the *stored* Pattern. Ladder hides those cards during playback because its effective beat grids differ; Focus renders the generated stage. Blind and recovery phases hide their note guidance; the visible pulse/phase label continues.
 
@@ -258,14 +258,14 @@ All settings persist in both session snapshots and ignored application settings 
 - Manual Custom checks: 4/4 mask 2+4, 50→100 BPM at beat boundaries; 6/4 mask 2+4+6, including triplet/eighth/sixteenth card subdivisions; 100→50 slowdown; Game timing; Focus rhythm; Stop restores base BPM. Confirm unchanged A/B bar schedule.
 - `./tt run` needs native Windows smoke across all seven modes, stage boundaries, meters, Game and Focus.
 - Round-trip save/load of new settings and old sessions must work, including when modes are switched while stopped.
-- User must explicitly confirm native acceptance before moving the modes into the published-product sections of `USER_GUIDE.md` or the bilingual READMEs, or attempting a new release.
+- The owner has confirmed `./tt check`, `./tt burst-smoke` and live Custom Burst playback on the development candidate. Re-run both suites on the exact release commit before creating the annotated v0.0.6 tag; other modes still warrant focused manual regression in future iterations.
 
-The implementation choices above are testable initial behavior, **not** evidence of local acceptance. Earlier open questions in the design studies remain future extension considerations rather than blockers to testing this first candidate.
+The contracts above describe shipped v0.0.6 implementation behavior. Earlier open questions remain background design ideas and should not be confused with additional implemented features.
 
 ## Implementation order and specification gate
 
-The seven modes were implemented together at the owner's request. The next phase is local verification and narrowly scoped fixes; no additional Training Mode implementation should be assumed accepted yet.
+The seven modes were implemented together after v0.0.5. The next development phase is incremental hardening and targeted improvements, not wholesale GUI replacement. New modes still require their own specification and tests.
 
 Before implementation, agree on: intended guitar-learning outcome; exact phase/state and transition rules; stored vs effective Pattern semantics; meter and mixed-grid edge cases; callback-clock scheduling and click behavior; Game targets; Focus; Picking Guide; settings/session migration; MIDI/GP5/WAV export; deterministic tests and user-local Windows GUI/audio acceptance.
 
-**Documentation promotion:** Do not describe the seven candidate modes as already shipped in `README.md`, `README.en.md` or `USER_GUIDE.md` until the native Windows gate is accepted. Revise this engineering study in place as actual behavior changes.
+**Documentation policy:** The bilingual READMEs and User Guide now describe the v0.0.6 source feature set. Preserve the distinction between verified automated coverage, the specifically accepted live Custom Burst scenario, and other modes not individually auditioned.
