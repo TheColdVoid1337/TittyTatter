@@ -5,20 +5,48 @@ All notable TittyTatter changes are recorded here.
 Numeric headings are added when a release version is chosen. Future development remains under **Unreleased** until its release checkpoint.
 
 
-## Unreleased (work branch; local validation pending)
+## 0.0.6 — 2026-10-23
+
+Version 0.0.6 introduces seven additional guitar Training Modes and an enhanced
+Burst Trainer with the original A–B–A–B whole-bar schedule or per-beat Custom tempo
+selection. See [full release notes](RELEASE_NOTES_0.0.6.md).
 
 ### Added
-- First candidates for seven additional Training Modes: Subdivision Ladder, Burst Trainer, Accent Trainer, Blind Pattern, Endurance Intervals, Tempo Wave and Random Tempo Blocks.
-- Mode-specific Russian controls, practical in-app diagrams, callback-driven phase scheduling and shared Training/Game target handling.
-- Stable seeded tempo-block generation, ladder effective-pattern projection, independent tempo-stage BPM, and new session/settings fields with legacy defaults.
-- `test_training_modes.py` wired into the canonical `./tt check` gate.
-- Burst Trainer on `work` now has two variants: **A–B–A–B** (unchanged whole-bar block schedule) and **Custom** (individual beat cards expose a «Рывок» checkbox). Custom repeats its meter-length selection mask every bar and uses the existing «Рывок, BPM» for marked beats; base BPM comes from the transport and can be higher or lower than the alternate tempo.
-- Custom Burst changes BPM on callback-controlled metric-beat boundaries without changing subdivisions or shared Game targets. Beat mask/variant persist in new and legacy-compatible sessions and settings. A separate `./tt burst-smoke` checks Qt controls and persistence.
 
-### Compatibility / pending
-- Published v0.0.5 remains untouched; this work has not yet passed native Windows `./tt check` or `./tt run`.
-- MIDI/GP5/WAV exports still represent the stored Pattern at base BPM; they do not export stage progressions.
-- Public READMEs and end-user guide are not yet promoted to claim this unaccepted feature set.
+- Seven modes: Subdivision Ladder, Burst Trainer, Accent Shift, Blind Pattern,
+  Endurance Intervals, Tempo Wave and seeded Random Tempo Blocks. Fourteen
+  Training Modes are now available in the original PySide6 interface.
+- Mode-specific Russian controls, contextual practice hints and stage diagrams.
+- **Requested by Fulton97:** Custom Burst's «Рывок» checkbox on each «Доля N»
+  card, allowing a selected metric beat to use the user-defined alternate
+  «Рывок, BPM». The number of flags follows the time signature; their mask
+  repeats within every bar. This is not a mandatory ×2 multiplier.
+- A–B–A–B Burst selection retains the existing base/alternate whole-bar
+  blocks. Custom BPM may be higher **or lower** than base.
+- Backward-compatible persistence of the Burst variant and per-beat mask in
+  JSON sessions and local settings. Existing session data defaults to A–B–A–B.
+- `test_training_modes.py` callback regressions included in `./tt check`,
+  plus optional `./tt burst-smoke` GUI/session checks.
+
+### Fixed / compatibility
+
+- Custom BPM switches on the PortAudio callback's metric-beat boundaries,
+  without creating an alternate scheduler or changing Game attack identities.
+- Count-in stays at base tempo, and each metric beat's subdivision maintains
+  one consistent BPM throughout the beat.
+- LF checkout rule for shell scripts, including `tt`, prevents the WSL CRLF
+  shebang failure.
+- Original UI, Picking Logic v2, Training/Game relationship and previous
+  seven Training Modes remain the canonical runtime.
+- MIDI/GP5/WAV **still export stored Pattern at base BPM**, not variable
+  Training Mode progressions. The Tkinter experiment is not shipped.
+
+### Validation
+
+- Owner confirmed `./tt check` PASS, `./tt burst-smoke` PASS and live
+  Custom Burst playback on Windows (2026-10-23) on the feature candidate.
+- Exact final release commit requires a fresh local gate before the
+  annotated tag and GitHub Release are published.
 
 ## 0.0.5 — 2026-10-14
 
