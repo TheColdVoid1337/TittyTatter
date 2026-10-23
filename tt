@@ -131,6 +131,9 @@ case "$cmd" in
 
   tk-smoke)
     ensure_tk_venv
+    echo "== Tk GUI compile check =="
+    "$TK_PY" -m py_compile "$(winpath "$ROOT/tk_app.py")" "$(winpath "$ROOT/tk_settings.py")" "$(winpath "$ROOT/tk_widgets.py")" "$(winpath "$ROOT/test_tk_gui.py")"
+    echo "== Tk GUI native smoke =="
     "$TK_PY" "$(winpath "$ROOT/test_tk_gui.py")" "$@"
     ;;
 

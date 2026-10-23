@@ -314,6 +314,14 @@ class TkApp(SettingsTabsMixin, tk.Tk):
             self.stop()
         if mode in TEMPO_MODES and self.get("tempo_trainer_enabled"):
             self.make_var("tempo_trainer_enabled").set(False)
+        # Preserve the Qt application's sound policy: TI and TA must not
+        # resolve to the same sample. Prefer changing TA when a conflict is
+        # entered; never modify the shared audio_engine sound bank.
+        if self.get("ti_sound") == self.get("ta_sound"):
+            self.set_option(
+                "ta_sound",
+                "Low tick" if self.get("ti_sound") != "Low tick" else "Wood",
+            )
         self.sync_engine()
         self.pattern_changed()
 
@@ -406,6 +414,7 @@ class TkApp(SettingsTabsMixin, tk.Tk):
         self.status_text.set(message)
         self.visual.game_text = ""
         self.visual.timer_text = ""
+        self.visual.stage_text = ""
         if self.editors:
             self._update_visual()
 
