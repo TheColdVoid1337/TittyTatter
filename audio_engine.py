@@ -21,6 +21,7 @@ from training_modes import (
     ladder_effective_pattern,
     ramp_stages,
     tempo_for_bar,
+    burst_beat_bpm,
     training_phase,
     sparse_click_matches,
 )
@@ -98,6 +99,8 @@ class EngineConfig:
     burst_base_bars: int = 4
     burst_fast_bars: int = 1
     burst_fast_bpm: int = 120
+    burst_variant: str = "ab"
+    burst_custom_beats: tuple[bool, ...] = ()
     accent_bars: int = 1
     tempo_min_bpm: int = 80
     tempo_max_bpm: int = 120
@@ -368,6 +371,15 @@ class AudioEngine:
 
     def _update_effective_bpm(self) -> None:
         cfg = self._config
+        if cfg.practice_mode == "burst" and cfg.burst_variant == "custom":
+            self._effective_bpm = (
+                float(cfg.bpm)
+                if self._count_in_beats_left > 0
+                else burst_beat_bpm(
+                    self._beat_index, cfg.bpm, cfg.burst_fast_bpm, cfg.burst_custom_beats
+                )
+            )
+            return
         self._effective_bpm = tempo_for_bar(
             cfg.practice_mode, self._bar_number, cfg.bpm,
             burst_base_bars=cfg.burst_base_bars,
@@ -612,6 +624,18 @@ class AudioEngine:
     ) -> tuple[list[tuple[np.ndarray, float]], float, tuple[str, int, int, int] | None]:
         cfg = self._config
         pattern = self._effective_pattern
+        # Custom Burst changes tempo only at a metric-beat boundary.
+        # This runs in the SAME audio callback as all substeps and Game targets.
+        # Count-in always uses the configured base BPM.
+        if (
+            cfg.practice_mode == "burst"
+            and cfg.burst_variant == "custom"
+            and self._count_in_beats_left == 0
+            and self._sub_index == 0
+        ):
+            self._effective_bpm = burst_beat_bpm(
+                self._beat_index, cfg.bpm, cfg.burst_fast_bpm, cfg.burst_custom_beats
+            )
         beat_samples = (
             self.sample_rate
             * 60.0

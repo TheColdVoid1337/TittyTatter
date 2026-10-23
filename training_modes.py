@@ -25,6 +25,7 @@ TRAINING_MODES = (
 RAMP_MODES = frozenset({"ramp_1_4", "ramp_2_4"})
 GAP_MODES = frozenset({"gap", "progressive_gap"})
 TEMPO_MODES = frozenset({"burst", "tempo_wave", "random_tempo"})
+BURST_VARIANTS = (("ab", "A–B–A–B"), ("custom", "Custom"))
 LADDER_GRIDS = ("beat", "duplet", "triplet", "quad")
 LADDER_LABELS = ("Четверти", "Восьмые", "Триоли", "Шестнадцатые")
 
@@ -299,3 +300,19 @@ def tempo_for_bar(
         height = position if position <= 3 else 6 - position
         return float(low + round((high - low) * height / 3))
     return base
+
+def burst_beat_bpm(
+    beat_index: int,
+    base_bpm: float,
+    burst_bpm: int,
+    selected_beats: tuple[bool, ...],
+) -> float:
+    """Custom Burst: the tempo of this *metric beat*, independent of Mute.
+
+    Each bit maps to a BeatEditor card (1..numerator); the same mask repeats
+    every bar. No change to TI/TA/OFF events or their subdivision semantics.
+    """
+    base = max(20.0, min(320.0, float(base_bpm)))
+    fast = float(max(20, min(320, int(burst_bpm))))
+    index = int(beat_index)
+    return fast if 0 <= index < len(selected_beats) and selected_beats[index] else base
