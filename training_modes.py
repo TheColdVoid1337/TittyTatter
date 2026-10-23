@@ -271,6 +271,18 @@ def _random_bpm(block: int, low: int, high: int, seed: int) -> int:
     return low + x % (high - low + 1)
 
 
+def resolved_burst_bpm(base_bpm: float, burst_bpm: int, burst_x2: bool = False) -> float:
+    """Alternate Burst BPM: a stored manual value or exactly 2x the base BPM.
+
+    The main BPM control is limited to 20..320. A true x2 operation can reach
+    640 BPM, so the multiplication must not be limited by the manual 320 cap.
+    """
+    base = max(20.0, min(320.0, float(base_bpm)))
+    if burst_x2:
+        return base * 2.0
+    return float(max(20, min(320, int(burst_bpm))))
+
+
 def tempo_for_bar(
     mode: str,
     bar_number: int,
@@ -279,6 +291,7 @@ def tempo_for_bar(
     burst_base_bars: int = 4,
     burst_fast_bars: int = 1,
     burst_fast_bpm: int = 120,
+    burst_x2: bool = False,
     tempo_min_bpm: int = 80,
     tempo_max_bpm: int = 120,
     tempo_block_bars: int = 2,
@@ -289,7 +302,7 @@ def tempo_for_bar(
     bar = max(0, int(bar_number))
     if mode == "burst":
         idx, _, _ = _cycle_phase(bar, (burst_base_bars, burst_fast_bars))
-        return float(max(20, min(320, int(burst_fast_bpm)))) if idx else base
+        return resolved_burst_bpm(base, burst_fast_bpm, burst_x2) if idx else base
     if mode in ("tempo_wave", "random_tempo"):
         low = max(20, min(320, int(tempo_min_bpm)))
         high = max(low, min(320, int(tempo_max_bpm)))
@@ -306,6 +319,7 @@ def burst_beat_bpm(
     base_bpm: float,
     burst_bpm: int,
     selected_beats: tuple[bool, ...],
+    burst_x2: bool = False,
 ) -> float:
     """Custom Burst: the tempo of this *metric beat*, independent of Mute.
 
@@ -313,6 +327,6 @@ def burst_beat_bpm(
     every bar. No change to TI/TA/OFF events or their subdivision semantics.
     """
     base = max(20.0, min(320.0, float(base_bpm)))
-    fast = float(max(20, min(320, int(burst_bpm))))
+    alternate = resolved_burst_bpm(base, burst_bpm, burst_x2)
     index = int(beat_index)
-    return fast if 0 <= index < len(selected_beats) and selected_beats[index] else base
+    return alternate if 0 <= index < len(selected_beats) and selected_beats[index] else base

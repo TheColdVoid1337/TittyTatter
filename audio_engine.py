@@ -99,6 +99,7 @@ class EngineConfig:
     burst_base_bars: int = 4
     burst_fast_bars: int = 1
     burst_fast_bpm: int = 120
+    burst_x2: bool = False
     burst_variant: str = "ab"
     burst_custom_beats: tuple[bool, ...] = ()
     accent_bars: int = 1
@@ -376,7 +377,8 @@ class AudioEngine:
                 float(cfg.bpm)
                 if self._count_in_beats_left > 0
                 else burst_beat_bpm(
-                    self._beat_index, cfg.bpm, cfg.burst_fast_bpm, cfg.burst_custom_beats
+                    self._beat_index, cfg.bpm, cfg.burst_fast_bpm, cfg.burst_custom_beats,
+                    cfg.burst_x2,
                 )
             )
             return
@@ -385,6 +387,7 @@ class AudioEngine:
             burst_base_bars=cfg.burst_base_bars,
             burst_fast_bars=cfg.burst_fast_bars,
             burst_fast_bpm=cfg.burst_fast_bpm,
+            burst_x2=cfg.burst_x2,
             tempo_min_bpm=cfg.tempo_min_bpm,
             tempo_max_bpm=cfg.tempo_max_bpm,
             tempo_block_bars=cfg.tempo_block_bars,
@@ -634,7 +637,8 @@ class AudioEngine:
             and self._sub_index == 0
         ):
             self._effective_bpm = burst_beat_bpm(
-                self._beat_index, cfg.bpm, cfg.burst_fast_bpm, cfg.burst_custom_beats
+                self._beat_index, cfg.bpm, cfg.burst_fast_bpm, cfg.burst_custom_beats,
+                cfg.burst_x2,
             )
         beat_samples = (
             self.sample_rate
